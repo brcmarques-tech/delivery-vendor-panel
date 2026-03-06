@@ -10,7 +10,7 @@ Painel administrativo (Next.js) para lojistas/vendedores do delivery.
 ## Instalação
 
 ```bash
-npm install
+yarn
 ```
 
 ## Variáveis de ambiente
@@ -24,9 +24,9 @@ cp .env.example .env.local
 ## Rodando
 
 ```bash
-npm run dev   # Desenvolvimento (http://localhost:3000)
-npm run build # Build de produção
-npm start     # Rodar build de produção
+yarn dev   # Desenvolvimento (http://localhost:3000)
+yarn build # Build de produção
+yarn start # Rodar build de produção
 ```
 
 ## Estrutura
