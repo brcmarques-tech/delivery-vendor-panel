@@ -49,9 +49,9 @@ export default function DashboardLayout({
   return (
     <div className="min-h-screen flex bg-gray-50">
       <aside className="w-64 bg-white border-r border-gray-200 flex flex-col">
-        <div className="p-6 border-b border-gray-100">
-          <h1 className="text-xl font-bold text-orange-500">Delivery</h1>
-          <p className="text-sm text-gray-500">Painel do Vendedor</p>
+        <div className="p-4 border-b border-gray-100">
+          <img src="/logo-dark.svg" alt="Delivery" className="h-12" />
+          <p className="text-xs text-gray-400 mt-1 text-center">Painel do Vendedor</p>
         </div>
 
         <nav className="flex-1 p-4 space-y-1">

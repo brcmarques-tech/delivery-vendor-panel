@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery, useMutation } from "@apollo/client";
+import { useQuery, useMutation, useLazyQuery } from "@apollo/client";
 import {
   GET_MY_STORES,
   CREATE_PRODUCT,
@@ -10,6 +10,8 @@ import {
   TOGGLE_PRODUCT_AVAILABILITY,
   UPDATE_PRODUCT,
   UPLOAD_IMAGE,
+  SEARCH_PRODUCT_IMAGES,
+  UPLOAD_FROM_URL,
 } from "@/lib/graphql";
 import { useState, useRef } from "react";
 
@@ -37,6 +39,8 @@ export default function ProductsPage() {
   const [toggleAvailability] = useMutation(TOGGLE_PRODUCT_AVAILABILITY);
   const [updateProduct] = useMutation(UPDATE_PRODUCT);
   const [uploadImage] = useMutation(UPLOAD_IMAGE);
+  const [uploadFromUrl] = useMutation(UPLOAD_FROM_URL);
+  const [searchImages, { loading: searchingImages }] = useLazyQuery(SEARCH_PRODUCT_IMAGES);
 
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [imageBase64, setImageBase64] = useState<string | null>(null);
@@ -47,6 +51,10 @@ export default function ProductsPage() {
   const editFileInputRef = useRef<HTMLInputElement>(null);
 
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
+  const [webImageResults, setWebImageResults] = useState<string[]>([]);
+  const [showWebSearch, setShowWebSearch] = useState<"create" | "edit" | null>(null);
+  const [webSearchQuery, setWebSearchQuery] = useState("");
+  const [savingWebImage, setSavingWebImage] = useState(false);
 
   const [categoryFilter, setCategoryFilter] = useState<string>("ALL");
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
@@ -86,6 +94,51 @@ export default function ProductsPage() {
         })()
       : null;
 
+  async function handleWebSearch(mode: "create" | "edit") {
+    const query = mode === "create" ? productForm.name : editForm.name;
+    if (!query.trim()) return;
+    setShowWebSearch(mode);
+    setWebSearchQuery(query);
+    setWebImageResults([]);
+    try {
+      const { data } = await searchImages({ variables: { query: query + " produto" } });
+      setWebImageResults(data?.searchProductImages || []);
+    } catch {
+      setError("Erro ao buscar imagens");
+    }
+  }
+
+  async function handleSelectWebImage(url: string) {
+    setSavingWebImage(true);
+    try {
+      const { data } = await uploadFromUrl({ variables: { url, folder: "products" } });
+      const savedUrl = data.uploadFromUrl;
+
+      if (showWebSearch === "create") {
+        setImagePreview(savedUrl);
+        setImageBase64(null); // não precisa, já tem URL do Cloudinary
+      } else {
+        setEditImagePreview(savedUrl);
+        setEditImageBase64(null);
+      }
+
+      // Se estiver editando um produto existente, salva direto
+      if (showWebSearch === "edit" && editingProduct) {
+        await updateProduct({
+          variables: { input: { id: editingProduct.id, imageUrl: savedUrl } },
+        });
+        refetch();
+      }
+
+      setShowWebSearch(null);
+      setWebImageResults([]);
+      setSavingWebImage(false);
+    } catch {
+      setSavingWebImage(false);
+      setError("Erro ao salvar imagem");
+    }
+  }
+
   function handleImageSelect(file: File, mode: "create" | "edit") {
     const reader = new FileReader();
     reader.onloadend = () => {
@@ -114,6 +167,9 @@ export default function ProductsPage() {
       if (imageBase64) {
         const { data: uploadData } = await uploadImage({ variables: { base64: imageBase64, folder: "products" } });
         imageUrl = uploadData.uploadImage;
+      } else if (imagePreview && imagePreview.startsWith("http")) {
+        // Imagem veio da busca web, já está no Cloudinary
+        imageUrl = imagePreview;
       }
       await createProduct({
         variables: {
@@ -385,6 +441,19 @@ export default function ProductsPage() {
                 </div>
               )}
             </div>
+            {productForm.name.trim() && !imagePreview && (
+              <button
+                type="button"
+                onClick={() => handleWebSearch("create")}
+                disabled={searchingImages}
+                className="mt-2 w-full py-2 text-sm text-blue-600 bg-blue-50 rounded-xl font-semibold cursor-pointer hover:bg-blue-100 active:scale-95 transition disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                {searchingImages ? "Buscando..." : "Buscar imagem na internet"}
+              </button>
+            )}
           </div>
           <div className="grid grid-cols-2 gap-4">
             <input type="text" placeholder="Nome do produto" value={productForm.name} onChange={(e) => setProductForm({ ...productForm, name: e.target.value })} className="px-4 py-2 border border-gray-200 rounded-xl text-gray-800" required />
@@ -429,6 +498,19 @@ export default function ProductsPage() {
                     </div>
                   )}
                 </div>
+                {editForm.name.trim() && !editImagePreview && (
+                  <button
+                    type="button"
+                    onClick={() => handleWebSearch("edit")}
+                    disabled={searchingImages}
+                    className="mt-2 w-full py-2 text-sm text-blue-600 bg-blue-50 rounded-xl font-semibold cursor-pointer hover:bg-blue-100 active:scale-95 transition disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    {searchingImages ? "Buscando..." : "Buscar imagem na internet"}
+                  </button>
+                )}
               </div>
               <div className="space-y-3">
                 <input type="text" placeholder="Nome" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} className="w-full px-4 py-2 border border-gray-200 rounded-xl text-gray-800" required />
@@ -587,6 +669,58 @@ export default function ProductsPage() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {/* Modal de busca de imagem na internet */}
+      {showWebSearch && (
+        <>
+          <div className="fixed inset-0 bg-black/50 z-50" onClick={() => { setShowWebSearch(null); setWebImageResults([]); }} />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col">
+              <div className="p-5 border-b border-gray-100">
+                <div className="flex items-center justify-between mb-1">
+                  <h3 className="font-bold text-gray-800 text-lg">Buscar imagem</h3>
+                  <button onClick={() => { setShowWebSearch(null); setWebImageResults([]); }} className="text-gray-400 hover:text-gray-600 cursor-pointer">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                <p className="text-sm text-gray-500">Resultados para &quot;{webSearchQuery}&quot;</p>
+              </div>
+              <div className="flex-1 overflow-y-auto p-4">
+                {searchingImages ? (
+                  <div className="flex items-center justify-center py-12">
+                    <div className="text-center">
+                      <div className="w-8 h-8 border-3 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                      <p className="text-sm text-gray-400">Buscando imagens...</p>
+                    </div>
+                  </div>
+                ) : webImageResults.length === 0 ? (
+                  <p className="text-center text-gray-400 py-12">Nenhuma imagem encontrada</p>
+                ) : (
+                  <div className="grid grid-cols-2 gap-3">
+                    {webImageResults.map((url, i) => (
+                      <button
+                        key={i}
+                        onClick={() => handleSelectWebImage(url)}
+                        disabled={savingWebImage}
+                        className="relative group rounded-xl overflow-hidden border-2 border-transparent hover:border-orange-500 cursor-pointer transition disabled:opacity-50"
+                      >
+                        <img src={url} alt={`Resultado ${i + 1}`} className="w-full h-36 object-cover" />
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition flex items-center justify-center">
+                          <span className="text-white text-sm font-bold opacity-0 group-hover:opacity-100 transition">
+                            {savingWebImage ? "Salvando..." : "Usar esta"}
+                          </span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </>
       )}
 
       {/* Modal de imagem ampliada */}

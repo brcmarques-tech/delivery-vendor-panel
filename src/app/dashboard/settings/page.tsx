@@ -1,13 +1,18 @@
 "use client";
 
 import { useMutation } from "@apollo/client";
-import { CREATE_STORE } from "@/lib/graphql";
-import { useState } from "react";
+import { CREATE_STORE, UPLOAD_IMAGE } from "@/lib/graphql";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 
 export default function SettingsPage() {
   const [createStore, { loading }] = useMutation(CREATE_STORE);
+  const [uploadImage] = useMutation(UPLOAD_IMAGE);
   const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [logoBase64, setLogoBase64] = useState<string | null>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
   const [form, setForm] = useState({
     name: "",
     description: "",
@@ -30,8 +35,33 @@ export default function SettingsPage() {
     setForm((prev) => ({ ...prev, [field]: value }));
   }
 
+  function handleLogoSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      setLogoPreview(result);
+      setLogoBase64(result);
+    };
+    reader.readAsDataURL(file);
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    let logoUrl: string | undefined;
+
+    if (logoBase64) {
+      setUploadingLogo(true);
+      try {
+        const { data } = await uploadImage({ variables: { base64: logoBase64, folder: "stores" } });
+        logoUrl = data?.uploadImage;
+      } catch {
+        // continue without logo
+      }
+      setUploadingLogo(false);
+    }
+
     await createStore({
       variables: {
         input: {
@@ -50,11 +80,14 @@ export default function SettingsPage() {
           deliveryFee: parseFloat(form.deliveryFee),
           estimatedDeliveryMinutes: parseInt(form.estimatedDeliveryMinutes),
           minimumOrder: parseFloat(form.minimumOrder),
+          logoUrl,
         },
       },
     });
     router.push("/dashboard");
   }
+
+  const isSubmitting = loading || uploadingLogo;
 
   return (
     <div>
@@ -62,7 +95,23 @@ export default function SettingsPage() {
 
       <form onSubmit={handleSubmit} className="bg-white rounded-2xl p-6 shadow-sm max-w-2xl">
         <div className="space-y-4">
-          <h3 className="font-bold text-gray-700">Informações básicas</h3>
+          <h3 className="font-bold text-gray-700">Logo da loja</h3>
+          <div className="flex items-center gap-4">
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              className="w-24 h-24 rounded-2xl border-2 border-dashed border-gray-300 flex items-center justify-center cursor-pointer hover:border-orange-400 transition overflow-hidden"
+            >
+              {logoPreview ? (
+                <img src={logoPreview} alt="Logo" className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-gray-400 text-3xl">+</span>
+              )}
+            </div>
+            <input ref={fileInputRef} type="file" accept="image/*" onChange={handleLogoSelect} className="hidden" />
+            <span className="text-sm text-gray-500">Clique para adicionar o logo</span>
+          </div>
+
+          <h3 className="font-bold text-gray-700 pt-2">Informações básicas</h3>
           <div className="grid grid-cols-2 gap-4">
             <input type="text" placeholder="Nome da loja" value={form.name} onChange={(e) => update("name", e.target.value)} className="px-4 py-2 border border-gray-200 rounded-xl text-gray-800 col-span-2" required />
             <input type="text" placeholder="Descrição" value={form.description} onChange={(e) => update("description", e.target.value)} className="px-4 py-2 border border-gray-200 rounded-xl text-gray-800 col-span-2" />
@@ -98,10 +147,10 @@ export default function SettingsPage() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={isSubmitting}
             className="mt-6 w-full py-3 bg-orange-500 text-white rounded-xl font-bold cursor-pointer hover:bg-orange-600 active:scale-95 disabled:opacity-50 transition"
           >
-            {loading ? "Criando..." : "Criar loja"}
+            {isSubmitting ? "Criando..." : "Criar loja"}
           </button>
         </div>
       </form>

@@ -21,9 +21,20 @@ export const REGISTER = gql`
 export const GET_MY_STORES = gql`
   query MyStores {
     myStores {
-      id name description isOpen deliveryFee estimatedDeliveryMinutes
+      id name description isOpen deliveryFee estimatedDeliveryMinutes minimumOrder
+      phone street number complement neighborhood city state zipCode
+      logoUrl bannerUrl
       products { id name price isAvailable stock imageUrl category { id name } }
       categories { id name }
+    }
+  }
+`;
+
+export const UPDATE_STORE = gql`
+  mutation UpdateStore($input: UpdateStoreInput!) {
+    updateStore(input: $input) {
+      id name description phone street number complement neighborhood city state zipCode
+      deliveryFee estimatedDeliveryMinutes minimumOrder logoUrl bannerUrl
     }
   }
 `;
@@ -60,6 +71,18 @@ export const CREATE_CATEGORY = gql`
 export const UPLOAD_IMAGE = gql`
   mutation UploadImage($base64: String!, $folder: String) {
     uploadImage(base64: $base64, folder: $folder)
+  }
+`;
+
+export const SEARCH_PRODUCT_IMAGES = gql`
+  query SearchProductImages($query: String!) {
+    searchProductImages(query: $query)
+  }
+`;
+
+export const UPLOAD_FROM_URL = gql`
+  mutation UploadFromUrl($url: String!, $folder: String) {
+    uploadFromUrl(url: $url, folder: $folder)
   }
 `;
 
@@ -118,7 +141,39 @@ export const GET_AVAILABLE_PLANS = gql`
 
 export const CREATE_PROMOTION = gql`
   mutation CreatePromotion($input: CreatePromotionInput!) {
-    createPromotion(input: $input) { id title }
+    createPromotion(input: $input) { id title checkoutUrl }
+  }
+`;
+
+export const MY_PROMOTIONS = gql`
+  query MyPromotions {
+    myPromotions {
+      id title description imageUrl startDate endDate isActive isPaid
+      promotionalPrice adCost
+      store { id name }
+      product { id name imageUrl price }
+    }
+  }
+`;
+
+export const GET_PROMO_PRICE_PER_DAY = gql`
+  query PromoPricePerDay {
+    promoPricePerDay
+  }
+`;
+
+export const DELETE_PROMOTION = gql`
+  mutation DeletePromotion($id: String!) {
+    deletePromotion(id: $id)
+  }
+`;
+
+export const SWAP_PROMOTION_PRODUCT = gql`
+  mutation SwapPromotionProduct($id: String!, $productId: String!, $promotionalPrice: Float!, $title: String!) {
+    swapPromotionProduct(id: $id, productId: $productId, promotionalPrice: $promotionalPrice, title: $title) {
+      id title promotionalPrice imageUrl
+      product { id name imageUrl price }
+    }
   }
 `;
 
