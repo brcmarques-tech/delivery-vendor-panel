@@ -25,7 +25,7 @@ export default function LoginPage() {
       localStorage.setItem("user", JSON.stringify(data.login.user));
       router.push("/dashboard");
     } catch {
-      setError("Email ou senha invalidos");
+      setError("Email ou senha inválidos");
     }
   }
 
@@ -70,7 +70,7 @@ export default function LoginPage() {
         </form>
 
         <p className="text-center text-gray-500 mt-6 text-sm">
-          Ainda nao tem conta?{" "}
+          Ainda não tem conta?{" "}
           <a href="/register" className="text-orange-500 font-semibold hover:underline">
             Cadastre-se como vendedor
           </a>

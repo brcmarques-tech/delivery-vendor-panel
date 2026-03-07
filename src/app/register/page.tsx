@@ -21,7 +21,7 @@ export default function RegisterPage() {
     setError("");
 
     if (password !== confirmPassword) {
-      setError("As senhas nao coincidem");
+      setError("As senhas não coincidem");
       return;
     }
 
@@ -38,7 +38,7 @@ export default function RegisterPage() {
       });
       setSuccess(true);
     } catch {
-      setError("Erro ao criar conta. Verifique se o email ou telefone ja estao cadastrados.");
+      setError("Erro ao criar conta. Verifique se o email ou telefone já estão cadastrados.");
     }
   }
 
@@ -49,8 +49,8 @@ export default function RegisterPage() {
           <div className="text-5xl mb-4">&#9203;</div>
           <h2 className="text-2xl font-bold text-gray-800 mb-2">Cadastro enviado!</h2>
           <p className="text-gray-500 mb-6">
-            Sua solicitacao para ser vendedor foi enviada e esta aguardando aprovacao do administrador.
-            Voce sera notificado quando sua conta for aprovada.
+            Sua solicitação para ser vendedor foi enviada e está aguardando aprovação do administrador.
+            Você será notificado quando sua conta for aprovada.
           </p>
           <button
             onClick={() => router.push("/")}
@@ -116,7 +116,7 @@ export default function RegisterPage() {
           />
 
           <div className="bg-orange-50 p-3 rounded-lg text-sm text-orange-700">
-            Seu cadastro precisara de aprovacao do administrador antes de poder acessar o painel.
+            Seu cadastro precisará de aprovação do administrador antes de poder acessar o painel.
           </div>
 
           <button
@@ -129,7 +129,7 @@ export default function RegisterPage() {
         </form>
 
         <p className="text-center text-gray-500 mt-6 text-sm">
-          Ja tem conta?{" "}
+          Já tem conta?{" "}
           <a href="/" className="text-orange-500 font-semibold hover:underline">
             Fazer login
           </a>

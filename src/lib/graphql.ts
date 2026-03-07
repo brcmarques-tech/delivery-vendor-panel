@@ -68,3 +68,43 @@ export const TOGGLE_STORE_OPEN = gql`
     toggleStoreOpen(id: $id) { id isOpen }
   }
 `;
+
+export const GET_MY_PLAN = gql`
+  query Me {
+    me {
+      id vendorPlan planExpiresAt
+      stores { id }
+    }
+  }
+`;
+
+export const GET_AVAILABLE_PLANS = gql`
+  query AvailablePlans {
+    availablePlans {
+      plan maxStores commissionRate platformDeliveryFee canPromote monthlyPrice
+    }
+  }
+`;
+
+export const CREATE_PROMOTION = gql`
+  mutation CreatePromotion($input: CreatePromotionInput!) {
+    createPromotion(input: $input) { id title }
+  }
+`;
+
+export const CREATE_PLAN_UPGRADE = gql`
+  mutation CreatePlanUpgrade($plan: VendorPlan!) {
+    createPlanUpgrade(plan: $plan) {
+      id checkoutUrl status
+    }
+  }
+`;
+
+export const GET_ACTIVE_PROMOTIONS = gql`
+  query ActivePromotions {
+    activePromotions {
+      id title description imageUrl startDate endDate isActive isPaid price
+      store { id name }
+    }
+  }
+`;

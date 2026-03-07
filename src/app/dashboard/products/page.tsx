@@ -134,7 +134,7 @@ export default function ProductsPage() {
             <input
               type="number"
               step="0.01"
-              placeholder="Preco (R$)"
+              placeholder="Preço (R$)"
               value={productForm.price}
               onChange={(e) => setProductForm({ ...productForm, price: e.target.value })}
               className="px-4 py-2 border border-gray-200 rounded-xl text-gray-800"
@@ -142,7 +142,7 @@ export default function ProductsPage() {
             />
             <input
               type="text"
-              placeholder="Descricao (opcional)"
+              placeholder="Descrição (opcional)"
               value={productForm.description}
               onChange={(e) => setProductForm({ ...productForm, description: e.target.value })}
               className="px-4 py-2 border border-gray-200 rounded-xl text-gray-800"
@@ -176,7 +176,7 @@ export default function ProductsPage() {
           <thead className="bg-gray-50">
             <tr>
               <th className="text-left px-6 py-3 text-sm font-semibold text-gray-600">Produto</th>
-              <th className="text-left px-6 py-3 text-sm font-semibold text-gray-600">Preco</th>
+              <th className="text-left px-6 py-3 text-sm font-semibold text-gray-600">Preço</th>
               <th className="text-left px-6 py-3 text-sm font-semibold text-gray-600">Estoque</th>
               <th className="text-left px-6 py-3 text-sm font-semibold text-gray-600">Status</th>
             </tr>
@@ -202,7 +202,7 @@ export default function ProductsPage() {
                           : "bg-red-100 text-red-600"
                       }`}
                     >
-                      {product.isAvailable ? "Disponivel" : "Indisponivel"}
+                      {product.isAvailable ? "Disponível" : "Indisponível"}
                     </span>
                   </td>
                 </tr>

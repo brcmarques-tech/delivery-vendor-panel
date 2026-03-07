@@ -62,17 +62,17 @@ export default function SettingsPage() {
 
       <form onSubmit={handleSubmit} className="bg-white rounded-2xl p-6 shadow-sm max-w-2xl">
         <div className="space-y-4">
-          <h3 className="font-bold text-gray-700">Informacoes basicas</h3>
+          <h3 className="font-bold text-gray-700">Informações básicas</h3>
           <div className="grid grid-cols-2 gap-4">
             <input type="text" placeholder="Nome da loja" value={form.name} onChange={(e) => update("name", e.target.value)} className="px-4 py-2 border border-gray-200 rounded-xl text-gray-800 col-span-2" required />
-            <input type="text" placeholder="Descricao" value={form.description} onChange={(e) => update("description", e.target.value)} className="px-4 py-2 border border-gray-200 rounded-xl text-gray-800 col-span-2" />
+            <input type="text" placeholder="Descrição" value={form.description} onChange={(e) => update("description", e.target.value)} className="px-4 py-2 border border-gray-200 rounded-xl text-gray-800 col-span-2" />
             <input type="text" placeholder="Telefone" value={form.phone} onChange={(e) => update("phone", e.target.value)} className="px-4 py-2 border border-gray-200 rounded-xl text-gray-800" required />
           </div>
 
-          <h3 className="font-bold text-gray-700 pt-4">Endereco</h3>
+          <h3 className="font-bold text-gray-700 pt-4">Endereço</h3>
           <div className="grid grid-cols-2 gap-4">
             <input type="text" placeholder="Rua" value={form.street} onChange={(e) => update("street", e.target.value)} className="px-4 py-2 border border-gray-200 rounded-xl text-gray-800" required />
-            <input type="text" placeholder="Numero" value={form.number} onChange={(e) => update("number", e.target.value)} className="px-4 py-2 border border-gray-200 rounded-xl text-gray-800" required />
+            <input type="text" placeholder="Número" value={form.number} onChange={(e) => update("number", e.target.value)} className="px-4 py-2 border border-gray-200 rounded-xl text-gray-800" required />
             <input type="text" placeholder="Complemento" value={form.complement} onChange={(e) => update("complement", e.target.value)} className="px-4 py-2 border border-gray-200 rounded-xl text-gray-800" />
             <input type="text" placeholder="Bairro" value={form.neighborhood} onChange={(e) => update("neighborhood", e.target.value)} className="px-4 py-2 border border-gray-200 rounded-xl text-gray-800" required />
             <input type="text" placeholder="Cidade" value={form.city} onChange={(e) => update("city", e.target.value)} className="px-4 py-2 border border-gray-200 rounded-xl text-gray-800" required />
@@ -91,7 +91,7 @@ export default function SettingsPage() {
               <input type="number" value={form.estimatedDeliveryMinutes} onChange={(e) => update("estimatedDeliveryMinutes", e.target.value)} className="w-full px-4 py-2 border border-gray-200 rounded-xl text-gray-800" />
             </div>
             <div>
-              <label className="text-sm text-gray-500">Pedido minimo (R$)</label>
+              <label className="text-sm text-gray-500">Pedido mínimo (R$)</label>
               <input type="number" step="0.01" value={form.minimumOrder} onChange={(e) => update("minimumOrder", e.target.value)} className="w-full px-4 py-2 border border-gray-200 rounded-xl text-gray-800" />
             </div>
           </div>

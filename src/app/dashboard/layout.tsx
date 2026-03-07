@@ -5,10 +5,12 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 const navItems = [
-  { href: "/dashboard", label: "Visao Geral", icon: "📊" },
+  { href: "/dashboard", label: "Visão Geral", icon: "📊" },
   { href: "/dashboard/orders", label: "Pedidos", icon: "📋" },
   { href: "/dashboard/products", label: "Produtos", icon: "📦" },
-  { href: "/dashboard/settings", label: "Configuracoes", icon: "⚙️" },
+  { href: "/dashboard/promotions", label: "Promoções", icon: "📢" },
+  { href: "/dashboard/plan", label: "Meu Plano", icon: "💎" },
+  { href: "/dashboard/settings", label: "Configurações", icon: "⚙️" },
 ];
 
 export default function DashboardLayout({
