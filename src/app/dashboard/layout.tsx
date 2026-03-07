@@ -64,7 +64,7 @@ export default function DashboardLayout({
           <p className="text-sm text-gray-600 mb-2">{user?.name}</p>
           <button
             onClick={handleLogout}
-            className="text-sm text-red-500 hover:text-red-600"
+            className="text-sm text-red-500 cursor-pointer hover:text-red-600 active:scale-95 transition"
           >
             Sair
           </button>

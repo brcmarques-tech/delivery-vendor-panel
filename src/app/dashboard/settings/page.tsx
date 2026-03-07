@@ -99,7 +99,7 @@ export default function SettingsPage() {
           <button
             type="submit"
             disabled={loading}
-            className="mt-6 w-full py-3 bg-orange-500 text-white rounded-xl font-bold hover:bg-orange-600 disabled:opacity-50 transition"
+            className="mt-6 w-full py-3 bg-orange-500 text-white rounded-xl font-bold cursor-pointer hover:bg-orange-600 active:scale-95 disabled:opacity-50 transition"
           >
             {loading ? "Criando..." : "Criar loja"}
           </button>

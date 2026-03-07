@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation } from "@apollo/client";
 import { GET_MY_STORES, GET_STORE_ORDERS, UPDATE_ORDER_STATUS } from "@/lib/graphql";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 
 const statusLabels: Record<string, { label: string; color: string }> = {
   PENDING: { label: "Pendente", color: "bg-yellow-100 text-yellow-700" },
@@ -19,12 +19,44 @@ const nextStatus: Record<string, string> = {
   PENDING: "ACCEPTED",
   ACCEPTED: "PREPARING",
   PREPARING: "READY",
+  READY: "PICKED_UP",
+  PICKED_UP: "DELIVERING",
+  DELIVERING: "DELIVERED",
 };
+
+function playNotificationSound() {
+  const ctx = new AudioContext();
+  const oscillator = ctx.createOscillator();
+  const gain = ctx.createGain();
+  oscillator.connect(gain);
+  gain.connect(ctx.destination);
+  oscillator.frequency.value = 880;
+  oscillator.type = "sine";
+  gain.gain.setValueAtTime(0.3, ctx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+  oscillator.start(ctx.currentTime);
+  oscillator.stop(ctx.currentTime + 0.5);
+
+  setTimeout(() => {
+    const osc2 = ctx.createOscillator();
+    const gain2 = ctx.createGain();
+    osc2.connect(gain2);
+    gain2.connect(ctx.destination);
+    osc2.frequency.value = 1100;
+    osc2.type = "sine";
+    gain2.gain.setValueAtTime(0.3, ctx.currentTime);
+    gain2.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+    osc2.start(ctx.currentTime);
+    osc2.stop(ctx.currentTime + 0.5);
+  }, 200);
+}
 
 export default function OrdersPage() {
   const { data: storesData } = useQuery(GET_MY_STORES);
   const stores = storesData?.myStores || [];
   const [selectedStore, setSelectedStore] = useState<string>("");
+  const [notification, setNotification] = useState<string | null>(null);
+  const prevOrderIdsRef = useRef<Set<string> | null>(null);
 
   useEffect(() => {
     if (stores.length > 0 && !selectedStore) {
@@ -41,6 +73,34 @@ export default function OrdersPage() {
   const [updateStatus] = useMutation(UPDATE_ORDER_STATUS);
   const orders = ordersData?.storeOrders || [];
 
+  const checkNewOrders = useCallback((currentOrders: any[]) => {
+    const currentIds = new Set(currentOrders.map((o: any) => o.id));
+
+    if (prevOrderIdsRef.current === null) {
+      prevOrderIdsRef.current = currentIds;
+      return;
+    }
+
+    const newOrders = currentOrders.filter((o: any) => !prevOrderIdsRef.current!.has(o.id));
+    if (newOrders.length > 0) {
+      playNotificationSound();
+      setNotification(
+        newOrders.length === 1
+          ? `Novo pedido #${newOrders[0].orderNumber}!`
+          : `${newOrders.length} novos pedidos!`
+      );
+      setTimeout(() => setNotification(null), 5000);
+    }
+
+    prevOrderIdsRef.current = currentIds;
+  }, []);
+
+  useEffect(() => {
+    if (orders.length > 0) {
+      checkNewOrders(orders);
+    }
+  }, [orders, checkNewOrders]);
+
   async function handleAdvanceStatus(orderId: string, currentStatus: string) {
     const next = nextStatus[currentStatus];
     if (!next) return;
@@ -50,6 +110,12 @@ export default function OrdersPage() {
 
   return (
     <div>
+      {notification && (
+        <div className="fixed top-4 right-4 bg-orange-500 text-white px-6 py-4 rounded-2xl shadow-lg z-50 animate-bounce">
+          <p className="font-bold">{notification}</p>
+        </div>
+      )}
+
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-800">Pedidos</h1>
         {stores.length > 1 && (
@@ -109,11 +175,14 @@ export default function OrdersPage() {
                   {canAdvance && (
                     <button
                       onClick={() => handleAdvanceStatus(order.id, order.status)}
-                      className="bg-orange-500 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-orange-600 transition"
+                      className="bg-orange-500 text-white px-4 py-2 rounded-xl text-sm font-bold cursor-pointer hover:bg-orange-600 active:scale-95 transition"
                     >
                       {order.status === "PENDING" && "Aceitar pedido"}
                       {order.status === "ACCEPTED" && "Iniciar preparo"}
                       {order.status === "PREPARING" && "Marcar como pronto"}
+                      {order.status === "READY" && "Saiu para entrega"}
+                      {order.status === "PICKED_UP" && "A caminho"}
+                      {order.status === "DELIVERING" && "Entregue"}
                     </button>
                   )}
                 </div>

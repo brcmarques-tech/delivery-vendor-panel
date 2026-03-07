@@ -9,6 +9,15 @@ export const LOGIN = gql`
   }
 `;
 
+export const REGISTER = gql`
+  mutation Register($input: RegisterInput!) {
+    register(input: $input) {
+      accessToken
+      user { id name email role }
+    }
+  }
+`;
+
 export const GET_MY_STORES = gql`
   query MyStores {
     myStores {

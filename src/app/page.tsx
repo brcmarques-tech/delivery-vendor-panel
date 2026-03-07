@@ -63,11 +63,18 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 bg-orange-500 text-white rounded-xl font-bold hover:bg-orange-600 disabled:opacity-50 transition"
+            className="w-full py-3 bg-orange-500 text-white rounded-xl font-bold cursor-pointer hover:bg-orange-600 active:scale-95 disabled:opacity-50 transition"
           >
             {loading ? "Entrando..." : "Entrar"}
           </button>
         </form>
+
+        <p className="text-center text-gray-500 mt-6 text-sm">
+          Ainda nao tem conta?{" "}
+          <a href="/register" className="text-orange-500 font-semibold hover:underline">
+            Cadastre-se como vendedor
+          </a>
+        </p>
       </div>
     </div>
   );

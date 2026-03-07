@@ -29,7 +29,7 @@ export default function DashboardPage() {
         </p>
         <a
           href="/dashboard/settings"
-          className="bg-orange-500 text-white px-6 py-3 rounded-xl font-bold hover:bg-orange-600 transition"
+          className="bg-orange-500 text-white px-6 py-3 rounded-xl font-bold cursor-pointer hover:bg-orange-600 active:scale-95 transition"
         >
           Criar loja
         </a>
@@ -48,10 +48,10 @@ export default function DashboardPage() {
               <h2 className="text-lg font-bold text-gray-800">{store.name}</h2>
               <button
                 onClick={() => handleToggle(store.id)}
-                className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                className={`px-3 py-1 rounded-full text-sm font-semibold cursor-pointer active:scale-95 transition ${
                   store.isOpen
-                    ? "bg-green-100 text-green-600"
-                    : "bg-red-100 text-red-600"
+                    ? "bg-green-100 text-green-600 hover:bg-green-200"
+                    : "bg-red-100 text-red-600 hover:bg-red-200"
                 }`}
               >
                 {store.isOpen ? "Aberta" : "Fechada"}

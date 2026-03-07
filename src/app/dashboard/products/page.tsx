@@ -2,14 +2,15 @@
 
 import { useQuery, useMutation } from "@apollo/client";
 import { GET_MY_STORES, CREATE_PRODUCT, CREATE_CATEGORY } from "@/lib/graphql";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
 export default function ProductsPage() {
-  const { data: storesData, refetch } = useQuery(GET_MY_STORES);
+  const { data: storesData, refetch, error: storesError } = useQuery(GET_MY_STORES);
   const stores = storesData?.myStores || [];
-  const [selectedStore, setSelectedStore] = useState<string>("");
+  const [selectedStoreId, setSelectedStoreId] = useState<string>("");
   const [showProductForm, setShowProductForm] = useState(false);
   const [showCategoryForm, setShowCategoryForm] = useState(false);
+  const [error, setError] = useState("");
 
   const [productForm, setProductForm] = useState({
     name: "",
@@ -23,57 +24,76 @@ export default function ProductsPage() {
   const [createProduct] = useMutation(CREATE_PRODUCT);
   const [createCategory] = useMutation(CREATE_CATEGORY);
 
-  useEffect(() => {
-    if (stores.length > 0 && !selectedStore) {
-      setSelectedStore(stores[0].id);
-    }
-  }, [stores, selectedStore]);
-
-  const store = stores.find((s: any) => s.id === selectedStore);
+  const activeStoreId = selectedStoreId || (stores.length > 0 ? stores[0].id : "");
+  const store = stores.find((s: any) => s.id === activeStoreId);
   const products = store?.products || [];
   const categories = store?.categories || [];
 
   async function handleCreateProduct(e: React.FormEvent) {
     e.preventDefault();
-    await createProduct({
-      variables: {
-        input: {
-          name: productForm.name,
-          description: productForm.description || undefined,
-          price: parseFloat(productForm.price),
-          unit: productForm.unit || undefined,
-          storeId: selectedStore,
-          categoryId: productForm.categoryId || undefined,
+    setError("");
+    if (!activeStoreId) {
+      setError("Nenhuma loja encontrada. Crie uma loja primeiro.");
+      return;
+    }
+    try {
+      await createProduct({
+        variables: {
+          input: {
+            name: productForm.name,
+            description: productForm.description || undefined,
+            price: parseFloat(productForm.price),
+            unit: productForm.unit || undefined,
+            storeId: activeStoreId,
+            categoryId: productForm.categoryId || undefined,
+          },
         },
-      },
-    });
-    setProductForm({ name: "", description: "", price: "", unit: "", categoryId: "" });
-    setShowProductForm(false);
-    refetch();
+      });
+      setProductForm({ name: "", description: "", price: "", unit: "", categoryId: "" });
+      setShowProductForm(false);
+      refetch();
+    } catch (err: any) {
+      setError(err.message || "Erro ao criar produto");
+    }
   }
 
   async function handleCreateCategory(e: React.FormEvent) {
     e.preventDefault();
-    await createCategory({ variables: { name: categoryName, storeId: selectedStore } });
-    setCategoryName("");
-    setShowCategoryForm(false);
-    refetch();
+    setError("");
+    if (!activeStoreId) {
+      setError("Nenhuma loja encontrada. Crie uma loja primeiro.");
+      return;
+    }
+    try {
+      await createCategory({ variables: { name: categoryName, storeId: activeStoreId } });
+      setCategoryName("");
+      setShowCategoryForm(false);
+      refetch();
+    } catch (err: any) {
+      setError(err.message || "Erro ao criar categoria");
+    }
   }
 
   return (
     <div>
+      {(error || storesError) && (
+        <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm mb-4">
+          {error || storesError?.message}
+        </div>
+      )}
+
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-800">Produtos</h1>
         <div className="flex gap-3">
           <button
             onClick={() => setShowCategoryForm(!showCategoryForm)}
-            className="px-4 py-2 border border-orange-500 text-orange-500 rounded-xl text-sm font-bold hover:bg-orange-50 transition"
+            className="px-4 py-2 border border-orange-500 text-orange-500 rounded-xl text-sm font-bold cursor-pointer hover:bg-orange-50 active:scale-95 transition"
           >
             + Categoria
           </button>
           <button
             onClick={() => setShowProductForm(!showProductForm)}
-            className="px-4 py-2 bg-orange-500 text-white rounded-xl text-sm font-bold hover:bg-orange-600 transition"
+            className="px-4 py-2 bg-orange-500 text-white rounded-xl text-sm font-bold cursor-pointer hover:bg-orange-600 active:scale-95 transition"
           >
             + Produto
           </button>
@@ -92,7 +112,7 @@ export default function ProductsPage() {
               className="flex-1 px-4 py-2 border border-gray-200 rounded-xl text-gray-800"
               required
             />
-            <button type="submit" className="px-6 py-2 bg-orange-500 text-white rounded-xl font-bold">
+            <button type="submit" className="px-6 py-2 bg-orange-500 text-white rounded-xl font-bold cursor-pointer hover:bg-orange-600 active:scale-95 transition">
               Criar
             </button>
           </div>
@@ -144,7 +164,7 @@ export default function ProductsPage() {
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
             </select>
-            <button type="submit" className="px-6 py-2 bg-orange-500 text-white rounded-xl font-bold">
+            <button type="submit" className="px-6 py-2 bg-orange-500 text-white rounded-xl font-bold cursor-pointer hover:bg-orange-600 active:scale-95 transition">
               Adicionar produto
             </button>
           </div>
