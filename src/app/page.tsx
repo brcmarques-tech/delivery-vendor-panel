@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useMutation } from "@apollo/client";
 import { LOGIN } from "@/lib/graphql";
+import { apolloClient } from "@/lib/apollo";
 import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
@@ -17,12 +18,13 @@ export default function LoginPage() {
     setError("");
     try {
       const { data } = await login({ variables: { input: { email, password } } });
-      if (data.login.user.role !== "VENDOR" && data.login.user.role !== "ADMIN") {
+      if (data.login.user.role !== "VENDOR") {
         setError("Acesso permitido apenas para vendedores");
         return;
       }
       localStorage.setItem("token", data.login.accessToken);
       localStorage.setItem("user", JSON.stringify(data.login.user));
+      await apolloClient.resetStore();
       router.push("/dashboard");
     } catch {
       setError("Email ou senha inválidos");

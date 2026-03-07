@@ -5,6 +5,7 @@ import { GET_MY_STORES, GET_STORE_ORDERS, UPDATE_ORDER_STATUS } from "@/lib/grap
 import { useState, useEffect, useRef, useCallback } from "react";
 
 const statusLabels: Record<string, { label: string; color: string }> = {
+  AWAITING_PAYMENT: { label: "Aguardando pagamento", color: "bg-orange-100 text-orange-700" },
   PENDING: { label: "Pendente", color: "bg-yellow-100 text-yellow-700" },
   ACCEPTED: { label: "Aceito", color: "bg-blue-100 text-blue-700" },
   PREPARING: { label: "Preparando", color: "bg-indigo-100 text-indigo-700" },

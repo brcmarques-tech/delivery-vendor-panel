@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { apolloClient } from "@/lib/apollo";
 
 const navItems = [
   { href: "/dashboard", label: "Visão Geral", icon: "📊" },
@@ -28,12 +29,20 @@ export default function DashboardLayout({
       router.push("/");
       return;
     }
-    setUser(JSON.parse(stored));
+    const parsed = JSON.parse(stored);
+    if (parsed.role !== "VENDOR") {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      router.push("/");
+      return;
+    }
+    setUser(parsed);
   }, [router]);
 
   function handleLogout() {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
+    apolloClient.clearStore();
     router.push("/");
   }
 

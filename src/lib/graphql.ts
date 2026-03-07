@@ -22,7 +22,7 @@ export const GET_MY_STORES = gql`
   query MyStores {
     myStores {
       id name description isOpen deliveryFee estimatedDeliveryMinutes
-      products { id name price isAvailable stock }
+      products { id name price isAvailable stock imageUrl category { id name } }
       categories { id name }
     }
   }
@@ -54,6 +54,36 @@ export const CREATE_PRODUCT = gql`
 export const CREATE_CATEGORY = gql`
   mutation CreateCategory($name: String!, $storeId: String!) {
     createCategory(name: $name, storeId: $storeId) { id name }
+  }
+`;
+
+export const UPLOAD_IMAGE = gql`
+  mutation UploadImage($base64: String!, $folder: String) {
+    uploadImage(base64: $base64, folder: $folder)
+  }
+`;
+
+export const DELETE_PRODUCT = gql`
+  mutation DeleteProduct($id: String!) {
+    deleteProduct(id: $id)
+  }
+`;
+
+export const UPDATE_PRODUCT = gql`
+  mutation UpdateProduct($input: UpdateProductInput!) {
+    updateProduct(input: $input) { id name price description unit imageUrl }
+  }
+`;
+
+export const TOGGLE_PRODUCT_AVAILABILITY = gql`
+  mutation ToggleProductAvailability($id: String!) {
+    toggleProductAvailability(id: $id) { id isAvailable }
+  }
+`;
+
+export const DELETE_CATEGORY = gql`
+  mutation DeleteCategory($id: String!) {
+    deleteCategory(id: $id)
   }
 `;
 
