@@ -134,11 +134,7 @@ export default function PlanPage() {
                 </li>
                 <li className="flex items-center gap-2 text-gray-600">
                   <span className="text-green-500">✓</span>
-                  Comissão de {(plan.commissionRate * 100).toFixed(0)}%
-                </li>
-                <li className="flex items-center gap-2 text-gray-600">
-                  <span className="text-green-500">✓</span>
-                  Taxa por entrega: R$ {Number(plan.platformDeliveryFee).toFixed(2)}
+                  Sem comissão por pedido
                 </li>
                 <li className="flex items-center gap-2 text-gray-600">
                   {plan.canPromote ? (
@@ -180,7 +176,7 @@ export default function PlanPage() {
             • Após o pagamento, seu plano é ativado automaticamente
           </li>
           <li>
-            • Planos superiores têm comissões menores e mais funcionalidades
+            • Planos superiores permitem mais lojas e funcionalidades
           </li>
         </ul>
       </div>

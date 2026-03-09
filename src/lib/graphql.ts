@@ -21,7 +21,8 @@ export const REGISTER = gql`
 export const GET_MY_STORES = gql`
   query MyStores {
     myStores {
-      id name description isOpen deliveryFee estimatedDeliveryMinutes minimumOrder
+      id name description isOpen hasOwnDelivery freeDelivery deliveryFee
+      estimatedDeliveryMinutes minimumOrder deliveryStartTime deliveryEndTime freeDeliveryAbove
       phone street number complement neighborhood city state zipCode
       logoUrl bannerUrl
       products { id name price isAvailable stock imageUrl category { id name } }
@@ -34,7 +35,8 @@ export const UPDATE_STORE = gql`
   mutation UpdateStore($input: UpdateStoreInput!) {
     updateStore(input: $input) {
       id name description phone street number complement neighborhood city state zipCode
-      deliveryFee estimatedDeliveryMinutes minimumOrder logoUrl bannerUrl
+      hasOwnDelivery freeDelivery deliveryFee estimatedDeliveryMinutes minimumOrder
+      deliveryStartTime deliveryEndTime freeDeliveryAbove logoUrl bannerUrl
     }
   }
 `;
@@ -125,16 +127,28 @@ export const TOGGLE_STORE_OPEN = gql`
 export const GET_MY_PLAN = gql`
   query Me {
     me {
-      id vendorPlan planExpiresAt
+      id vendorPlan planExpiresAt mpConnected
       stores { id }
     }
+  }
+`;
+
+export const GET_MP_CONNECT_URL = gql`
+  query MpConnectUrl {
+    mpConnectUrl
+  }
+`;
+
+export const DISCONNECT_MP = gql`
+  mutation DisconnectMercadoPago {
+    disconnectMercadoPago
   }
 `;
 
 export const GET_AVAILABLE_PLANS = gql`
   query AvailablePlans {
     availablePlans {
-      plan maxStores commissionRate platformDeliveryFee canPromote monthlyPrice
+      plan maxStores canPromote monthlyPrice
     }
   }
 `;

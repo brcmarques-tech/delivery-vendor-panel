@@ -1,13 +1,15 @@
 "use client";
 
-import { useMutation } from "@apollo/client";
-import { CREATE_STORE, UPLOAD_IMAGE } from "@/lib/graphql";
+import { useMutation, useQuery } from "@apollo/client";
+import { CREATE_STORE, UPLOAD_IMAGE, GET_MY_PLAN } from "@/lib/graphql";
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 
 export default function SettingsPage() {
   const [createStore, { loading }] = useMutation(CREATE_STORE);
   const [uploadImage] = useMutation(UPLOAD_IMAGE);
+  const { data: planData } = useQuery(GET_MY_PLAN);
+  const mpConnected = planData?.me?.mpConnected ?? false;
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
@@ -24,11 +26,13 @@ export default function SettingsPage() {
     city: "",
     state: "",
     zipCode: "",
-    latitude: "-23.5505",
-    longitude: "-46.6333",
-    deliveryFee: "5.99",
+    hasOwnDelivery: false,
+    freeDelivery: false,
     estimatedDeliveryMinutes: "30",
     minimumOrder: "0",
+    deliveryStartTime: "",
+    deliveryEndTime: "",
+    freeDeliveryAbove: "",
   });
 
   function update(field: string, value: string) {
@@ -75,11 +79,13 @@ export default function SettingsPage() {
           city: form.city,
           state: form.state,
           zipCode: form.zipCode,
-          latitude: parseFloat(form.latitude),
-          longitude: parseFloat(form.longitude),
-          deliveryFee: parseFloat(form.deliveryFee),
+          hasOwnDelivery: form.hasOwnDelivery,
+          freeDelivery: form.freeDelivery,
           estimatedDeliveryMinutes: parseInt(form.estimatedDeliveryMinutes),
           minimumOrder: parseFloat(form.minimumOrder),
+          deliveryStartTime: form.deliveryStartTime || undefined,
+          deliveryEndTime: form.deliveryEndTime || undefined,
+          freeDeliveryAbove: form.freeDeliveryAbove ? parseFloat(form.freeDeliveryAbove) : undefined,
           logoUrl,
         },
       },
@@ -130,20 +136,86 @@ export default function SettingsPage() {
           </div>
 
           <h3 className="font-bold text-gray-700 pt-4">Entrega</h3>
-          <div className="grid grid-cols-3 gap-4">
+
+          <div className="flex items-center gap-3 py-2">
+            <button
+              type="button"
+              onClick={() => setForm((prev) => ({ ...prev, hasOwnDelivery: !prev.hasOwnDelivery }))}
+              className={`relative w-12 h-6 rounded-full transition cursor-pointer ${form.hasOwnDelivery ? "bg-orange-500" : "bg-gray-300"}`}
+            >
+              <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${form.hasOwnDelivery ? "translate-x-6" : ""}`} />
+            </button>
+            <span className="text-sm text-gray-700 font-medium">
+              {form.hasOwnDelivery ? "Entrega própria" : "Não possui entrega própria"}
+            </span>
+          </div>
+          {form.hasOwnDelivery ? (
+            <p className="text-xs text-gray-400">Seus próprios entregadores farão as entregas dos pedidos.</p>
+          ) : (
+            <>
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
+                <p className="text-xs text-blue-600">O app disponibilizará entregadores autônomos para realizar as entregas dos seus pedidos.</p>
+              </div>
+              {!mpConnected && (
+                <div className="bg-amber-50 border border-amber-300 rounded-xl p-3 flex items-start gap-2">
+                  <span className="text-amber-500 text-sm mt-0.5">⚠️</span>
+                  <p className="text-xs text-amber-700 font-medium">
+                    Para usar entregadores do app, você precisa conectar sua conta Mercado Pago nas configurações.
+                  </p>
+                </div>
+              )}
+            </>
+          )}
+
+          <div className="flex items-center gap-3 py-2 mt-2">
+            <button
+              type="button"
+              onClick={() => setForm((prev) => ({ ...prev, freeDelivery: !prev.freeDelivery }))}
+              className={`relative w-12 h-6 rounded-full transition cursor-pointer ${form.freeDelivery ? "bg-green-500" : "bg-gray-300"}`}
+            >
+              <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${form.freeDelivery ? "translate-x-6" : ""}`} />
+            </button>
+            <span className="text-sm text-gray-700 font-medium">Entrega grátis</span>
+          </div>
+          {form.freeDelivery && (
+            <p className="text-xs text-gray-400">A loja não cobrará taxa de entrega dos clientes.</p>
+          )}
+
+          {!form.freeDelivery && (
+            <div className="mt-2">
+              <label className="text-sm text-gray-500">Entrega grátis acima de (R$)</label>
+              <input type="number" step="0.01" placeholder="Ex: 50.00 (opcional)" value={form.freeDeliveryAbove} onChange={(e) => update("freeDeliveryAbove", e.target.value)} className="w-full px-4 py-2 border border-gray-200 rounded-xl text-gray-800" />
+              <p className="text-xs text-gray-400 mt-1">Deixe vazio se não quiser oferecer. A taxa de entrega é calculada automaticamente pela distância.</p>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-4 mt-3">
             <div>
-              <label className="text-sm text-gray-500">Taxa de entrega (R$)</label>
-              <input type="number" step="0.01" value={form.deliveryFee} onChange={(e) => update("deliveryFee", e.target.value)} className="w-full px-4 py-2 border border-gray-200 rounded-xl text-gray-800" />
+              <label className="text-sm text-gray-500">Horário início entregas</label>
+              <input type="time" value={form.deliveryStartTime} onChange={(e) => update("deliveryStartTime", e.target.value)} className="w-full px-4 py-2 border border-gray-200 rounded-xl text-gray-800" />
             </div>
             <div>
-              <label className="text-sm text-gray-500">Tempo estimado (min)</label>
-              <input type="number" value={form.estimatedDeliveryMinutes} onChange={(e) => update("estimatedDeliveryMinutes", e.target.value)} className="w-full px-4 py-2 border border-gray-200 rounded-xl text-gray-800" />
-            </div>
-            <div>
-              <label className="text-sm text-gray-500">Pedido mínimo (R$)</label>
-              <input type="number" step="0.01" value={form.minimumOrder} onChange={(e) => update("minimumOrder", e.target.value)} className="w-full px-4 py-2 border border-gray-200 rounded-xl text-gray-800" />
+              <label className="text-sm text-gray-500">Horário fim entregas</label>
+              <input type="time" value={form.deliveryEndTime} onChange={(e) => update("deliveryEndTime", e.target.value)} className="w-full px-4 py-2 border border-gray-200 rounded-xl text-gray-800" />
             </div>
           </div>
+          <p className="text-xs text-gray-400">Deixe vazio para aceitar entregas durante todo o horário de funcionamento.</p>
+
+          {form.hasOwnDelivery && (
+            <div className="grid grid-cols-2 gap-4 mt-3">
+              <div>
+                <label className="text-sm text-gray-500">Tempo estimado (min)</label>
+                <input type="number" value={form.estimatedDeliveryMinutes} onChange={(e) => update("estimatedDeliveryMinutes", e.target.value)} className="w-full px-4 py-2 border border-gray-200 rounded-xl text-gray-800" />
+              </div>
+              <div>
+                <label className="text-sm text-gray-500">Pedido mínimo (R$)</label>
+                <input type="number" step="0.01" value={form.minimumOrder} onChange={(e) => update("minimumOrder", e.target.value)} className="w-full px-4 py-2 border border-gray-200 rounded-xl text-gray-800" />
+              </div>
+            </div>
+          )}
+          {!form.hasOwnDelivery && (
+            <p className="text-xs text-gray-400 mt-2">O tempo estimado sera calculado automaticamente com base na distancia do entregador ate a loja e da loja ate o cliente.</p>
+          )}
 
           <button
             type="submit"
