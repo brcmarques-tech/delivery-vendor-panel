@@ -1,8 +1,8 @@
 "use client";
 
-import { useQuery, useMutation } from "@apollo/client";
-import { GET_MY_STORES, GET_STORE_ORDERS, UPDATE_ORDER_STATUS } from "@/lib/graphql";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useQuery, useMutation, useSubscription } from "@apollo/client";
+import { GET_MY_STORES, GET_STORE_ORDERS, UPDATE_ORDER_STATUS, ORDER_CREATED_SUB, ORDER_UPDATED_SUB } from "@/lib/graphql";
+import { useState, useEffect } from "react";
 
 const statusLabels: Record<string, { label: string; color: string }> = {
   AWAITING_PAYMENT: { label: "Aguardando pagamento", color: "bg-orange-100 text-orange-700" },
@@ -57,7 +57,6 @@ export default function OrdersPage() {
   const stores = storesData?.myStores || [];
   const [selectedStore, setSelectedStore] = useState<string>("");
   const [notification, setNotification] = useState<string | null>(null);
-  const prevOrderIdsRef = useRef<Set<string> | null>(null);
 
   useEffect(() => {
     if (stores.length > 0 && !selectedStore) {
@@ -68,39 +67,31 @@ export default function OrdersPage() {
   const { data: ordersData, loading, refetch } = useQuery(GET_STORE_ORDERS, {
     variables: { storeId: selectedStore },
     skip: !selectedStore,
-    pollInterval: 10000,
+  });
+
+  // Real-time: refetch on new orders or status changes
+  useSubscription(ORDER_CREATED_SUB, {
+    variables: { storeId: selectedStore },
+    skip: !selectedStore,
+    onData: ({ data: subData }) => {
+      if (subData?.data?.orderCreated) {
+        playNotificationSound();
+        const o = subData.data.orderCreated;
+        setNotification(`Novo pedido #${o.orderNumber}!`);
+        setTimeout(() => setNotification(null), 5000);
+        refetch();
+      }
+    },
+  });
+
+  useSubscription(ORDER_UPDATED_SUB, {
+    variables: { storeId: selectedStore },
+    skip: !selectedStore,
+    onData: () => { refetch(); },
   });
 
   const [updateStatus] = useMutation(UPDATE_ORDER_STATUS);
   const orders = ordersData?.storeOrders || [];
-
-  const checkNewOrders = useCallback((currentOrders: any[]) => {
-    const currentIds = new Set(currentOrders.map((o: any) => o.id));
-
-    if (prevOrderIdsRef.current === null) {
-      prevOrderIdsRef.current = currentIds;
-      return;
-    }
-
-    const newOrders = currentOrders.filter((o: any) => !prevOrderIdsRef.current!.has(o.id));
-    if (newOrders.length > 0) {
-      playNotificationSound();
-      setNotification(
-        newOrders.length === 1
-          ? `Novo pedido #${newOrders[0].orderNumber}!`
-          : `${newOrders.length} novos pedidos!`
-      );
-      setTimeout(() => setNotification(null), 5000);
-    }
-
-    prevOrderIdsRef.current = currentIds;
-  }, []);
-
-  useEffect(() => {
-    if (orders.length > 0) {
-      checkNewOrders(orders);
-    }
-  }, [orders, checkNewOrders]);
 
   async function handleAdvanceStatus(orderId: string, currentStatus: string) {
     const next = nextStatus[currentStatus];

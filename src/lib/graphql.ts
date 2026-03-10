@@ -207,3 +207,43 @@ export const GET_ACTIVE_PROMOTIONS = gql`
     }
   }
 `;
+
+// ─── Subscriptions ───
+
+export const ORDER_CREATED_SUB = gql`
+  subscription OrderCreated($storeId: String) {
+    orderCreated(storeId: $storeId) {
+      id orderNumber status total createdAt
+      customer { name phone }
+      items { id quantity totalPrice product { name } }
+    }
+  }
+`;
+
+export const ORDER_UPDATED_SUB = gql`
+  subscription OrderUpdated($storeId: String) {
+    orderUpdated(storeId: $storeId) {
+      id orderNumber status total createdAt
+      customer { name phone }
+      items { id quantity totalPrice product { name } }
+      delivery { id deliverer { name phone } }
+    }
+  }
+`;
+
+export const STORE_UPDATED_SUB = gql`
+  subscription StoreUpdated($storeId: String) {
+    storeUpdated(storeId: $storeId) {
+      id name isOpen isActive
+    }
+  }
+`;
+
+export const PRODUCT_UPDATED_SUB = gql`
+  subscription ProductUpdated($storeId: String) {
+    productUpdated(storeId: $storeId) {
+      id name price isAvailable stock imageUrl
+      category { id name }
+    }
+  }
+`;
