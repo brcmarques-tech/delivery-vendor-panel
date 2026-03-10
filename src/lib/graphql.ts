@@ -96,7 +96,7 @@ export const DELETE_PRODUCT = gql`
 
 export const UPDATE_PRODUCT = gql`
   mutation UpdateProduct($input: UpdateProductInput!) {
-    updateProduct(input: $input) { id name price description unit imageUrl }
+    updateProduct(input: $input) { id name price description unit imageUrl stock }
   }
 `;
 

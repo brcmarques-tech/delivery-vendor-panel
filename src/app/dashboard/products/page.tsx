@@ -29,6 +29,7 @@ export default function ProductsPage() {
     price: "",
     unit: "",
     categoryId: "",
+    stock: "",
   });
   const [categoryName, setCategoryName] = useState("");
 
@@ -60,7 +61,7 @@ export default function ProductsPage() {
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [categoryMenuId, setCategoryMenuId] = useState<string | null>(null);
   const [editingProduct, setEditingProduct] = useState<any>(null);
-  const [editForm, setEditForm] = useState({ name: "", description: "", price: "", unit: "", categoryId: "" });
+  const [editForm, setEditForm] = useState({ name: "", description: "", price: "", unit: "", categoryId: "", stock: "" });
 
   const activeStoreId = selectedStoreId || (stores.length > 0 ? stores[0].id : "");
   const store = stores.find((s: any) => s.id === activeStoreId);
@@ -181,10 +182,11 @@ export default function ProductsPage() {
             storeId: activeStoreId,
             categoryId: productForm.categoryId || undefined,
             imageUrl,
+            ...(productForm.stock ? { stock: parseInt(productForm.stock) } : {}),
           },
         },
       });
-      setProductForm({ name: "", description: "", price: "", unit: "", categoryId: "" });
+      setProductForm({ name: "", description: "", price: "", unit: "", categoryId: "", stock: "" });
       setImagePreview(null);
       setImageBase64(null);
       setShowProductForm(false);
@@ -252,6 +254,7 @@ export default function ProductsPage() {
       price: String(product.price),
       unit: product.unit || "",
       categoryId: product.category?.id || "",
+      stock: String(product.stock || 0),
     });
     setEditImagePreview(product.imageUrl || null);
     setEditImageBase64(null);
@@ -276,6 +279,7 @@ export default function ProductsPage() {
             price: parseFloat(editForm.price),
             unit: editForm.unit || undefined,
             categoryId: editForm.categoryId || undefined,
+            stock: parseInt(editForm.stock) || 0,
             ...(imageUrl && { imageUrl }),
           },
         },
@@ -322,7 +326,7 @@ export default function ProductsPage() {
           </button>
         </td>
         <td className="px-6 py-4 text-gray-600">R$ {Number(product.price).toFixed(2)}</td>
-        <td className="px-6 py-4 text-gray-600">{product.stock}</td>
+        <td className="px-6 py-4 text-gray-600">{product.stock > 0 ? product.stock : <span className="text-gray-400 text-xs">Ilimitado</span>}</td>
         <td className="px-6 py-4">
           <button
             onClick={() => handleToggleAvailability(product.id)}
@@ -460,6 +464,7 @@ export default function ProductsPage() {
             <input type="number" step="0.01" placeholder="Preco (R$)" value={productForm.price} onChange={(e) => setProductForm({ ...productForm, price: e.target.value })} className="px-4 py-2 border border-gray-200 rounded-xl text-gray-800" required />
             <input type="text" placeholder="Descricao (opcional)" value={productForm.description} onChange={(e) => setProductForm({ ...productForm, description: e.target.value })} className="px-4 py-2 border border-gray-200 rounded-xl text-gray-800" />
             <input type="text" placeholder="Unidade: kg, un, lt (opcional)" value={productForm.unit} onChange={(e) => setProductForm({ ...productForm, unit: e.target.value })} className="px-4 py-2 border border-gray-200 rounded-xl text-gray-800" />
+            <input type="number" min="0" placeholder="Estoque (0 = ilimitado)" value={productForm.stock} onChange={(e) => setProductForm({ ...productForm, stock: e.target.value })} className="px-4 py-2 border border-gray-200 rounded-xl text-gray-800" />
             <select value={productForm.categoryId} onChange={(e) => setProductForm({ ...productForm, categoryId: e.target.value })} className="px-4 py-2 border border-gray-200 rounded-xl text-gray-800">
               <option value="">Sem categoria</option>
               {categories.map((c: any) => (
@@ -517,6 +522,7 @@ export default function ProductsPage() {
                 <input type="number" step="0.01" placeholder="Preco (R$)" value={editForm.price} onChange={(e) => setEditForm({ ...editForm, price: e.target.value })} className="w-full px-4 py-2 border border-gray-200 rounded-xl text-gray-800" required />
                 <input type="text" placeholder="Descricao (opcional)" value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} className="w-full px-4 py-2 border border-gray-200 rounded-xl text-gray-800" />
                 <input type="text" placeholder="Unidade: kg, un, lt (opcional)" value={editForm.unit} onChange={(e) => setEditForm({ ...editForm, unit: e.target.value })} className="w-full px-4 py-2 border border-gray-200 rounded-xl text-gray-800" />
+                <input type="number" min="0" placeholder="Estoque (0 = ilimitado)" value={editForm.stock} onChange={(e) => setEditForm({ ...editForm, stock: e.target.value })} className="w-full px-4 py-2 border border-gray-200 rounded-xl text-gray-800" />
                 <select value={editForm.categoryId} onChange={(e) => setEditForm({ ...editForm, categoryId: e.target.value })} className="w-full px-4 py-2 border border-gray-200 rounded-xl text-gray-800">
                   <option value="">Sem categoria</option>
                   {categories.map((c: any) => (
