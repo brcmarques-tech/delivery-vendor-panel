@@ -25,7 +25,7 @@ export const GET_MY_STORES = gql`
       estimatedDeliveryMinutes minimumOrder deliveryStartTime deliveryEndTime freeDeliveryAbove
       phone street number complement neighborhood city state zipCode
       logoUrl bannerUrl
-      products { id name price isAvailable stock imageUrl category { id name } }
+      products { id name price isAvailable isActive stock imageUrl barcode category { id name } }
       categories { id name }
     }
   }
@@ -94,6 +94,21 @@ export const DELETE_PRODUCT = gql`
   }
 `;
 
+export const GET_DELETED_PRODUCTS = gql`
+  query DeletedProductsByStore($storeId: String!) {
+    deletedProductsByStore(storeId: $storeId) {
+      id name price unit imageUrl barcode deletedAt
+      category { id name }
+    }
+  }
+`;
+
+export const RESTORE_PRODUCT = gql`
+  mutation RestoreProduct($id: String!) {
+    restoreProduct(id: $id) { id name }
+  }
+`;
+
 export const UPDATE_PRODUCT = gql`
   mutation UpdateProduct($input: UpdateProductInput!) {
     updateProduct(input: $input) { id name price description unit imageUrl stock }
@@ -103,6 +118,12 @@ export const UPDATE_PRODUCT = gql`
 export const TOGGLE_PRODUCT_AVAILABILITY = gql`
   mutation ToggleProductAvailability($id: String!) {
     toggleProductAvailability(id: $id) { id isAvailable }
+  }
+`;
+
+export const TOGGLE_PRODUCT_ACTIVE = gql`
+  mutation ToggleProductActive($id: String!) {
+    toggleProductActive(id: $id) { id isActive isAvailable }
   }
 `;
 
@@ -204,6 +225,33 @@ export const GET_ACTIVE_PROMOTIONS = gql`
     activePromotions {
       id title description imageUrl startDate endDate isActive isPaid price
       store { id name }
+    }
+  }
+`;
+
+// ─── Barcode & Bulk Import ───
+
+export const LOOKUP_BARCODE = gql`
+  query LookupBarcode($barcode: String!) {
+    lookupBarcode(barcode: $barcode) {
+      barcode name description imageUrl brand quantity
+    }
+  }
+`;
+
+export const SEARCH_CATALOG = gql`
+  query SearchCatalog($query: String!, $limit: Int) {
+    searchCatalog(query: $query, limit: $limit) {
+      id name description price imageUrl unit barcode
+      store { id name }
+    }
+  }
+`;
+
+export const BULK_CREATE_PRODUCTS = gql`
+  mutation BulkCreateProducts($input: BulkCreateProductsInput!) {
+    bulkCreateProducts(input: $input) {
+      created errors
     }
   }
 `;
