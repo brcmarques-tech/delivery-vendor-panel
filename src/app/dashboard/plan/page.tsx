@@ -7,7 +7,7 @@ import {
   CREATE_PLAN_UPGRADE,
 } from "@/lib/graphql";
 import { useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useState, Suspense } from "react";
 
 const planLabels: Record<string, string> = {
   FREE: "Gratuito",
@@ -16,6 +16,14 @@ const planLabels: Record<string, string> = {
 };
 
 export default function PlanPage() {
+  return (
+    <Suspense fallback={<p className="text-gray-500">Carregando...</p>}>
+      <PlanContent />
+    </Suspense>
+  );
+}
+
+function PlanContent() {
   const { data: userData, loading: loadingUser, refetch } = useQuery(GET_MY_PLAN);
   const { data: plansData, loading: loadingPlans } = useQuery(GET_AVAILABLE_PLANS);
   const [createUpgrade] = useMutation(CREATE_PLAN_UPGRADE);
