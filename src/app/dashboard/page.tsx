@@ -2,10 +2,18 @@
 
 import { useQuery, useMutation, useLazyQuery } from "@apollo/client";
 import { GET_MY_STORES, TOGGLE_STORE_OPEN, UPDATE_STORE, UPLOAD_IMAGE, GET_MY_PLAN, GET_MP_CONNECT_URL, DISCONNECT_MP } from "@/lib/graphql";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 
 export default function DashboardPage() {
+  return (
+    <Suspense fallback={<p className="text-gray-500">Carregando...</p>}>
+      <DashboardContent />
+    </Suspense>
+  );
+}
+
+function DashboardContent() {
   const { data, loading, refetch } = useQuery(GET_MY_STORES);
   const { data: planData, refetch: refetchPlan } = useQuery(GET_MY_PLAN);
   const [toggleOpen] = useMutation(TOGGLE_STORE_OPEN);
