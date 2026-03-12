@@ -258,8 +258,8 @@ function DashboardContent() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="col-span-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="col-span-1 sm:col-span-2">
                     <label className="text-sm text-gray-500">Nome</label>
                     <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-gray-800" />
                   </div>
@@ -274,7 +274,7 @@ function DashboardContent() {
                 </div>
 
                 <h3 className="font-bold text-gray-700 text-sm pt-2">Endereço</h3>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="text-sm text-gray-500">Rua</label>
                     <input type="text" value={form.street} onChange={(e) => setForm({ ...form, street: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-gray-800" />
@@ -344,7 +344,7 @@ function DashboardContent() {
                   </div>
                 )}
 
-                <div className="grid grid-cols-2 gap-3 mt-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
                   <div>
                     <label className="text-sm text-gray-500">Início entregas</label>
                     <input type="time" value={form.deliveryStartTime} onChange={(e) => setForm({ ...form, deliveryStartTime: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-gray-800" />
@@ -355,7 +355,7 @@ function DashboardContent() {
                   </div>
                 </div>
                 {form.hasOwnDelivery && (
-                <div className="grid grid-cols-2 gap-3 mt-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
                   <div>
                     <label className="text-sm text-gray-500">Tempo (min)</label>
                     <input type="number" value={form.estimatedDeliveryMinutes} onChange={(e) => setForm({ ...form, estimatedDeliveryMinutes: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-gray-800" />
@@ -388,7 +388,7 @@ function DashboardContent() {
               </div>
             ) : (
               <>
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex flex-wrap items-center justify-between mb-4 gap-2">
                   <div className="flex items-center gap-3">
                     {store.logoUrl ? (
                       <img src={store.logoUrl} alt={store.name} className="w-12 h-12 rounded-xl object-cover" />

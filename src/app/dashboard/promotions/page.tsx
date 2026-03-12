@@ -214,7 +214,7 @@ export default function PromotionsPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-wrap items-center justify-between mb-6 gap-3">
         <h1 className="text-2xl font-bold text-gray-800">Promoções</h1>
         <button
           onClick={() => setShowForm(!showForm)}
@@ -226,7 +226,7 @@ export default function PromotionsPage() {
 
       {showForm && (
         <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-gray-200 p-6 mb-6 space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1">Loja</label>
               <select
@@ -272,7 +272,7 @@ export default function PromotionsPage() {
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1">Título da promoção</label>
               <input
@@ -314,13 +314,13 @@ export default function PromotionsPage() {
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-3">Período de exibição no app</label>
             <div className="bg-gray-50 rounded-xl p-4">
-              <div className="flex items-center justify-center gap-6">
+              <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6">
                 <CounterControl label="Dias" value={duration.days} onInc={() => inc("days")} onDec={() => dec("days")} />
-                <div className="text-gray-300 text-2xl font-light">+</div>
+                <div className="text-gray-300 text-2xl font-light hidden sm:block">+</div>
                 <CounterControl label="Semanas" value={duration.weeks} onInc={() => inc("weeks")} onDec={() => dec("weeks")} discount="-10%" />
-                <div className="text-gray-300 text-2xl font-light">+</div>
+                <div className="text-gray-300 text-2xl font-light hidden sm:block">+</div>
                 <CounterControl label="Meses" value={duration.months} onInc={() => inc("months")} onDec={() => dec("months")} discount="-20%" />
-                <div className="text-gray-300 text-2xl font-light">+</div>
+                <div className="text-gray-300 text-2xl font-light hidden sm:block">+</div>
                 <CounterControl label="Anos" value={duration.years} onInc={() => inc("years")} onDec={() => dec("years")} discount="-30%" />
               </div>
 
@@ -380,7 +380,7 @@ export default function PromotionsPage() {
 
             return (
               <div key={promo.id} className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-                <div className="p-4 flex items-center gap-4">
+                <div className="p-4 flex flex-col sm:flex-row items-start sm:items-center gap-4">
                   {imgUrl ? (
                     <img src={imgUrl} alt={promo.title} className="w-20 h-20 rounded-xl object-cover flex-shrink-0" />
                   ) : (
@@ -399,7 +399,7 @@ export default function PromotionsPage() {
                         <span className="text-orange-600 font-semibold">R$ {Number(promo.promotionalPrice).toFixed(2)}</span>
                       </p>
                     )}
-                    <div className="flex items-center gap-4 text-sm text-gray-500 mt-1">
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm text-gray-500 mt-1">
                       <span>{promo.store?.name}</span>
                       <span>
                         {new Date(promo.startDate).toLocaleDateString("pt-BR")} - {new Date(promo.endDate).toLocaleDateString("pt-BR")}
@@ -407,7 +407,7 @@ export default function PromotionsPage() {
                       <span>Anúncio: R$ {Number(promo.adCost).toFixed(2)}</span>
                     </div>
                   </div>
-                  <div className="flex gap-2 flex-shrink-0">
+                  <div className="flex gap-2 flex-shrink-0 self-end sm:self-auto">
                     {!isExpired && (
                       <button
                         onClick={() => isSwapping ? setSwapId(null) : startSwap(promo)}
@@ -430,7 +430,7 @@ export default function PromotionsPage() {
                 {isSwapping && (
                   <div className="border-t border-gray-100 bg-orange-50/50 p-4 space-y-3">
                     <p className="text-sm font-semibold text-gray-700">Trocar produto da promoção</p>
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <div>
                         <label className="block text-xs text-gray-500 mb-1">Novo produto</label>
                         <select

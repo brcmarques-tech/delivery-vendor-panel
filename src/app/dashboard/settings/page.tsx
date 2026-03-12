@@ -118,14 +118,14 @@ export default function SettingsPage() {
           </div>
 
           <h3 className="font-bold text-gray-700 pt-2">Informações básicas</h3>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <input type="text" placeholder="Nome da loja" value={form.name} onChange={(e) => update("name", e.target.value)} className="px-4 py-2 border border-gray-200 rounded-xl text-gray-800 col-span-2" required />
             <input type="text" placeholder="Descrição" value={form.description} onChange={(e) => update("description", e.target.value)} className="px-4 py-2 border border-gray-200 rounded-xl text-gray-800 col-span-2" />
             <input type="text" placeholder="Telefone" value={form.phone} onChange={(e) => update("phone", e.target.value)} className="px-4 py-2 border border-gray-200 rounded-xl text-gray-800" required />
           </div>
 
           <h3 className="font-bold text-gray-700 pt-4">Endereço</h3>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <input type="text" placeholder="Rua" value={form.street} onChange={(e) => update("street", e.target.value)} className="px-4 py-2 border border-gray-200 rounded-xl text-gray-800" required />
             <input type="text" placeholder="Número" value={form.number} onChange={(e) => update("number", e.target.value)} className="px-4 py-2 border border-gray-200 rounded-xl text-gray-800" required />
             <input type="text" placeholder="Complemento" value={form.complement} onChange={(e) => update("complement", e.target.value)} className="px-4 py-2 border border-gray-200 rounded-xl text-gray-800" />
@@ -189,7 +189,7 @@ export default function SettingsPage() {
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-4 mt-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
             <div>
               <label className="text-sm text-gray-500">Horário início entregas</label>
               <input type="time" value={form.deliveryStartTime} onChange={(e) => update("deliveryStartTime", e.target.value)} className="w-full px-4 py-2 border border-gray-200 rounded-xl text-gray-800" />
@@ -202,7 +202,7 @@ export default function SettingsPage() {
           <p className="text-xs text-gray-400">Deixe vazio para aceitar entregas durante todo o horário de funcionamento.</p>
 
           {form.hasOwnDelivery && (
-            <div className="grid grid-cols-2 gap-4 mt-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
               <div>
                 <label className="text-sm text-gray-500">Tempo estimado (min)</label>
                 <input type="number" value={form.estimatedDeliveryMinutes} onChange={(e) => update("estimatedDeliveryMinutes", e.target.value)} className="w-full px-4 py-2 border border-gray-200 rounded-xl text-gray-800" />

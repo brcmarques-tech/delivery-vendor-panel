@@ -799,7 +799,7 @@ export default function ProductsPage() {
 
       {/* Header */}
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-wrap items-center justify-between mb-6 gap-3">
         <h1 className="text-2xl font-bold text-gray-800">Produtos</h1>
         <button onClick={() => { setActivePanel(activePanel === "product" ? "catalog" : "product"); setBarcodeInput(""); setBarcodeResult(null); }}
           className={`px-5 py-2.5 rounded-xl text-sm font-bold cursor-pointer active:scale-95 transition flex items-center gap-2 ${activePanel === "product" ? "bg-orange-600 text-white" : "bg-orange-500 text-white hover:bg-orange-600"}`}>
@@ -935,7 +935,7 @@ export default function ProductsPage() {
               </button>
             )}
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="relative">
               <input type="text" placeholder="Nome do produto" value={productForm.name}
                 onChange={(e) => handleNameChange(e.target.value)}
@@ -1197,7 +1197,7 @@ export default function ProductsPage() {
       )}
 
       {/* Toolbar: filter left, actions right */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-wrap items-center justify-between mb-4 gap-3">
       <div className="relative inline-block">
         <button onClick={() => setShowFilterDropdown(!showFilterDropdown)}
           className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-50 active:scale-95 transition shadow-sm">
@@ -1303,7 +1303,7 @@ export default function ProductsPage() {
                   </div>
                 )}
               </div>
-              <div className={`bg-white rounded-2xl shadow-sm transition-all ${dragOverCategory === key ? "ring-2 ring-purple-400 ring-offset-2" : ""}`}>
+              <div className={`bg-white rounded-2xl shadow-sm transition-all overflow-x-auto ${dragOverCategory === key ? "ring-2 ring-purple-400 ring-offset-2" : ""}`}>
                 <table className="w-full">
                   {renderTableHeader()}
                   <tbody>{group.products.map((product: any) => renderProductRow(product))}</tbody>
@@ -1313,7 +1313,7 @@ export default function ProductsPage() {
           ))
         )
       ) : (
-        <div className="bg-white rounded-2xl shadow-sm">
+        <div className="bg-white rounded-2xl shadow-sm overflow-x-auto">
           <table className="w-full">
             {renderTableHeader()}
             <tbody>
@@ -1468,7 +1468,7 @@ export default function ProductsPage() {
                         )}
                       </div>
                       {/* Fields */}
-                      <div className="flex-1 grid grid-cols-2 gap-2">
+                      <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <div className="col-span-2">
                           <input type="text" placeholder="Nome" value={p.name}
                             onChange={(e) => updateCsvProduct(i, "name", e.target.value)}

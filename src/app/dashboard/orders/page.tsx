@@ -103,12 +103,12 @@ export default function OrdersPage() {
   return (
     <div>
       {notification && (
-        <div className="fixed top-4 right-4 bg-orange-500 text-white px-6 py-4 rounded-2xl shadow-lg z-50 animate-bounce">
+        <div className="fixed top-4 right-4 left-4 sm:left-auto bg-orange-500 text-white px-6 py-4 rounded-2xl shadow-lg z-50 animate-bounce">
           <p className="font-bold">{notification}</p>
         </div>
       )}
 
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-wrap items-center justify-between mb-6 gap-3">
         <h1 className="text-2xl font-bold text-gray-800">Pedidos</h1>
         {stores.length > 1 && (
           <select
@@ -134,11 +134,11 @@ export default function OrdersPage() {
             const canAdvance = !!nextStatus[order.status];
 
             return (
-              <div key={order.id} className="bg-white rounded-2xl p-6 shadow-sm">
-                <div className="flex items-center justify-between mb-3">
+              <div key={order.id} className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm">
+                <div className="flex flex-wrap items-center justify-between mb-3 gap-2">
                   <div>
                     <span className="font-bold text-gray-800">#{order.orderNumber}</span>
-                    <span className="text-sm text-gray-500 ml-3">
+                    <span className="text-sm text-gray-500 sm:ml-3">
                       {order.customer.name} - {order.customer.phone}
                     </span>
                   </div>
@@ -160,7 +160,7 @@ export default function OrdersPage() {
                   ))}
                 </div>
 
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-3">
                   <span className="font-bold text-lg text-gray-800">
                     R$ {Number(order.total).toFixed(2)}
                   </span>
