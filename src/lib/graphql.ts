@@ -25,6 +25,9 @@ export const GET_MY_STORES = gql`
       estimatedDeliveryMinutes minimumOrder deliveryStartTime deliveryEndTime freeDeliveryAbove
       phone street number complement neighborhood city state zipCode
       logoUrl bannerUrl
+      verificationLevel verificationScore totalSales totalProducts createdAt
+      badgeClaimCount lastClaimedScore freePromoDaysCredit
+      commissionReductionPercent commissionReductionExpiresAt
       products { id name price isAvailable isActive stock imageUrl barcode isVariableWeight category { id name } }
       categories { id name }
     }
@@ -348,6 +351,24 @@ export const BULK_CREATE_PRODUCTS = gql`
     bulkCreateProducts(input: $input) {
       created errors
     }
+  }
+`;
+
+export const CLAIM_BADGE_REWARD = gql`
+  mutation ClaimBadgeReward($storeId: String!, $level: String!) {
+    claimBadgeReward(storeId: $storeId, level: $level) {
+      id verificationLevel verificationScore
+      badgeClaimCount lastClaimedScore freePromoDaysCredit
+      commissionReductionPercent commissionReductionExpiresAt
+    }
+  }
+`;
+
+// ─── Badge Config ───
+
+export const GET_BADGE_CONFIG = gql`
+  query BadgeConfig {
+    badgeConfig
   }
 `;
 

@@ -174,15 +174,15 @@ export default function AnalyticsPage() {
   }, [ordersData, period]);
 
   if (loadingUser || loadingStores) {
-    return <p className="text-gray-500">Carregando...</p>;
+    return <p className="text-[var(--text-muted)]">Carregando...</p>;
   }
 
   if (!hasAnalytics) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
         <div className="text-6xl mb-4">📊</div>
-        <h2 className="text-xl font-bold text-gray-800 mb-2">Analytics</h2>
-        <p className="text-gray-500 text-center max-w-md mb-6">
+        <h2 className="text-xl font-bold text-[var(--text-primary)] mb-2">Analytics</h2>
+        <p className="text-[var(--text-muted)] text-center max-w-md mb-6">
           O Analytics esta disponivel a partir do plano Pro. Faca upgrade para acessar
           graficos e estatisticas detalhadas sobre suas vendas, produtos e clientes.
         </p>
@@ -199,7 +199,7 @@ export default function AnalyticsPage() {
   if (stores.length === 0) {
     return (
       <div className="text-center py-20">
-        <p className="text-gray-500">Crie uma loja primeiro para ver o analytics.</p>
+        <p className="text-[var(--text-muted)]">Crie uma loja primeiro para ver o analytics.</p>
       </div>
     );
   }
@@ -207,14 +207,14 @@ export default function AnalyticsPage() {
   return (
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">Analytics</h1>
+        <h1 className="text-2xl font-bold text-[var(--text-primary)]">Analytics</h1>
 
         <div className="flex gap-2 flex-wrap">
           {stores.length > 1 && (
             <select
               value={storeId || ""}
               onChange={(e) => setSelectedStore(e.target.value)}
-              className="bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-700 focus:outline-none focus:border-orange-400"
+              className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:border-orange-400"
             >
               {stores.map((s: any) => (
                 <option key={s.id} value={s.id}>{s.name}</option>
@@ -229,7 +229,7 @@ export default function AnalyticsPage() {
               className={`px-4 py-2 rounded-xl text-sm font-semibold transition cursor-pointer ${
                 period === p
                   ? "bg-orange-500 text-white"
-                  : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
+                  : "bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
               }`}
             >
               {p === "7d" ? "7 dias" : p === "30d" ? "30 dias" : p === "90d" ? "90 dias" : "Tudo"}
@@ -239,9 +239,9 @@ export default function AnalyticsPage() {
       </div>
 
       {loadingOrders ? (
-        <p className="text-gray-500">Carregando dados...</p>
+        <p className="text-[var(--text-muted)]">Carregando dados...</p>
       ) : !analytics ? (
-        <p className="text-gray-500">Nenhum dado disponivel.</p>
+        <p className="text-[var(--text-muted)]">Nenhum dado disponivel.</p>
       ) : (
         <>
           {/* Stats cards */}
@@ -260,8 +260,8 @@ export default function AnalyticsPage() {
           </div>
 
           {/* Revenue area chart */}
-          <div className="bg-white rounded-2xl border border-gray-200 p-6 mb-6">
-            <h3 className="font-semibold text-gray-800 mb-4">Faturamento por Dia</h3>
+          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border-color)] p-6 mb-6">
+            <h3 className="font-semibold text-[var(--text-primary)] mb-4">Faturamento por Dia</h3>
             <ResponsiveContainer width="100%" height={280}>
               <AreaChart data={analytics.dailyData}>
                 <defs>
@@ -270,12 +270,12 @@ export default function AnalyticsPage() {
                     <stop offset="95%" stopColor="#f97316" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
                 <XAxis dataKey="day" tick={{ fontSize: 11, fill: "#9ca3af" }} />
                 <YAxis tick={{ fontSize: 11, fill: "#9ca3af" }} tickFormatter={(v) => `R$${v}`} />
                 <Tooltip
                   formatter={(value: number) => [`R$ ${value.toFixed(2)}`, "Faturamento"]}
-                  contentStyle={{ borderRadius: 12, border: "1px solid #e5e7eb" }}
+                  contentStyle={{ borderRadius: 12, border: "1px solid var(--border-color)", background: "var(--bg-card)", color: "var(--text-primary)" }}
                 />
                 <Area type="monotone" dataKey="revenue" stroke="#f97316" strokeWidth={2} fill="url(#colorRevenue)" name="Faturamento" />
               </AreaChart>
@@ -283,16 +283,16 @@ export default function AnalyticsPage() {
           </div>
 
           {/* Orders per day bar chart */}
-          <div className="bg-white rounded-2xl border border-gray-200 p-6 mb-6">
-            <h3 className="font-semibold text-gray-800 mb-4">Pedidos por Dia</h3>
+          <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border-color)] p-6 mb-6">
+            <h3 className="font-semibold text-[var(--text-primary)] mb-4">Pedidos por Dia</h3>
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={analytics.dailyData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
                 <XAxis dataKey="day" tick={{ fontSize: 11, fill: "#9ca3af" }} />
                 <YAxis tick={{ fontSize: 11, fill: "#9ca3af" }} allowDecimals={false} />
                 <Tooltip
                   formatter={(value: number) => [value, "Pedidos"]}
-                  contentStyle={{ borderRadius: 12, border: "1px solid #e5e7eb" }}
+                  contentStyle={{ borderRadius: 12, border: "1px solid var(--border-color)", background: "var(--bg-card)", color: "var(--text-primary)" }}
                 />
                 <Bar dataKey="pedidos" fill="#3b82f6" radius={[6, 6, 0, 0]} name="Pedidos" />
               </BarChart>
@@ -301,8 +301,8 @@ export default function AnalyticsPage() {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
             {/* Status pie chart */}
-            <div className="bg-white rounded-2xl border border-gray-200 p-6">
-              <h3 className="font-semibold text-gray-800 mb-4">Pedidos por Status</h3>
+            <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border-color)] p-6">
+              <h3 className="font-semibold text-[var(--text-primary)] mb-4">Pedidos por Status</h3>
               <ResponsiveContainer width="100%" height={260}>
                 <PieChart>
                   <Pie
@@ -321,29 +321,29 @@ export default function AnalyticsPage() {
                   </Pie>
                   <Tooltip
                     formatter={(value: number, name: string) => [value, name]}
-                    contentStyle={{ borderRadius: 12, border: "1px solid #e5e7eb" }}
+                    contentStyle={{ borderRadius: 12, border: "1px solid var(--border-color)", background: "var(--bg-card)", color: "var(--text-primary)" }}
                   />
                   <Legend
                     verticalAlign="bottom"
                     iconType="circle"
                     iconSize={8}
-                    formatter={(value) => <span className="text-xs text-gray-600">{value}</span>}
+                    formatter={(value) => <span className="text-xs text-[var(--text-secondary)]">{value}</span>}
                   />
                 </PieChart>
               </ResponsiveContainer>
             </div>
 
             {/* Hourly distribution */}
-            <div className="bg-white rounded-2xl border border-gray-200 p-6">
-              <h3 className="font-semibold text-gray-800 mb-4">Horarios de Pico</h3>
+            <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border-color)] p-6">
+              <h3 className="font-semibold text-[var(--text-primary)] mb-4">Horarios de Pico</h3>
               <ResponsiveContainer width="100%" height={260}>
                 <BarChart data={analytics.hourlyData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
                   <XAxis dataKey="hora" tick={{ fontSize: 10, fill: "#9ca3af" }} />
                   <YAxis tick={{ fontSize: 11, fill: "#9ca3af" }} allowDecimals={false} />
                   <Tooltip
                     formatter={(value: number) => [value, "Pedidos"]}
-                    contentStyle={{ borderRadius: 12, border: "1px solid #e5e7eb" }}
+                    contentStyle={{ borderRadius: 12, border: "1px solid var(--border-color)", background: "var(--bg-card)", color: "var(--text-primary)" }}
                   />
                   <Bar dataKey="pedidos" fill="#8b5cf6" radius={[4, 4, 0, 0]} name="Pedidos" />
                 </BarChart>
@@ -353,16 +353,16 @@ export default function AnalyticsPage() {
 
           {/* Top products */}
           {analytics.topProducts.length > 0 && (
-            <div className="bg-white rounded-2xl border border-gray-200 p-6 mb-6">
-              <h3 className="font-semibold text-gray-800 mb-4">Top Produtos</h3>
+            <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border-color)] p-6 mb-6">
+              <h3 className="font-semibold text-[var(--text-primary)] mb-4">Top Produtos</h3>
               <ResponsiveContainer width="100%" height={Math.max(analytics.topProducts.length * 45, 200)}>
                 <BarChart data={analytics.topProducts} layout="vertical" margin={{ left: 10 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" horizontal={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" horizontal={false} />
                   <XAxis type="number" tick={{ fontSize: 11, fill: "#9ca3af" }} tickFormatter={(v) => `R$${v}`} />
                   <YAxis
                     type="category"
                     dataKey="name"
-                    tick={{ fontSize: 12, fill: "#4b5563" }}
+                    tick={{ fontSize: 12, fill: "var(--text-secondary)" }}
                     width={120}
                   />
                   <Tooltip
@@ -370,7 +370,7 @@ export default function AnalyticsPage() {
                       if (name === "revenue") return [`R$ ${value.toFixed(2)}`, "Receita"];
                       return [value, name];
                     }}
-                    contentStyle={{ borderRadius: 12, border: "1px solid #e5e7eb" }}
+                    contentStyle={{ borderRadius: 12, border: "1px solid var(--border-color)", background: "var(--bg-card)", color: "var(--text-primary)" }}
                   />
                   <Bar dataKey="revenue" fill="#f97316" radius={[0, 6, 6, 0]} name="revenue" />
                 </BarChart>

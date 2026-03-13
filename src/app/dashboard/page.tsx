@@ -191,7 +191,7 @@ function DashboardContent() {
               <button
                 onClick={handleConnectMp}
                 disabled={mpUrlLoading}
-                className="px-5 py-2.5 bg-white text-orange-600 rounded-xl text-sm font-bold cursor-pointer hover:bg-orange-50 active:scale-95 disabled:opacity-50 transition"
+                className="px-5 py-2.5 bg-[var(--bg-card)] text-orange-600 rounded-xl text-sm font-bold cursor-pointer hover:bg-orange-50 active:scale-95 disabled:opacity-50 transition"
               >
                 {mpUrlLoading ? "Carregando..." : "Conectar agora"}
               </button>
@@ -222,7 +222,7 @@ function DashboardContent() {
             <button
               onClick={handleDisconnectMp}
               disabled={disconnecting}
-              className="px-4 py-2 bg-white border border-green-300 text-green-700 rounded-xl text-sm font-semibold cursor-pointer hover:bg-green-100 disabled:opacity-50 transition"
+              className="px-4 py-2 bg-[var(--bg-card)] border border-green-300 text-green-700 rounded-xl text-sm font-semibold cursor-pointer hover:bg-green-100 disabled:opacity-50 transition"
             >
               {disconnecting ? "..." : "Desconectar"}
             </button>
@@ -312,7 +312,7 @@ function DashboardContent() {
                     onClick={() => setForm({ ...form, hasOwnDelivery: !form.hasOwnDelivery })}
                     className={`relative w-12 h-6 rounded-full transition cursor-pointer ${form.hasOwnDelivery ? "bg-orange-500" : "bg-gray-300"}`}
                   >
-                    <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${form.hasOwnDelivery ? "translate-x-6" : ""}`} />
+                    <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-[var(--bg-card)] rounded-full transition-transform ${form.hasOwnDelivery ? "translate-x-6" : ""}`} />
                   </button>
                   <span className="text-sm text-[var(--text-primary)]">
                     {form.hasOwnDelivery ? "Entrega própria" : "Não possui entrega própria"}
@@ -332,7 +332,7 @@ function DashboardContent() {
                     onClick={() => setForm({ ...form, freeDelivery: !form.freeDelivery })}
                     className={`relative w-12 h-6 rounded-full transition cursor-pointer ${form.freeDelivery ? "bg-green-500" : "bg-gray-300"}`}
                   >
-                    <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${form.freeDelivery ? "translate-x-6" : ""}`} />
+                    <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-[var(--bg-card)] rounded-full transition-transform ${form.freeDelivery ? "translate-x-6" : ""}`} />
                   </button>
                   <span className="text-sm text-[var(--text-primary)]">Entrega grátis</span>
                 </div>

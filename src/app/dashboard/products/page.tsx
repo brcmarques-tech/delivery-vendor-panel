@@ -107,7 +107,7 @@ function ProductImage({ name, imageUrl, size = 12 }: { name: string; imageUrl?: 
   const iconSize = size === 8 ? "h-4 w-4" : "h-5 w-5";
 
   if (loading) {
-    return <div className={`${sizeClass} rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0 animate-pulse`} />;
+    return <div className={`${sizeClass} rounded-lg bg-[var(--bg-muted)] flex items-center justify-center flex-shrink-0 animate-pulse`} />;
   }
 
   if (src) {
@@ -666,7 +666,7 @@ export default function ProductsPage() {
 
   // ─── Status helpers ───
   function getStatusInfo(product: any) {
-    if (!product.isActive) return { label: "Oculto", color: "bg-gray-100 text-gray-500", dot: "bg-gray-400" };
+    if (!product.isActive) return { label: "Oculto", color: "bg-[var(--bg-muted)] text-[var(--text-muted)]", dot: "bg-gray-400" };
     if (!product.isAvailable) return { label: "Indisponivel", color: "bg-red-100 text-red-600", dot: "bg-red-500" };
     return { label: "Disponivel", color: "bg-green-100 text-green-600", dot: "bg-green-500" };
   }
@@ -677,13 +677,13 @@ export default function ProductsPage() {
     return (
       <tr
         key={product.id}
-        className={`border-t border-gray-100 hover:bg-gray-50/50 ${!product.isActive ? "opacity-50" : ""}`}
+        className={`border-t border-gray-100 hover:bg-[var(--bg-hover)]/50 ${!product.isActive ? "opacity-50" : ""}`}
       >
         <td className="pl-2 pr-0 py-4 w-8">
           <div
             draggable
             onDragStart={() => handleDragStart(product.id)}
-            className="cursor-grab active:cursor-grabbing p-1 rounded text-gray-300 hover:text-gray-500 transition"
+            className="cursor-grab active:cursor-grabbing p-1 rounded text-gray-300 hover:text-[var(--text-muted)] transition"
             title="Arrastar para outra categoria"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
@@ -700,25 +700,25 @@ export default function ProductsPage() {
               <img src={product.imageUrl} alt={product.name} className="w-10 h-10 rounded-lg object-cover flex-shrink-0 hover:opacity-80 transition"
                 onClick={(e) => { e.stopPropagation(); setZoomedImage(product.imageUrl); }} />
             ) : (
-              <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
+              <div className="w-10 h-10 rounded-lg bg-[var(--bg-muted)] flex items-center justify-center flex-shrink-0">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
               </div>
             )}
             <div>
-              <p className="font-medium text-gray-800">{product.name}</p>
+              <p className="font-medium text-[var(--text-primary)]">{product.name}</p>
               {product.description && <p className="text-xs text-gray-400 mt-0.5">{product.description}</p>}
             </div>
           </button>
         </td>
-        <td className="px-6 py-4 text-gray-600">
+        <td className="px-6 py-4 text-[var(--text-secondary)]">
           {inlineEdit && inlineEdit.id === product.id && inlineEdit.field === "price" ? (
             <input type="number" step="0.01" autoFocus value={inlineEdit.value}
               onChange={(e) => setInlineEdit({ ...inlineEdit, value: e.target.value })}
               onBlur={handleInlineBlurOrEnter}
               onKeyDown={(e) => { if (e.key === "Enter") handleInlineBlurOrEnter(); if (e.key === "Escape") setInlineEdit(null); }}
-              className="w-24 px-2 py-1 border border-orange-300 rounded-lg text-gray-800 text-sm focus:ring-2 focus:ring-orange-200 outline-none" />
+              className="w-24 px-2 py-1 border border-orange-300 rounded-lg text-[var(--text-primary)] text-sm focus:ring-2 focus:ring-orange-200 outline-none" />
           ) : (
             <div className="flex items-center gap-2">
               <button onClick={() => startInlineEdit(product.id, "price", Number(product.price))}
@@ -726,18 +726,18 @@ export default function ProductsPage() {
                 R$ {Number(product.price).toFixed(2)}
               </button>
               {product.isVariableWeight && (
-                <span className="px-1.5 py-0.5 bg-gray-100 text-gray-500 text-xs rounded-full font-medium">por peso</span>
+                <span className="px-1.5 py-0.5 bg-[var(--bg-muted)] text-[var(--text-muted)] text-xs rounded-full font-medium">por peso</span>
               )}
             </div>
           )}
         </td>
-        <td className="px-6 py-4 text-gray-600">
+        <td className="px-6 py-4 text-[var(--text-secondary)]">
           {inlineEdit && inlineEdit.id === product.id && inlineEdit.field === "stock" ? (
             <input type="number" min="0" autoFocus value={inlineEdit.value}
               onChange={(e) => setInlineEdit({ ...inlineEdit, value: e.target.value })}
               onBlur={handleInlineBlurOrEnter}
               onKeyDown={(e) => { if (e.key === "Enter") handleInlineBlurOrEnter(); if (e.key === "Escape") setInlineEdit(null); }}
-              className="w-20 px-2 py-1 border border-orange-300 rounded-lg text-gray-800 text-sm focus:ring-2 focus:ring-orange-200 outline-none" />
+              className="w-20 px-2 py-1 border border-orange-300 rounded-lg text-[var(--text-primary)] text-sm focus:ring-2 focus:ring-orange-200 outline-none" />
           ) : (
             <button onClick={() => startInlineEdit(product.id, "stock", product.stock || 0)}
               className="cursor-pointer hover:bg-orange-50 hover:text-orange-600 px-2 py-1 rounded-lg transition text-left">
@@ -760,17 +760,17 @@ export default function ProductsPage() {
             {statusMenuId === product.id && (
               <>
                 <div className="fixed inset-0 z-30" onClick={() => setStatusMenuId(null)} />
-                <div className="absolute left-0 bottom-full mb-2 z-40 bg-white border border-gray-200 rounded-xl shadow-lg py-1 min-w-[200px]">
+                <div className="absolute left-0 bottom-full mb-2 z-40 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl shadow-lg py-1 min-w-[200px]">
                   {product.isActive && (
                     <button onClick={() => handleToggleAvailability(product.id)}
-                      className="w-full text-left px-4 py-2.5 text-sm text-gray-800 font-medium cursor-pointer transition hover:bg-gray-50 flex items-center gap-2">
+                      className="w-full text-left px-4 py-2.5 text-sm text-[var(--text-primary)] font-medium cursor-pointer transition hover:bg-[var(--bg-hover)] flex items-center gap-2">
                       <span className={`w-2 h-2 rounded-full ${product.isAvailable ? "bg-red-500" : "bg-green-500"}`} />
                       {product.isAvailable ? "Marcar indisponivel" : "Marcar disponivel"}
                     </button>
                   )}
                   {product.isActive && <div className="border-t border-gray-100 my-1" />}
                   <button onClick={() => handleToggleActive(product.id)}
-                    className="w-full text-left px-4 py-2.5 text-sm text-gray-800 font-medium cursor-pointer transition hover:bg-gray-50 flex items-center gap-2">
+                    className="w-full text-left px-4 py-2.5 text-sm text-[var(--text-primary)] font-medium cursor-pointer transition hover:bg-[var(--bg-hover)] flex items-center gap-2">
                     <span className={`w-2 h-2 rounded-full ${product.isActive ? "bg-gray-400" : "bg-green-500"}`} />
                     {product.isActive ? "Ocultar produto" : "Mostrar produto"}
                   </button>
@@ -799,14 +799,14 @@ export default function ProductsPage() {
 
   function renderTableHeader() {
     return (
-      <thead className="bg-gray-50">
+      <thead className="bg-[var(--bg-hover)]">
         <tr>
           <th className="w-8" />
-          <th className="text-left px-4 py-3 text-sm font-semibold text-gray-600">Produto</th>
-          <th className="text-left px-6 py-3 text-sm font-semibold text-gray-600">Preco</th>
-          <th className="text-left px-6 py-3 text-sm font-semibold text-gray-600">Estoque</th>
-          <th className="text-left px-6 py-3 text-sm font-semibold text-gray-600">Status</th>
-          <th className="text-left px-6 py-3 text-sm font-semibold text-gray-600 w-24">Acoes</th>
+          <th className="text-left px-4 py-3 text-sm font-semibold text-[var(--text-secondary)]">Produto</th>
+          <th className="text-left px-6 py-3 text-sm font-semibold text-[var(--text-secondary)]">Preco</th>
+          <th className="text-left px-6 py-3 text-sm font-semibold text-[var(--text-secondary)]">Estoque</th>
+          <th className="text-left px-6 py-3 text-sm font-semibold text-[var(--text-secondary)]">Status</th>
+          <th className="text-left px-6 py-3 text-sm font-semibold text-[var(--text-secondary)] w-24">Acoes</th>
         </tr>
       </thead>
     );
@@ -817,7 +817,7 @@ export default function ProductsPage() {
     return (
       <div
         key={product.id}
-        className={`bg-white rounded-2xl shadow-sm p-4 flex flex-col gap-3 ${!product.isActive ? "opacity-50" : ""}`}
+        className={`bg-[var(--bg-card)] rounded-2xl shadow-sm p-4 flex flex-col gap-3 ${!product.isActive ? "opacity-50" : ""}`}
       >
         {/* Top row: image + info */}
         <div className="flex items-start gap-3">
@@ -829,7 +829,7 @@ export default function ProductsPage() {
             {product.imageUrl ? (
               <img src={product.imageUrl} alt={product.name} className="w-14 h-14 rounded-xl object-cover" />
             ) : (
-              <div className="w-14 h-14 rounded-xl bg-gray-100 flex items-center justify-center">
+              <div className="w-14 h-14 rounded-xl bg-[var(--bg-muted)] flex items-center justify-center">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
@@ -839,7 +839,7 @@ export default function ProductsPage() {
 
           {/* Name + category + status */}
           <div className="flex-1 min-w-0">
-            <p className="font-semibold text-gray-800 leading-tight">{product.name}</p>
+            <p className="font-semibold text-[var(--text-primary)] leading-tight">{product.name}</p>
             {product.description && (
               <p className="text-xs text-gray-400 mt-0.5 truncate">{product.description}</p>
             )}
@@ -860,17 +860,17 @@ export default function ProductsPage() {
             {statusMenuId === product.id && (
               <>
                 <div className="fixed inset-0 z-30" onClick={() => setStatusMenuId(null)} />
-                <div className="absolute right-0 top-full mt-1 z-40 bg-white border border-gray-200 rounded-xl shadow-lg py-1 min-w-[200px]">
+                <div className="absolute right-0 top-full mt-1 z-40 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl shadow-lg py-1 min-w-[200px]">
                   {product.isActive && (
                     <button onClick={() => handleToggleAvailability(product.id)}
-                      className="w-full text-left px-4 py-2.5 text-sm text-gray-800 font-medium cursor-pointer transition hover:bg-gray-50 flex items-center gap-2">
+                      className="w-full text-left px-4 py-2.5 text-sm text-[var(--text-primary)] font-medium cursor-pointer transition hover:bg-[var(--bg-hover)] flex items-center gap-2">
                       <span className={`w-2 h-2 rounded-full ${product.isAvailable ? "bg-red-500" : "bg-green-500"}`} />
                       {product.isAvailable ? "Marcar indisponivel" : "Marcar disponivel"}
                     </button>
                   )}
                   {product.isActive && <div className="border-t border-gray-100 my-1" />}
                   <button onClick={() => handleToggleActive(product.id)}
-                    className="w-full text-left px-4 py-2.5 text-sm text-gray-800 font-medium cursor-pointer transition hover:bg-gray-50 flex items-center gap-2">
+                    className="w-full text-left px-4 py-2.5 text-sm text-[var(--text-primary)] font-medium cursor-pointer transition hover:bg-[var(--bg-hover)] flex items-center gap-2">
                     <span className={`w-2 h-2 rounded-full ${product.isActive ? "bg-gray-400" : "bg-green-500"}`} />
                     {product.isActive ? "Ocultar produto" : "Mostrar produto"}
                   </button>
@@ -889,15 +889,15 @@ export default function ProductsPage() {
                 onChange={(e) => setInlineEdit({ ...inlineEdit, value: e.target.value })}
                 onBlur={handleInlineBlurOrEnter}
                 onKeyDown={(e) => { if (e.key === "Enter") handleInlineBlurOrEnter(); if (e.key === "Escape") setInlineEdit(null); }}
-                className="w-28 px-2 py-1 border border-orange-300 rounded-lg text-gray-800 text-sm focus:ring-2 focus:ring-orange-200 outline-none" />
+                className="w-28 px-2 py-1 border border-orange-300 rounded-lg text-[var(--text-primary)] text-sm focus:ring-2 focus:ring-orange-200 outline-none" />
             ) : (
               <div className="flex items-center gap-2">
                 <button onClick={() => startInlineEdit(product.id, "price", Number(product.price))}
-                  className="text-sm font-semibold text-gray-700 cursor-pointer hover:text-orange-600 transition">
+                  className="text-sm font-semibold text-[var(--text-primary)] cursor-pointer hover:text-orange-600 transition">
                   R$ {Number(product.price).toFixed(2)}
                 </button>
                 {product.isVariableWeight && (
-                  <span className="px-1.5 py-0.5 bg-gray-100 text-gray-500 text-xs rounded-full font-medium">por peso</span>
+                  <span className="px-1.5 py-0.5 bg-[var(--bg-muted)] text-[var(--text-muted)] text-xs rounded-full font-medium">por peso</span>
                 )}
               </div>
             )}
@@ -909,10 +909,10 @@ export default function ProductsPage() {
                 onChange={(e) => setInlineEdit({ ...inlineEdit, value: e.target.value })}
                 onBlur={handleInlineBlurOrEnter}
                 onKeyDown={(e) => { if (e.key === "Enter") handleInlineBlurOrEnter(); if (e.key === "Escape") setInlineEdit(null); }}
-                className="w-20 px-2 py-1 border border-orange-300 rounded-lg text-gray-800 text-sm focus:ring-2 focus:ring-orange-200 outline-none" />
+                className="w-20 px-2 py-1 border border-orange-300 rounded-lg text-[var(--text-primary)] text-sm focus:ring-2 focus:ring-orange-200 outline-none" />
             ) : (
               <button onClick={() => startInlineEdit(product.id, "stock", product.stock || 0)}
-                className="text-sm font-semibold text-gray-700 cursor-pointer hover:text-orange-600 transition">
+                className="text-sm font-semibold text-[var(--text-primary)] cursor-pointer hover:text-orange-600 transition">
                 {product.stock > 0 ? product.stock : <span className="text-gray-400 text-xs font-normal">Ilimitado</span>}
               </button>
             )}
@@ -922,14 +922,14 @@ export default function ProductsPage() {
         {/* Action buttons */}
         <div className="flex items-center gap-2 pt-1 border-t border-gray-100">
           <button onClick={() => startEditing(product)}
-            className="flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-sm font-medium text-gray-600 bg-gray-50 hover:bg-orange-50 hover:text-orange-600 cursor-pointer transition active:scale-95">
+            className="flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-sm font-medium text-[var(--text-secondary)] bg-[var(--bg-hover)] hover:bg-orange-50 hover:text-orange-600 cursor-pointer transition active:scale-95">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
             </svg>
             Editar
           </button>
           <button onClick={() => handleDeleteProduct(product.id)}
-            className="flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-sm font-medium text-gray-600 bg-gray-50 hover:bg-red-50 hover:text-red-600 cursor-pointer transition active:scale-95">
+            className="flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-sm font-medium text-[var(--text-secondary)] bg-[var(--bg-hover)] hover:bg-red-50 hover:text-red-600 cursor-pointer transition active:scale-95">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
             </svg>
@@ -951,7 +951,7 @@ export default function ProductsPage() {
       {/* Header */}
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between mb-6 gap-3">
-        <h1 className="text-2xl font-bold text-gray-800">Produtos</h1>
+        <h1 className="text-2xl font-bold text-[var(--text-primary)]">Produtos</h1>
         <button onClick={() => { setActivePanel(activePanel === "product" ? "catalog" : "product"); setBarcodeInput(""); setBarcodeResult(null); }}
           className={`px-5 py-2.5 rounded-xl text-sm font-bold cursor-pointer active:scale-95 transition flex items-center gap-2 ${activePanel === "product" ? "bg-orange-600 text-white" : "bg-orange-500 text-white hover:bg-orange-600"}`}>
           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -963,10 +963,10 @@ export default function ProductsPage() {
 
       {/* Category form */}
       {showCategoryForm && (
-        <form onSubmit={handleCreateCategory} className="bg-white rounded-2xl p-6 shadow-sm mb-6">
+        <form onSubmit={handleCreateCategory} className="bg-[var(--bg-card)] rounded-2xl p-6 shadow-sm mb-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold text-gray-800">Nova categoria</h3>
-            <button onClick={() => setActivePanel("catalog")} className="text-gray-400 hover:text-gray-600 cursor-pointer">
+            <h3 className="font-bold text-[var(--text-primary)]">Nova categoria</h3>
+            <button onClick={() => setActivePanel("catalog")} className="text-gray-400 hover:text-[var(--text-secondary)] cursor-pointer">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
@@ -974,7 +974,7 @@ export default function ProductsPage() {
           </div>
           <div className="flex gap-3">
             <input type="text" placeholder="Nome da categoria" value={categoryName} onChange={(e) => setCategoryName(e.target.value)}
-              className="flex-1 px-4 py-2 border border-gray-200 rounded-xl text-gray-800" required />
+              className="flex-1 px-4 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)]" required />
             <button type="submit" className="px-6 py-2 bg-orange-500 text-white rounded-xl font-bold cursor-pointer hover:bg-orange-600 active:scale-95 transition">Criar</button>
           </div>
         </form>
@@ -982,10 +982,10 @@ export default function ProductsPage() {
 
       {/* CSV Import */}
       {showBulkImport && (
-        <div className="bg-white rounded-2xl p-6 shadow-sm mb-6">
+        <div className="bg-[var(--bg-card)] rounded-2xl p-6 shadow-sm mb-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold text-gray-800 text-lg">Importar via CSV</h3>
-            <button onClick={() => setActivePanel("catalog")} className="text-gray-400 hover:text-gray-600 cursor-pointer">
+            <h3 className="font-bold text-[var(--text-primary)] text-lg">Importar via CSV</h3>
+            <button onClick={() => setActivePanel("catalog")} className="text-gray-400 hover:text-[var(--text-secondary)] cursor-pointer">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
@@ -996,7 +996,7 @@ export default function ProductsPage() {
           </p>
           <input type="file" ref={csvInputRef} accept=".csv" className="hidden" onChange={(e) => { if (e.target.files?.[0]) handleCsvUpload(e.target.files[0]); }} />
           <button onClick={() => csvInputRef.current?.click()}
-            className="px-6 py-3 border-2 border-dashed border-gray-200 rounded-xl text-gray-500 font-semibold cursor-pointer hover:border-blue-400 hover:bg-blue-50/50 hover:text-blue-600 active:scale-95 transition w-full flex items-center justify-center gap-2">
+            className="px-6 py-3 border-2 border-dashed border-[var(--border-color)] rounded-xl text-[var(--text-muted)] font-semibold cursor-pointer hover:border-blue-400 hover:bg-blue-50/50 hover:text-blue-600 active:scale-95 transition w-full flex items-center justify-center gap-2">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
@@ -1004,7 +1004,7 @@ export default function ProductsPage() {
           </button>
           {csvProducts.length > 0 && !showCsvModal && (
             <div className="mt-4 flex items-center justify-between">
-              <p className="text-sm font-semibold text-gray-600">{csvProducts.length} produtos carregados</p>
+              <p className="text-sm font-semibold text-[var(--text-secondary)]">{csvProducts.length} produtos carregados</p>
               <button onClick={() => setShowCsvModal(true)}
                 className="px-6 py-2 bg-blue-500 text-white rounded-xl font-bold cursor-pointer hover:bg-blue-600 active:scale-95 transition">
                 Revisar produtos
@@ -1013,7 +1013,7 @@ export default function ProductsPage() {
           )}
           {bulkResult && (
             <div className={`mt-4 p-4 rounded-xl ${bulkResult.errors.length > 0 ? "bg-yellow-50 border border-yellow-200" : "bg-green-50 border border-green-200"}`}>
-              <p className="font-semibold text-gray-800">{bulkResult.created} produtos importados com sucesso!</p>
+              <p className="font-semibold text-[var(--text-primary)]">{bulkResult.created} produtos importados com sucesso!</p>
               {bulkResult.errors.length > 0 && (
                 <div className="mt-2">
                   <p className="text-sm font-semibold text-red-600 mb-1">Erros:</p>
@@ -1027,10 +1027,10 @@ export default function ProductsPage() {
 
       {/* + Produto form (with barcode) */}
       {showProductForm && (
-        <form onSubmit={handleCreateProduct} className="bg-white rounded-2xl p-6 shadow-sm mb-6">
+        <form onSubmit={handleCreateProduct} className="bg-[var(--bg-card)] rounded-2xl p-6 shadow-sm mb-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold text-gray-800">Novo produto</h3>
-            <button onClick={() => setActivePanel("catalog")} className="text-gray-400 hover:text-gray-600 cursor-pointer">
+            <h3 className="font-bold text-[var(--text-primary)]">Novo produto</h3>
+            <button onClick={() => setActivePanel("catalog")} className="text-gray-400 hover:text-[var(--text-secondary)] cursor-pointer">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
@@ -1046,15 +1046,15 @@ export default function ProductsPage() {
               <input type="text" placeholder="Escaneie com a pistola ou digite o EAN..."
                 value={barcodeInput} onChange={(e) => handleBarcodeInputChange(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (barcodeDebounceRef.current) clearTimeout(barcodeDebounceRef.current); doBarcodeLookup(barcodeInput); } }}
-                className="w-full pl-10 pr-4 py-2.5 border border-blue-200 rounded-xl text-gray-800 font-mono tracking-wider bg-white focus:border-blue-400 outline-none transition" />
+                className="w-full pl-10 pr-4 py-2.5 border border-blue-200 rounded-xl text-[var(--text-primary)] font-mono tracking-wider bg-[var(--bg-card)] focus:border-blue-400 outline-none transition" />
               {lookingUpBarcode && <div className="absolute right-3 top-1/2 -translate-y-1/2"><div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" /></div>}
             </div>
             {barcodeResult?.name && (
-              <div className="mt-3 p-3 bg-white border border-green-200 rounded-xl flex items-center gap-3">
+              <div className="mt-3 p-3 bg-[var(--bg-card)] border border-green-200 rounded-xl flex items-center gap-3">
                 {barcodeResult.imageUrl && <img src={barcodeResult.imageUrl} alt={barcodeResult.name} className="w-12 h-12 rounded-lg object-cover" />}
                 <div className="flex-1">
-                  <p className="font-semibold text-gray-800 text-sm">{barcodeResult.name}</p>
-                  {barcodeResult.brand && <p className="text-xs text-gray-500">{barcodeResult.brand} {barcodeResult.quantity && `- ${barcodeResult.quantity}`}</p>}
+                  <p className="font-semibold text-[var(--text-primary)] text-sm">{barcodeResult.name}</p>
+                  {barcodeResult.brand && <p className="text-xs text-[var(--text-muted)]">{barcodeResult.brand} {barcodeResult.quantity && `- ${barcodeResult.quantity}`}</p>}
                 </div>
                 <span className="text-xs text-green-600 font-semibold">Preenchido!</span>
               </div>
@@ -1074,7 +1074,7 @@ export default function ProductsPage() {
               </div>
             ) : (
               <div onClick={() => fileInputRef.current?.click()}
-                className="w-full py-6 border-2 border-dashed border-gray-200 rounded-xl flex items-center justify-center cursor-pointer hover:border-orange-400 hover:bg-orange-50/50 transition">
+                className="w-full py-6 border-2 border-dashed border-[var(--border-color)] rounded-xl flex items-center justify-center cursor-pointer hover:border-orange-400 hover:bg-orange-50/50 transition">
                 <div className="text-center">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 mx-auto text-gray-300 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -1099,15 +1099,15 @@ export default function ProductsPage() {
                 onChange={(e) => handleNameChange(e.target.value)}
                 onFocus={() => { if (nameSuggestions.length > 0) setShowNameSuggestions(true); }}
                 onBlur={() => setTimeout(() => setShowNameSuggestions(false), 200)}
-                className="w-full px-4 py-2 border border-gray-200 rounded-xl text-gray-800" required autoComplete="off" />
+                className="w-full px-4 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)]" required autoComplete="off" />
               {showNameSuggestions && nameSuggestions.length > 0 && (
-                <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-64 overflow-y-auto">
+                <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl shadow-lg max-h-64 overflow-y-auto">
                   {nameSuggestions.map((s: any) => (
                     <button key={s.id} type="button" onMouseDown={() => selectNameSuggestion(s)}
                       className="w-full text-left px-4 py-2 hover:bg-purple-50 flex items-center gap-3 transition cursor-pointer">
                       <ProductImage name={s.name} imageUrl={s.imageUrl} size={8} />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-800 truncate">{s.name}</p>
+                        <p className="text-sm font-medium text-[var(--text-primary)] truncate">{s.name}</p>
                         <p className="text-xs text-gray-400">R$ {Number(s.price).toFixed(2)} {s.unit ? `/ ${s.unit}` : ""} {s.barcode ? `· EAN: ${s.barcode}` : ""}</p>
                       </div>
                     </button>
@@ -1117,22 +1117,22 @@ export default function ProductsPage() {
             </div>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-semibold text-sm">R$</span>
-              <input type="number" step="0.01" placeholder="0.00" value={productForm.price} onChange={(e) => setProductForm({ ...productForm, price: e.target.value })} className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl text-gray-800" required />
+              <input type="number" step="0.01" placeholder="0.00" value={productForm.price} onChange={(e) => setProductForm({ ...productForm, price: e.target.value })} className="w-full pl-10 pr-4 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)]" required />
             </div>
-            <input type="text" placeholder="Descricao (opcional)" value={productForm.description} onChange={(e) => setProductForm({ ...productForm, description: e.target.value })} className="px-4 py-2 border border-gray-200 rounded-xl text-gray-800" />
-            <input type="text" placeholder="Unidade: kg, un, lt (opcional)" value={productForm.unit} onChange={(e) => setProductForm({ ...productForm, unit: e.target.value })} className="px-4 py-2 border border-gray-200 rounded-xl text-gray-800" disabled={productForm.isVariableWeight} />
-            <input type="number" min="0" placeholder="Estoque (0 = ilimitado)" value={productForm.stock} onChange={(e) => setProductForm({ ...productForm, stock: e.target.value })} className="px-4 py-2 border border-gray-200 rounded-xl text-gray-800" />
+            <input type="text" placeholder="Descricao (opcional)" value={productForm.description} onChange={(e) => setProductForm({ ...productForm, description: e.target.value })} className="px-4 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)]" />
+            <input type="text" placeholder="Unidade: kg, un, lt (opcional)" value={productForm.unit} onChange={(e) => setProductForm({ ...productForm, unit: e.target.value })} className="px-4 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)]" disabled={productForm.isVariableWeight} />
+            <input type="number" min="0" placeholder="Estoque (0 = ilimitado)" value={productForm.stock} onChange={(e) => setProductForm({ ...productForm, stock: e.target.value })} className="px-4 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)]" />
             {inlineNewCategory === "product" ? (
               <div className="flex gap-2">
                 <input type="text" autoFocus placeholder="Nome da categoria" value={inlineCategoryName}
                   onChange={(e) => setInlineCategoryName(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleInlineCreateCategory("product"); } if (e.key === "Escape") { setInlineNewCategory(null); setInlineCategoryName(""); } }}
-                  className="flex-1 px-4 py-2 border border-orange-300 rounded-xl text-gray-800 focus:ring-2 focus:ring-orange-200 outline-none" />
+                  className="flex-1 px-4 py-2 border border-orange-300 rounded-xl text-[var(--text-primary)] focus:ring-2 focus:ring-orange-200 outline-none" />
                 <button type="button" onClick={() => handleInlineCreateCategory("product")} className="px-4 py-2 bg-orange-500 text-white rounded-xl font-bold cursor-pointer hover:bg-orange-600 active:scale-95 transition text-sm">Criar</button>
-                <button type="button" onClick={() => { setInlineNewCategory(null); setInlineCategoryName(""); }} className="px-3 py-2 text-gray-400 hover:text-gray-600 cursor-pointer">&#10005;</button>
+                <button type="button" onClick={() => { setInlineNewCategory(null); setInlineCategoryName(""); }} className="px-3 py-2 text-gray-400 hover:text-[var(--text-secondary)] cursor-pointer">&#10005;</button>
               </div>
             ) : (
-              <select value={productForm.categoryId} onChange={(e) => { if (e.target.value === "__new__") { setInlineNewCategory("product"); setInlineCategoryName(""); return; } setProductForm({ ...productForm, categoryId: e.target.value }); }} className="px-4 py-2 border border-gray-200 rounded-xl text-gray-800">
+              <select value={productForm.categoryId} onChange={(e) => { if (e.target.value === "__new__") { setInlineNewCategory("product"); setInlineCategoryName(""); return; } setProductForm({ ...productForm, categoryId: e.target.value }); }} className="px-4 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)]">
                 <option value="">Sem categoria</option>
                 {categories.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
                 <option value="__new__">+ Criar categoria</option>
@@ -1140,9 +1140,9 @@ export default function ProductsPage() {
             )}
             <label className="flex items-center gap-3 col-span-1 md:col-span-2 cursor-pointer">
               <div className={`relative w-11 h-6 rounded-full transition ${productForm.isVariableWeight ? 'bg-orange-500' : 'bg-gray-200'}`} onClick={() => setProductForm({...productForm, isVariableWeight: !productForm.isVariableWeight, unit: !productForm.isVariableWeight ? 'kg' : productForm.unit})}>
-                <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${productForm.isVariableWeight ? 'translate-x-5' : ''}`} />
+                <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-[var(--bg-card)] rounded-full shadow transition-transform ${productForm.isVariableWeight ? 'translate-x-5' : ''}`} />
               </div>
-              <span className="text-sm text-gray-600">Produto vendido por peso (preco por kg)</span>
+              <span className="text-sm text-[var(--text-secondary)]">Produto vendido por peso (preco por kg)</span>
             </label>
             <button type="submit" disabled={uploading} className="md:col-span-2 px-6 py-2 bg-orange-500 text-white rounded-xl font-bold cursor-pointer hover:bg-orange-600 active:scale-95 transition disabled:opacity-50">
               {uploading ? "Enviando..." : "Adicionar produto"}
@@ -1152,12 +1152,12 @@ export default function ProductsPage() {
       )}
 
       {/* Catalog search */}
-      {showCatalog && <div className="bg-white rounded-2xl p-5 shadow-sm mb-6">
+      {showCatalog && <div className="bg-[var(--bg-card)] rounded-2xl p-5 shadow-sm mb-6">
         <div className="flex items-center gap-2 mb-3">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
-          <h3 className="font-bold text-gray-800">Cadastro rapido</h3>
+          <h3 className="font-bold text-[var(--text-primary)]">Cadastro rapido</h3>
           <span className="text-xs text-gray-400">Busque no catalogo da plataforma e adicione com um clique</span>
         </div>
         <div className="relative">
@@ -1166,16 +1166,16 @@ export default function ProductsPage() {
           </svg>
           <input type="text" placeholder="Digite o nome do produto ou codigo de barras..."
             value={catalogQuery} onChange={(e) => handleCatalogQueryChange(e.target.value)}
-            className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl text-gray-800 focus:border-purple-400 focus:ring-2 focus:ring-purple-100 outline-none transition" />
+            className="w-full pl-12 pr-4 py-3 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] focus:border-purple-400 focus:ring-2 focus:ring-purple-100 outline-none transition" />
           {searchingCatalog && <div className="absolute right-4 top-1/2 -translate-y-1/2"><div className="w-5 h-5 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" /></div>}
         </div>
         {catalogResults.length > 0 && (
           <div className="mt-3 space-y-2 max-h-72 overflow-y-auto">
             {catalogResults.map((product: any) => (
-              <div key={product.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl hover:bg-purple-50 transition">
+              <div key={product.id} className="flex items-center gap-3 p-3 bg-[var(--bg-hover)] rounded-xl hover:bg-purple-50 transition">
                 <ProductImage name={product.name} imageUrl={product.imageUrl} />
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-gray-800 truncate">{product.name}</p>
+                  <p className="font-semibold text-[var(--text-primary)] truncate">{product.name}</p>
                   <div className="flex items-center gap-2 text-xs text-gray-400">
                     <span>R$ {Number(product.price).toFixed(2)}</span>
                     {product.unit && <span>/ {product.unit}</span>}
@@ -1200,14 +1200,14 @@ export default function ProductsPage() {
           ? trashItems.filter((p: any) => p.name.toLowerCase().includes(trashSearch.toLowerCase()))
           : trashItems;
         return (
-        <div className="bg-white rounded-2xl p-5 shadow-sm mb-6 border border-red-100">
+        <div className="bg-[var(--bg-card)] rounded-2xl p-5 shadow-sm mb-6 border border-red-100">
           <div className="flex items-center gap-2 mb-3">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
             </svg>
-            <h3 className="font-bold text-gray-800">Produtos excluidos</h3>
+            <h3 className="font-bold text-[var(--text-primary)]">Produtos excluidos</h3>
             <span className="text-xs text-gray-400 flex-1">Restaure ou busque produtos removidos</span>
-            <button onClick={() => setActivePanel("catalog")} className="text-gray-400 hover:text-gray-600 cursor-pointer">
+            <button onClick={() => setActivePanel("catalog")} className="text-gray-400 hover:text-[var(--text-secondary)] cursor-pointer">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
@@ -1219,7 +1219,7 @@ export default function ProductsPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
               <input type="text" placeholder="Buscar nos excluidos..." value={trashSearch} onChange={(e) => setTrashSearch(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-800 focus:border-red-300 focus:ring-1 focus:ring-red-100 outline-none transition" />
+                className="w-full pl-9 pr-4 py-2 border border-[var(--border-color)] rounded-lg text-sm text-[var(--text-primary)] focus:border-red-300 focus:ring-1 focus:ring-red-100 outline-none transition" />
             </div>
           )}
           {loadingDeleted ? (
@@ -1234,7 +1234,7 @@ export default function ProductsPage() {
                 <div key={p.id} className="flex items-center gap-3 p-3 bg-red-50/50 rounded-xl">
                   <ProductImage name={p.name} imageUrl={p.imageUrl} />
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-gray-600 truncate">{p.name}</p>
+                    <p className="font-semibold text-[var(--text-secondary)] truncate">{p.name}</p>
                     <div className="flex items-center gap-2 text-xs text-gray-400">
                       <span>R$ {Number(p.price).toFixed(2)}</span>
                       {p.unit && <span>/ {p.unit}</span>}
@@ -1257,44 +1257,44 @@ export default function ProductsPage() {
       {/* Restore modal */}
       {restoreModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setRestoreModal(null)}>
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-[var(--bg-card)] rounded-2xl p-6 w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-gray-800 text-lg">Restaurar produto</h3>
-              <button onClick={() => setRestoreModal(null)} className="text-gray-400 hover:text-gray-600 cursor-pointer">
+              <h3 className="font-bold text-[var(--text-primary)] text-lg">Restaurar produto</h3>
+              <button onClick={() => setRestoreModal(null)} className="text-gray-400 hover:text-[var(--text-secondary)] cursor-pointer">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
-            <div className="flex items-center gap-3 mb-5 p-3 bg-gray-50 rounded-xl">
+            <div className="flex items-center gap-3 mb-5 p-3 bg-[var(--bg-hover)] rounded-xl">
               <ProductImage name={restoreModal.name} imageUrl={restoreModal.imageUrl} />
               <div>
-                <p className="font-semibold text-gray-700">{restoreModal.name}</p>
+                <p className="font-semibold text-[var(--text-primary)]">{restoreModal.name}</p>
                 {restoreModal.category?.name && <p className="text-xs text-gray-400">{restoreModal.category.name}</p>}
               </div>
             </div>
             <div className="space-y-3 mb-5">
               <div>
-                <label className="text-xs font-medium text-gray-500 mb-1 block">Nome</label>
+                <label className="text-xs font-medium text-[var(--text-muted)] mb-1 block">Nome</label>
                 <input type="text" value={restoreModal.editName} onChange={(e) => setRestoreModal({ ...restoreModal, editName: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-800 focus:border-green-400 outline-none" />
+                  className="w-full px-3 py-2 border border-[var(--border-color)] rounded-lg text-sm text-[var(--text-primary)] focus:border-green-400 outline-none" />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-medium text-gray-500 mb-1 block">Preco (R$)</label>
+                  <label className="text-xs font-medium text-[var(--text-muted)] mb-1 block">Preco (R$)</label>
                   <input type="number" step="0.01" value={restoreModal.editPrice} onChange={(e) => setRestoreModal({ ...restoreModal, editPrice: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-800 focus:border-green-400 outline-none" />
+                    className="w-full px-3 py-2 border border-[var(--border-color)] rounded-lg text-sm text-[var(--text-primary)] focus:border-green-400 outline-none" />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-gray-500 mb-1 block">Estoque</label>
+                  <label className="text-xs font-medium text-[var(--text-muted)] mb-1 block">Estoque</label>
                   <input type="number" min="0" value={restoreModal.editStock} onChange={(e) => setRestoreModal({ ...restoreModal, editStock: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-800 focus:border-green-400 outline-none" />
+                    className="w-full px-3 py-2 border border-[var(--border-color)] rounded-lg text-sm text-[var(--text-primary)] focus:border-green-400 outline-none" />
                 </div>
               </div>
             </div>
             <div className="flex gap-3">
               <button onClick={() => setRestoreModal(null)}
-                className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-600 rounded-xl text-sm font-semibold cursor-pointer hover:bg-gray-50 transition">
+                className="flex-1 px-4 py-2.5 border border-[var(--border-color)] text-[var(--text-secondary)] rounded-xl text-sm font-semibold cursor-pointer hover:bg-[var(--bg-hover)] transition">
                 Cancelar
               </button>
               <button onClick={async () => {
@@ -1326,8 +1326,8 @@ export default function ProductsPage() {
         <>
           <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setEditingProduct(null)} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <form onSubmit={handleUpdateProduct} className="bg-white rounded-2xl p-6 shadow-xl w-full max-w-md">
-              <h3 className="font-bold text-gray-800 mb-4 text-lg">Editar produto</h3>
+            <form onSubmit={handleUpdateProduct} className="bg-[var(--bg-card)] rounded-2xl p-6 shadow-xl w-full max-w-md">
+              <h3 className="font-bold text-[var(--text-primary)] mb-4 text-lg">Editar produto</h3>
               <div className="mb-4">
                 <input type="file" ref={editFileInputRef} accept="image/*" className="hidden" onChange={(e) => { if (e.target.files?.[0]) handleImageSelect(e.target.files[0], "edit"); }} />
                 {editImagePreview ? (
@@ -1341,7 +1341,7 @@ export default function ProductsPage() {
                   </div>
                 ) : (
                   <div onClick={() => editFileInputRef.current?.click()}
-                    className="w-full py-6 border-2 border-dashed border-gray-200 rounded-xl flex items-center justify-center cursor-pointer hover:border-orange-400 hover:bg-orange-50/50 transition">
+                    className="w-full py-6 border-2 border-dashed border-[var(--border-color)] rounded-xl flex items-center justify-center cursor-pointer hover:border-orange-400 hover:bg-orange-50/50 transition">
                     <div className="text-center">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 mx-auto text-gray-300 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -1361,28 +1361,28 @@ export default function ProductsPage() {
                 )}
               </div>
               <div className="space-y-3">
-                <input type="text" placeholder="Nome" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} className="w-full px-4 py-2 border border-gray-200 rounded-xl text-gray-800" required />
-                <input type="number" step="0.01" placeholder="Preco (R$)" value={editForm.price} onChange={(e) => setEditForm({ ...editForm, price: e.target.value })} className="w-full px-4 py-2 border border-gray-200 rounded-xl text-gray-800" required />
-                <input type="text" placeholder="Descricao (opcional)" value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} className="w-full px-4 py-2 border border-gray-200 rounded-xl text-gray-800" />
-                <input type="text" placeholder="Unidade: kg, un, lt (opcional)" value={editForm.unit} onChange={(e) => setEditForm({ ...editForm, unit: e.target.value })} className="w-full px-4 py-2 border border-gray-200 rounded-xl text-gray-800" disabled={editForm.isVariableWeight} />
-                <input type="number" min="0" placeholder="Estoque (0 = ilimitado)" value={editForm.stock} onChange={(e) => setEditForm({ ...editForm, stock: e.target.value })} className="w-full px-4 py-2 border border-gray-200 rounded-xl text-gray-800" />
+                <input type="text" placeholder="Nome" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} className="w-full px-4 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)]" required />
+                <input type="number" step="0.01" placeholder="Preco (R$)" value={editForm.price} onChange={(e) => setEditForm({ ...editForm, price: e.target.value })} className="w-full px-4 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)]" required />
+                <input type="text" placeholder="Descricao (opcional)" value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} className="w-full px-4 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)]" />
+                <input type="text" placeholder="Unidade: kg, un, lt (opcional)" value={editForm.unit} onChange={(e) => setEditForm({ ...editForm, unit: e.target.value })} className="w-full px-4 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)]" disabled={editForm.isVariableWeight} />
+                <input type="number" min="0" placeholder="Estoque (0 = ilimitado)" value={editForm.stock} onChange={(e) => setEditForm({ ...editForm, stock: e.target.value })} className="w-full px-4 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)]" />
                 <label className="flex items-center gap-3 cursor-pointer">
                   <div className={`relative w-11 h-6 rounded-full transition ${editForm.isVariableWeight ? 'bg-orange-500' : 'bg-gray-200'}`} onClick={() => setEditForm({...editForm, isVariableWeight: !editForm.isVariableWeight, unit: !editForm.isVariableWeight ? 'kg' : editForm.unit})}>
-                    <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${editForm.isVariableWeight ? 'translate-x-5' : ''}`} />
+                    <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-[var(--bg-card)] rounded-full shadow transition-transform ${editForm.isVariableWeight ? 'translate-x-5' : ''}`} />
                   </div>
-                  <span className="text-sm text-gray-600">Produto vendido por peso (preco por kg)</span>
+                  <span className="text-sm text-[var(--text-secondary)]">Produto vendido por peso (preco por kg)</span>
                 </label>
                 {inlineNewCategory === "edit" ? (
                   <div className="flex gap-2">
                     <input type="text" autoFocus placeholder="Nome da categoria" value={inlineCategoryName}
                       onChange={(e) => setInlineCategoryName(e.target.value)}
                       onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleInlineCreateCategory("edit"); } if (e.key === "Escape") { setInlineNewCategory(null); setInlineCategoryName(""); } }}
-                      className="flex-1 px-4 py-2 border border-orange-300 rounded-xl text-gray-800 focus:ring-2 focus:ring-orange-200 outline-none" />
+                      className="flex-1 px-4 py-2 border border-orange-300 rounded-xl text-[var(--text-primary)] focus:ring-2 focus:ring-orange-200 outline-none" />
                     <button type="button" onClick={() => handleInlineCreateCategory("edit")} className="px-4 py-2 bg-orange-500 text-white rounded-xl font-bold cursor-pointer hover:bg-orange-600 active:scale-95 transition text-sm">Criar</button>
-                    <button type="button" onClick={() => { setInlineNewCategory(null); setInlineCategoryName(""); }} className="px-3 py-2 text-gray-400 hover:text-gray-600 cursor-pointer">&#10005;</button>
+                    <button type="button" onClick={() => { setInlineNewCategory(null); setInlineCategoryName(""); }} className="px-3 py-2 text-gray-400 hover:text-[var(--text-secondary)] cursor-pointer">&#10005;</button>
                   </div>
                 ) : (
-                  <select value={editForm.categoryId} onChange={(e) => { if (e.target.value === "__new__") { setInlineNewCategory("edit"); setInlineCategoryName(""); return; } setEditForm({ ...editForm, categoryId: e.target.value }); }} className="w-full px-4 py-2 border border-gray-200 rounded-xl text-gray-800">
+                  <select value={editForm.categoryId} onChange={(e) => { if (e.target.value === "__new__") { setInlineNewCategory("edit"); setInlineCategoryName(""); return; } setEditForm({ ...editForm, categoryId: e.target.value }); }} className="w-full px-4 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)]">
                     <option value="">Sem categoria</option>
                     {categories.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
                     <option value="__new__">+ Criar categoria</option>
@@ -1390,7 +1390,7 @@ export default function ProductsPage() {
                 )}
               </div>
               <div className="flex gap-3 mt-6">
-                <button type="button" onClick={() => setEditingProduct(null)} className="flex-1 px-4 py-2 border border-gray-200 rounded-xl text-gray-600 font-semibold cursor-pointer hover:bg-gray-50 transition">Cancelar</button>
+                <button type="button" onClick={() => setEditingProduct(null)} className="flex-1 px-4 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-secondary)] font-semibold cursor-pointer hover:bg-[var(--bg-hover)] transition">Cancelar</button>
                 <button type="submit" disabled={uploading} className="flex-1 px-4 py-2 bg-orange-500 text-white rounded-xl font-bold cursor-pointer hover:bg-orange-600 active:scale-95 transition disabled:opacity-50">
                   {uploading ? "Enviando..." : "Salvar"}
                 </button>
@@ -1404,7 +1404,7 @@ export default function ProductsPage() {
       <div className="flex flex-wrap items-center justify-between mb-4 gap-3">
       <div className="relative inline-block">
         <button onClick={() => setShowFilterDropdown(!showFilterDropdown)}
-          className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-50 active:scale-95 transition shadow-sm">
+          className="flex items-center gap-2 px-4 py-2.5 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl text-sm font-semibold text-[var(--text-primary)] cursor-pointer hover:bg-[var(--bg-hover)] active:scale-95 transition shadow-sm">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
           </svg>
@@ -1417,20 +1417,20 @@ export default function ProductsPage() {
         {showFilterDropdown && (
           <>
             <div className="fixed inset-0 z-10" onClick={() => setShowFilterDropdown(false)} />
-            <div className="absolute left-0 top-full mt-1 z-20 bg-white border border-gray-200 rounded-xl shadow-lg py-1 min-w-[220px]">
+            <div className="absolute left-0 top-full mt-1 z-20 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl shadow-lg py-1 min-w-[220px]">
               <button onClick={() => { setCategoryFilter("ALL"); setShowFilterDropdown(false); }}
-                className={`w-full text-left px-4 py-2.5 text-sm cursor-pointer transition ${categoryFilter === "ALL" ? "bg-orange-50 text-orange-600 font-semibold" : "text-gray-700 hover:bg-gray-50"}`}>
+                className={`w-full text-left px-4 py-2.5 text-sm cursor-pointer transition ${categoryFilter === "ALL" ? "bg-orange-50 text-orange-600 font-semibold" : "text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"}`}>
                 Todas as categorias
               </button>
               {categories.map((c: any) => (
                 <button key={c.id} onClick={() => { setCategoryFilter(c.id); setShowFilterDropdown(false); }}
-                  className={`w-full text-left px-4 py-2.5 text-sm cursor-pointer transition ${categoryFilter === c.id ? "bg-orange-50 text-orange-600 font-semibold" : "text-gray-700 hover:bg-gray-50"}`}>
+                  className={`w-full text-left px-4 py-2.5 text-sm cursor-pointer transition ${categoryFilter === c.id ? "bg-orange-50 text-orange-600 font-semibold" : "text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"}`}>
                   {c.name}
                 </button>
               ))}
               <div className="border-t border-gray-100 my-1" />
               <button onClick={() => { setCategoryFilter("NONE"); setShowFilterDropdown(false); }}
-                className={`w-full text-left px-4 py-2.5 text-sm cursor-pointer transition ${categoryFilter === "NONE" ? "bg-orange-50 text-orange-600 font-semibold" : "text-gray-500 hover:bg-gray-50"}`}>
+                className={`w-full text-left px-4 py-2.5 text-sm cursor-pointer transition ${categoryFilter === "NONE" ? "bg-orange-50 text-orange-600 font-semibold" : "text-[var(--text-muted)] hover:bg-[var(--bg-hover)]"}`}>
                 Sem categoria
               </button>
             </div>
@@ -1438,9 +1438,9 @@ export default function ProductsPage() {
         )}
       </div>
 
-      <div className="flex items-center gap-1 bg-gray-50 rounded-lg p-1">
+      <div className="flex items-center gap-1 bg-[var(--bg-hover)] rounded-lg p-1">
         <button onClick={() => setActivePanel(activePanel === "category" ? "catalog" : "category")}
-          className={`px-3 py-1.5 rounded-md text-xs font-medium cursor-pointer transition flex items-center gap-1.5 ${activePanel === "category" ? "bg-white text-orange-600 shadow-sm" : "text-gray-500 hover:text-gray-700 hover:bg-white/60"}`}
+          className={`px-3 py-1.5 rounded-md text-xs font-medium cursor-pointer transition flex items-center gap-1.5 ${activePanel === "category" ? "bg-[var(--bg-card)] text-orange-600 shadow-sm" : "text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)]/60"}`}
           title="Nova categoria">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
@@ -1448,7 +1448,7 @@ export default function ProductsPage() {
           Categoria
         </button>
         <button onClick={() => { setActivePanel(activePanel === "csv" ? "catalog" : "csv"); setCsvProducts([]); setBulkResult(null); }}
-          className={`px-3 py-1.5 rounded-md text-xs font-medium cursor-pointer transition flex items-center gap-1.5 ${activePanel === "csv" ? "bg-white text-blue-600 shadow-sm" : "text-gray-500 hover:text-gray-700 hover:bg-white/60"}`}
+          className={`px-3 py-1.5 rounded-md text-xs font-medium cursor-pointer transition flex items-center gap-1.5 ${activePanel === "csv" ? "bg-[var(--bg-card)] text-blue-600 shadow-sm" : "text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)]/60"}`}
           title="Importar CSV">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
@@ -1456,7 +1456,7 @@ export default function ProductsPage() {
           Importar
         </button>
         <button onClick={() => { setActivePanel(activePanel === "trash" ? "catalog" : "trash"); if (activePanel !== "trash" && activeStoreId) fetchDeleted({ variables: { storeId: activeStoreId } }); }}
-          className={`px-3 py-1.5 rounded-md text-xs font-medium cursor-pointer transition flex items-center gap-1.5 ${activePanel === "trash" ? "bg-white text-red-500 shadow-sm" : "text-gray-500 hover:text-gray-700 hover:bg-white/60"}`}
+          className={`px-3 py-1.5 rounded-md text-xs font-medium cursor-pointer transition flex items-center gap-1.5 ${activePanel === "trash" ? "bg-[var(--bg-card)] text-red-500 shadow-sm" : "text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)]/60"}`}
           title="Lixeira">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -1470,8 +1470,8 @@ export default function ProductsPage() {
       {/* Products table */}
       {categoryFilter === "ALL" && groupedProducts ? (
         groupedProducts.length === 0 ? (
-          <div className="bg-white rounded-2xl shadow-sm">
-            <p className="text-center py-12 text-gray-500">Nenhum produto cadastrado</p>
+          <div className="bg-[var(--bg-card)] rounded-2xl shadow-sm">
+            <p className="text-center py-12 text-[var(--text-muted)]">Nenhum produto cadastrado</p>
           </div>
         ) : (
           groupedProducts.map(([key, group]) => (
@@ -1481,11 +1481,11 @@ export default function ProductsPage() {
               onDrop={() => handleDrop(key)}
             >
               <div className="flex items-center gap-2 mb-2 px-1">
-                <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wide">{group.name} ({group.products.length})</h3>
+                <h3 className="text-sm font-bold text-[var(--text-muted)] uppercase tracking-wide">{group.name} ({group.products.length})</h3>
                 {key !== "sem-categoria" && (
                   <div className="relative">
                     <button onClick={() => setCategoryMenuId(categoryMenuId === key ? null : key)}
-                      className="p-1 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 cursor-pointer transition">
+                      className="p-1 rounded-lg text-gray-400 hover:text-[var(--text-secondary)] hover:bg-[var(--bg-muted)] cursor-pointer transition">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
                         <circle cx="12" cy="5" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="12" cy="19" r="2" />
                       </svg>
@@ -1493,7 +1493,7 @@ export default function ProductsPage() {
                     {categoryMenuId === key && (
                       <>
                         <div className="fixed inset-0 z-10" onClick={() => setCategoryMenuId(null)} />
-                        <div className="absolute left-0 top-full mt-1 z-20 bg-white border border-gray-200 rounded-xl shadow-lg py-1 min-w-[160px]">
+                        <div className="absolute left-0 top-full mt-1 z-20 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl shadow-lg py-1 min-w-[160px]">
                           <button onClick={() => handleDeleteCategory(key)}
                             className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 cursor-pointer transition flex items-center gap-2">
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1513,7 +1513,7 @@ export default function ProductsPage() {
               </div>
 
               {/* Desktop table */}
-              <div className={`hidden md:block bg-white rounded-2xl shadow-sm transition-all overflow-x-auto ${dragOverCategory === key ? "ring-2 ring-purple-400 ring-offset-2" : ""}`}>
+              <div className={`hidden md:block bg-[var(--bg-card)] rounded-2xl shadow-sm transition-all overflow-x-auto ${dragOverCategory === key ? "ring-2 ring-purple-400 ring-offset-2" : ""}`}>
                 <table className="w-full">
                   {renderTableHeader()}
                   <tbody>{group.products.map((product: any) => renderProductRow(product))}</tbody>
@@ -1527,7 +1527,7 @@ export default function ProductsPage() {
           {/* Mobile cards */}
           <div className="md:hidden">
             {filteredProducts.length === 0 ? (
-              <div className="bg-white rounded-2xl shadow-sm p-12 text-center text-gray-500">Nenhum produto nesta categoria</div>
+              <div className="bg-[var(--bg-card)] rounded-2xl shadow-sm p-12 text-center text-[var(--text-muted)]">Nenhum produto nesta categoria</div>
             ) : (
               <div className="space-y-3">
                 {filteredProducts.map((product: any) => renderProductCard(product))}
@@ -1536,12 +1536,12 @@ export default function ProductsPage() {
           </div>
 
           {/* Desktop table */}
-          <div className="hidden md:block bg-white rounded-2xl shadow-sm overflow-x-auto">
+          <div className="hidden md:block bg-[var(--bg-card)] rounded-2xl shadow-sm overflow-x-auto">
             <table className="w-full">
               {renderTableHeader()}
               <tbody>
                 {filteredProducts.length === 0 ? (
-                  <tr><td colSpan={6} className="text-center py-12 text-gray-500">Nenhum produto nesta categoria</td></tr>
+                  <tr><td colSpan={6} className="text-center py-12 text-[var(--text-muted)]">Nenhum produto nesta categoria</td></tr>
                 ) : (
                   filteredProducts.map((product: any) => renderProductRow(product))
                 )}
@@ -1556,9 +1556,9 @@ export default function ProductsPage() {
         <>
           <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setConfirmInline(null)} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl p-6 shadow-xl w-full max-w-sm">
-              <h3 className="font-bold text-gray-800 mb-3 text-lg">Confirmar alteracao</h3>
-              <p className="text-gray-600 mb-1">
+            <div className="bg-[var(--bg-card)] rounded-2xl p-6 shadow-xl w-full max-w-sm">
+              <h3 className="font-bold text-[var(--text-primary)] mb-3 text-lg">Confirmar alteracao</h3>
+              <p className="text-[var(--text-secondary)] mb-1">
                 {confirmInline.field === "price" ? "Preco" : "Estoque"}:
               </p>
               <div className="flex items-center gap-3 mb-6">
@@ -1574,7 +1574,7 @@ export default function ProductsPage() {
               </div>
               <div className="flex gap-3">
                 <button onClick={() => setConfirmInline(null)}
-                  className="flex-1 px-4 py-2 border border-gray-200 rounded-xl text-gray-600 font-semibold cursor-pointer hover:bg-gray-50 transition">
+                  className="flex-1 px-4 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-secondary)] font-semibold cursor-pointer hover:bg-[var(--bg-hover)] transition">
                   Cancelar
                 </button>
                 <button onClick={confirmInlineEdit}
@@ -1592,17 +1592,17 @@ export default function ProductsPage() {
         <>
           <div className="fixed inset-0 bg-black/50 z-[60]" onClick={() => { setShowWebSearch(null); setWebImageResults([]); }} />
           <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col">
+            <div className="bg-[var(--bg-card)] rounded-2xl shadow-xl w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col">
               <div className="p-5 border-b border-gray-100">
                 <div className="flex items-center justify-between mb-1">
-                  <h3 className="font-bold text-gray-800 text-lg">Buscar imagem</h3>
-                  <button onClick={() => { setShowWebSearch(null); setWebImageResults([]); }} className="text-gray-400 hover:text-gray-600 cursor-pointer">
+                  <h3 className="font-bold text-[var(--text-primary)] text-lg">Buscar imagem</h3>
+                  <button onClick={() => { setShowWebSearch(null); setWebImageResults([]); }} className="text-gray-400 hover:text-[var(--text-secondary)] cursor-pointer">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>
                   </button>
                 </div>
-                <p className="text-sm text-gray-500">Resultados para &quot;{webSearchQuery}&quot;</p>
+                <p className="text-sm text-[var(--text-muted)]">Resultados para &quot;{webSearchQuery}&quot;</p>
               </div>
               <div className="flex-1 overflow-y-auto p-4">
                 {searchingImages ? (
@@ -1638,10 +1638,10 @@ export default function ProductsPage() {
         <>
           <div className="fixed inset-0 bg-black/50 z-50" onClick={() => setShowCsvModal(false)} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col">
+            <div className="bg-[var(--bg-card)] rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col">
               <div className="p-5 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
                 <div>
-                  <h3 className="font-bold text-gray-800 text-lg">Revisar importacao</h3>
+                  <h3 className="font-bold text-[var(--text-primary)] text-lg">Revisar importacao</h3>
                   <p className="text-sm text-gray-400">{csvProducts.length} produtos - edite antes de importar</p>
                 </div>
                 <div className="flex items-center gap-3">
@@ -1649,7 +1649,7 @@ export default function ProductsPage() {
                     className="px-5 py-2 bg-green-500 text-white rounded-xl text-sm font-bold cursor-pointer hover:bg-green-600 active:scale-95 transition disabled:opacity-50">
                     {bulkImporting ? "Importando..." : `Importar ${csvProducts.length}`}
                   </button>
-                  <button onClick={() => setShowCsvModal(false)} className="text-gray-400 hover:text-gray-600 cursor-pointer">
+                  <button onClick={() => setShowCsvModal(false)} className="text-gray-400 hover:text-[var(--text-secondary)] cursor-pointer">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>
@@ -1658,13 +1658,13 @@ export default function ProductsPage() {
               </div>
               {bulkResult && (
                 <div className={`mx-5 mt-4 p-3 rounded-xl text-sm ${bulkResult.errors.length > 0 ? "bg-yellow-50 border border-yellow-200" : "bg-green-50 border border-green-200"}`}>
-                  <p className="font-semibold text-gray-800">{bulkResult.created} produtos importados!</p>
+                  <p className="font-semibold text-[var(--text-primary)]">{bulkResult.created} produtos importados!</p>
                   {bulkResult.errors.length > 0 && bulkResult.errors.map((err, i) => <p key={i} className="text-red-500 text-xs mt-1">{err}</p>)}
                 </div>
               )}
               <div className="flex-1 overflow-y-auto p-5 space-y-4">
                 {csvProducts.map((p, i) => (
-                  <div key={i} className="border border-gray-200 rounded-xl p-4 hover:border-gray-300 transition">
+                  <div key={i} className="border border-[var(--border-color)] rounded-xl p-4 hover:border-[var(--border-color)] transition">
                     <div className="flex gap-4">
                       {/* Image */}
                       <div className="flex-shrink-0 flex flex-col gap-1.5">
@@ -1672,7 +1672,7 @@ export default function ProductsPage() {
                           ref={(el) => { csvFileInputRefs.current[i] = el; }}
                           onChange={(e) => { if (e.target.files?.[0]) handleCsvImageSelect(e.target.files[0], i); }} />
                         <div onClick={() => csvFileInputRefs.current[i]?.click()}
-                          className="w-20 h-20 border-2 border-dashed border-gray-200 rounded-xl flex items-center justify-center cursor-pointer hover:border-orange-400 hover:bg-orange-50/50 transition overflow-hidden">
+                          className="w-20 h-20 border-2 border-dashed border-[var(--border-color)] rounded-xl flex items-center justify-center cursor-pointer hover:border-orange-400 hover:bg-orange-50/50 transition overflow-hidden">
                           {p.imageUrl ? (
                             <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover rounded-xl" />
                           ) : (
@@ -1696,22 +1696,22 @@ export default function ProductsPage() {
                         <div className="md:col-span-2">
                           <input type="text" placeholder="Nome" value={p.name}
                             onChange={(e) => updateCsvProduct(i, "name", e.target.value)}
-                            className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-800 focus:border-blue-400 outline-none" />
+                            className="w-full px-3 py-1.5 border border-[var(--border-color)] rounded-lg text-sm text-[var(--text-primary)] focus:border-blue-400 outline-none" />
                         </div>
                         <div>
                           <input type="number" step="0.01" placeholder="Preco (R$)" value={p.price || ""}
                             onChange={(e) => updateCsvProduct(i, "price", parseFloat(e.target.value) || 0)}
-                            className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-800 focus:border-blue-400 outline-none" />
+                            className="w-full px-3 py-1.5 border border-[var(--border-color)] rounded-lg text-sm text-[var(--text-primary)] focus:border-blue-400 outline-none" />
                         </div>
                         <div>
                           <input type="number" min="0" placeholder="Estoque" value={p.stock || ""}
                             onChange={(e) => updateCsvProduct(i, "stock", parseInt(e.target.value) || 0)}
-                            className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-800 focus:border-blue-400 outline-none" />
+                            className="w-full px-3 py-1.5 border border-[var(--border-color)] rounded-lg text-sm text-[var(--text-primary)] focus:border-blue-400 outline-none" />
                         </div>
                         <div>
                           <input type="text" placeholder="Unidade (kg, un...)" value={p.unit || ""}
                             onChange={(e) => updateCsvProduct(i, "unit", e.target.value)}
-                            className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-800 focus:border-blue-400 outline-none" />
+                            className="w-full px-3 py-1.5 border border-[var(--border-color)] rounded-lg text-sm text-[var(--text-primary)] focus:border-blue-400 outline-none" />
                         </div>
                         <div>
                           {inlineNewCategory === "csv" ? (
@@ -1719,14 +1719,14 @@ export default function ProductsPage() {
                               <input type="text" autoFocus placeholder="Nome" value={inlineCategoryName}
                                 onChange={(e) => setInlineCategoryName(e.target.value)}
                                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleInlineCreateCategory("csv"); } if (e.key === "Escape") { setInlineNewCategory(null); setInlineCategoryName(""); } }}
-                                className="flex-1 px-2 py-1.5 border border-orange-300 rounded-lg text-sm text-gray-800 outline-none" />
+                                className="flex-1 px-2 py-1.5 border border-orange-300 rounded-lg text-sm text-[var(--text-primary)] outline-none" />
                               <button type="button" onClick={() => handleInlineCreateCategory("csv")} className="px-2 py-1.5 bg-orange-500 text-white rounded-lg text-xs font-bold cursor-pointer">OK</button>
                               <button type="button" onClick={() => { setInlineNewCategory(null); setInlineCategoryName(""); }} className="px-1 text-gray-400 cursor-pointer">&#10005;</button>
                             </div>
                           ) : (
                             <select value={p.categoryId || ""}
                               onChange={(e) => { if (e.target.value === "__new__") { setInlineNewCategory("csv"); setInlineCategoryName(""); return; } updateCsvProduct(i, "categoryId", e.target.value); }}
-                              className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-800 focus:border-blue-400 outline-none">
+                              className="w-full px-3 py-1.5 border border-[var(--border-color)] rounded-lg text-sm text-[var(--text-primary)] focus:border-blue-400 outline-none">
                               <option value="">Sem categoria</option>
                               {categories.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
                               <option value="__new__">+ Criar categoria</option>
@@ -1736,7 +1736,7 @@ export default function ProductsPage() {
                         <div className="col-span-2">
                           <input type="text" placeholder="Descricao (opcional)" value={p.description || ""}
                             onChange={(e) => updateCsvProduct(i, "description", e.target.value)}
-                            className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-800 focus:border-blue-400 outline-none" />
+                            className="w-full px-3 py-1.5 border border-[var(--border-color)] rounded-lg text-sm text-[var(--text-primary)] focus:border-blue-400 outline-none" />
                         </div>
                       </div>
                       {/* Remove button */}

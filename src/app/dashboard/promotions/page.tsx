@@ -33,10 +33,12 @@ export default function PromotionsPage() {
   });
   const [duration, setDuration] = useState({ days: 1, weeks: 0, months: 0, years: 0 });
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   const currentPlan = userData?.me?.vendorPlan || "FREE";
-  const canPromote = currentPlan === "PRO" || currentPlan === "PREMIUM";
   const stores = storesData?.myStores || [];
+  const hasBadgeCredit = stores.some((s: any) => s.freePromoDaysCredit > 0);
+  const canPromote = currentPlan === "PRO" || currentPlan === "PREMIUM" || currentPlan === "ENTERPRISE" || hasBadgeCredit;
   const promotions = promosData?.myPromotions || [];
   const pricePerDay = priceData?.promoPricePerDay ?? 1;
 
@@ -44,28 +46,32 @@ export default function PromotionsPage() {
   const products = selectedStore?.products || [];
   const selectedProduct = products.find((p: any) => p.id === form.productId);
 
+  // Badge free days from selected store
+  const selectedStoreCredit = selectedStore?.freePromoDaysCredit || 0;
+
   // Calculate total days and discount
-  const { totalDays, discount, discountLabel, finalCost, originalCost } = useMemo(() => {
+  const { totalDays, discount, discountLabel, finalCost, originalCost, freeDaysUsed, paidDays } = useMemo(() => {
     const d = duration.days + duration.weeks * 7 + duration.months * 30 + duration.years * 365;
+    const free = Math.min(selectedStoreCredit, d);
+    const paid = d - free;
     let disc = 0;
     let label = "";
-    if (duration.years > 0) { disc = 0.30; label = "30% (anual)"; }
-    else if (duration.months > 0) { disc = 0.20; label = "20% (mensal)"; }
-    else if (duration.weeks > 0) { disc = 0.10; label = "10% (semanal)"; }
+    if (paid >= 365) { disc = 0.30; label = "30% (anual)"; }
+    else if (paid >= 30) { disc = 0.20; label = "20% (mensal)"; }
+    else if (paid >= 7) { disc = 0.10; label = "10% (semanal)"; }
     const original = d * pricePerDay;
-    const final_ = original * (1 - disc);
-    return { totalDays: d, discount: disc, discountLabel: label, finalCost: final_, originalCost: original };
-  }, [duration, pricePerDay]);
+    const final_ = paid > 0 ? paid * pricePerDay * (1 - disc) : 0;
+    return { totalDays: d, discount: disc, discountLabel: label, finalCost: final_, originalCost: original, freeDaysUsed: free, paidDays: paid };
+  }, [duration, pricePerDay, selectedStoreCredit]);
 
-  // Calculate dates from duration
+  // Calculate dates from duration (1 day = 24h from now)
   const startDate = useMemo(() => {
-    const d = new Date();
-    return d.toISOString();
+    return new Date().toISOString();
   }, []);
 
   const endDate = useMemo(() => {
     const d = new Date();
-    d.setDate(d.getDate() + totalDays - 1);
+    d.setDate(d.getDate() + totalDays);
     return d.toISOString();
   }, [totalDays]);
 
@@ -112,14 +118,17 @@ export default function PromotionsPage() {
           },
         },
       });
-      const checkoutUrl = data?.createPromotion?.checkoutUrl;
-      if (checkoutUrl) {
-        window.location.href = checkoutUrl;
+      const promo = data?.createPromotion;
+      if (promo?.checkoutUrl) {
+        window.location.href = promo.checkoutUrl;
         return;
       }
+      // Free promotion (badge credit) — already active
       setShowForm(false);
       setForm({ title: "", description: "", storeId: "", productId: "", promotionalPrice: "" });
       setDuration({ days: 1, weeks: 0, months: 0, years: 0 });
+      setSuccess("Promocao criada com sucesso! Seus dias gratis do selo foram usados.");
+      setTimeout(() => setSuccess(""), 5000);
       refetch();
     } catch (err: any) {
       setError(err.message);
@@ -176,7 +185,7 @@ export default function PromotionsPage() {
   if (!canPromote) {
     return (
       <div>
-        <h1 className="text-2xl font-bold text-gray-800 mb-6">Promoções</h1>
+        <h1 className="text-2xl font-bold text-[var(--text-primary)] mb-6">Promoções</h1>
         <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-8 text-center">
           <p className="text-lg text-yellow-800 font-semibold">Funcionalidade disponível apenas para planos Pro e Premium</p>
           <p className="text-yellow-700 mt-2">Faça upgrade do seu plano para criar promoções e destacar sua loja no app.</p>
@@ -214,6 +223,11 @@ export default function PromotionsPage() {
 
   return (
     <div>
+      {success && (
+        <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-xl text-green-700 text-sm font-medium">
+          {success}
+        </div>
+      )}
       <div className="flex flex-wrap items-center justify-between mb-6 gap-3">
         <h1 className="text-2xl font-bold text-[var(--text-primary)]">Promoções</h1>
         <button
@@ -335,6 +349,12 @@ export default function PromotionsPage() {
                         {new Date().toLocaleDateString("pt-BR")} até {new Date(endDate).toLocaleDateString("pt-BR")}
                       </p>
                       <p className="text-xs text-[var(--text-muted)] mt-0.5">R$ {pricePerDay.toFixed(2)} / dia</p>
+                      {freeDaysUsed > 0 && (
+                        <p className="text-xs text-green-600 font-semibold mt-0.5">
+                          {freeDaysUsed} dia{freeDaysUsed > 1 ? "s" : ""} gratis (premio selo)
+                          {paidDays > 0 && <span className="text-[var(--text-muted)] font-normal"> + {paidDays} pago{paidDays > 1 ? "s" : ""}</span>}
+                        </p>
+                      )}
                     </div>
                     <div className="text-right">
                       {discount > 0 && (
@@ -358,7 +378,7 @@ export default function PromotionsPage() {
             disabled={creating || totalDays <= 0}
             className="w-full py-3 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition cursor-pointer disabled:opacity-50"
           >
-            {creating ? "Criando..." : `Criar Promoção${totalDays > 0 ? ` • R$ ${finalCost.toFixed(2)}` : ""}`}
+            {creating ? "Criando..." : totalDays > 0 && finalCost === 0 ? "Criar Promocao Gratis" : `Criar Promocao${totalDays > 0 ? ` • R$ ${finalCost.toFixed(2)}` : ""}`}
           </button>
         </form>
       )}

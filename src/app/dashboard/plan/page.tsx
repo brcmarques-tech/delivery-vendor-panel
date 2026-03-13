@@ -3,7 +3,9 @@
 import { useQuery, useMutation } from "@apollo/client";
 import {
   GET_MY_PLAN,
+  GET_MY_STORES,
   GET_AVAILABLE_PLANS,
+  GET_BADGE_CONFIG,
   CREATE_PLAN_UPGRADE,
   ACCEPT_SUBSCRIPTION_TERMS,
 } from "@/lib/graphql";
@@ -75,6 +77,8 @@ export default function PlanPage() {
 function PlanContent() {
   const { data: userData, loading: loadingUser } = useQuery(GET_MY_PLAN);
   const { data: plansData, loading: loadingPlans } = useQuery(GET_AVAILABLE_PLANS);
+  const { data: storesData } = useQuery(GET_MY_STORES);
+  const { data: badgeData } = useQuery(GET_BADGE_CONFIG);
   const [createUpgrade] = useMutation(CREATE_PLAN_UPGRADE);
   const [acceptSubTerms, { loading: acceptingSub }] = useMutation(ACCEPT_SUBSCRIPTION_TERMS);
   const [upgrading, setUpgrading] = useState<string | null>(null);
@@ -93,6 +97,23 @@ function PlanContent() {
   const plans = plansData?.availablePlans || [];
   const currentPlan = user?.vendorPlan || "FREE";
   const storeCount = user?.stores?.length || 0;
+
+  // Calculate badge subscription discount (from stores with badgeClaimCount >= 2)
+  let badgeDiscount = 0;
+  let badgeLevel = "";
+  const stores = storesData?.myStores || [];
+  const badgeConfig = badgeData?.badgeConfig ? JSON.parse(badgeData.badgeConfig) : null;
+  if (badgeConfig) {
+    for (const store of stores) {
+      if (store.badgeClaimCount >= 2 && store.verificationLevel && store.verificationLevel !== "NONE") {
+        const rewards = badgeConfig.rewards?.[store.verificationLevel];
+        if (rewards?.subscriptionDiscount > badgeDiscount) {
+          badgeDiscount = rewards.subscriptionDiscount;
+          badgeLevel = store.verificationLevel;
+        }
+      }
+    }
+  }
 
   const hasAcceptedSubTerms = !!user?.acceptedSubscriptionTermsAt;
 
@@ -216,6 +237,20 @@ function PlanContent() {
       )}
 
       <h1 className="text-2xl font-bold text-[var(--text-primary)] mb-2">Meu Plano</h1>
+
+      {badgeDiscount > 0 && (
+        <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4 mb-6 flex items-center gap-3">
+          <span className="text-2xl">🏅</span>
+          <div>
+            <p className="text-purple-800 font-semibold">
+              Desconto de {badgeDiscount}% na assinatura (Selo {badgeLevel})
+            </p>
+            <p className="text-purple-600 text-sm">
+              Premio do selo aplicado automaticamente em todos os planos.
+            </p>
+          </div>
+        </div>
+      )}
 
       {paymentStatus === "success" && (
         <div className="bg-green-50 border border-green-200 rounded-2xl p-4 mb-6">
@@ -346,21 +381,36 @@ function PlanContent() {
                     <p className="text-3xl font-bold text-[var(--text-primary)]">Sob consulta</p>
                   ) : price === 0 ? (
                     <p className="text-3xl font-bold text-[var(--text-primary)]">Gratis</p>
-                  ) : (
-                    <>
-                      <p className="text-3xl font-bold text-[var(--text-primary)]">
-                        R$ {price.toFixed(2)}
-                        <span className="text-sm font-normal text-[var(--text-muted)]">
-                          {getBillingLabel(billing)}
-                        </span>
-                      </p>
-                      {billing !== "monthly" && (
-                        <p className="text-xs text-green-600 font-semibold mt-1">
-                          Economia de {billingDiscount[billing]}%
+                  ) : (() => {
+                    const discountedPrice = badgeDiscount > 0
+                      ? Math.round(price * (1 - badgeDiscount / 100) * 100) / 100
+                      : price;
+                    return (
+                      <>
+                        {badgeDiscount > 0 && (
+                          <p className="text-sm text-[var(--text-muted)] line-through">
+                            R$ {price.toFixed(2)}
+                          </p>
+                        )}
+                        <p className="text-3xl font-bold text-[var(--text-primary)]">
+                          R$ {discountedPrice.toFixed(2)}
+                          <span className="text-sm font-normal text-[var(--text-muted)]">
+                            {getBillingLabel(billing)}
+                          </span>
                         </p>
-                      )}
-                    </>
-                  )}
+                        {badgeDiscount > 0 && (
+                          <p className="text-xs text-purple-600 font-semibold mt-1 flex items-center gap-1">
+                            <span>🏅</span> -{badgeDiscount}% selo {badgeLevel}
+                          </p>
+                        )}
+                        {billing !== "monthly" && (
+                          <p className="text-xs text-green-600 font-semibold mt-1">
+                            Economia de {billingDiscount[billing]}%
+                          </p>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
 
                 {isContactSales ? (

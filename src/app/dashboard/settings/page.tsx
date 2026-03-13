@@ -3,7 +3,8 @@
 import { useMutation, useQuery } from "@apollo/client";
 import {
   CREATE_STORE, UPDATE_STORE, UPLOAD_IMAGE, GET_MY_STORES,
-  GET_MY_PROFILE, UPDATE_PROFILE, GET_MY_PLAN,
+  GET_MY_PROFILE, UPDATE_PROFILE, GET_MY_PLAN, GET_BADGE_CONFIG,
+  CLAIM_BADGE_REWARD,
 } from "@/lib/graphql";
 import { useState, useRef, useEffect } from "react";
 import TermsModal from "@/components/TermsModal";
@@ -421,6 +422,418 @@ function AppearanceSection() {
   );
 }
 
+// ===== VERIFICATION BADGE SECTION =====
+const BADGE_CONFIG: Record<string, { label: string; color: string; bg: string; border: string; emoji: string; progressColor: string }> = {
+  NONE:    { label: "Sem medalha", color: "text-gray-400",   bg: "bg-gray-500/10",   border: "border-gray-500/30", emoji: "",   progressColor: "#d97706" },
+  BRONZE:  { label: "Bronze",     color: "text-amber-600",   bg: "bg-amber-500/10",  border: "border-amber-500/30", emoji: "🥉", progressColor: "#d97706" },
+  SILVER:  { label: "Prata",      color: "text-gray-300",    bg: "bg-gray-400/10",   border: "border-gray-400/30", emoji: "🥈", progressColor: "#9ca3af" },
+  GOLD:    { label: "Ouro",       color: "text-yellow-400",  bg: "bg-yellow-500/10", border: "border-yellow-500/30", emoji: "🥇", progressColor: "#eab308" },
+  DIAMOND: { label: "Diamante",   color: "text-cyan-400",    bg: "bg-cyan-500/10",   border: "border-cyan-500/30", emoji: "💎", progressColor: "#06b6d4" },
+};
+
+const LEVELS_ORDER = ["BRONZE", "SILVER", "GOLD", "DIAMOND"];
+
+const REWARD_LABELS: Record<string, { label: string; suffix: string; type: string }> = {
+  freePromoDays:        { label: "Dias de promocao gratis", suffix: "dias",   type: "sempre" },
+  commissionReduction:  { label: "Reducao de comissao",     suffix: "% (1 semana)", type: "sempre" },
+  freeTrialDays:        { label: "Trial gratis",            suffix: "dias",   type: "1a vez" },
+  subscriptionDiscount: { label: "Desconto na assinatura",  suffix: "%",      type: "da 2a em diante" },
+  couponValue:          { label: "Cupom de desconto",       suffix: "%",      type: "da 2a em diante" },
+};
+
+function VerificationSection() {
+  const { data, refetch } = useQuery(GET_MY_STORES);
+  const { data: badgeData } = useQuery(GET_BADGE_CONFIG);
+  const [claimBadge, { loading: claiming }] = useMutation(CLAIM_BADGE_REWARD);
+  const [prizesModal, setPrizesModal] = useState<any>(null);
+  const [claimModal, setClaimModal] = useState<any>(null);
+  const [hoveredLevel, setHoveredLevel] = useState<string | null>(null);
+  const [claimMsg, setClaimMsg] = useState("");
+  const stores = data?.myStores || [];
+
+  // Parse dynamic config from API
+  let thresholds: Record<string, number> = { BRONZE: 20, SILVER: 100, GOLD: 300, DIAMOND: 1000 };
+  let pointsCfg: Record<string, number> = { PER_PRODUCT: 2, PER_SALE: 5, PER_MONTH_ACTIVE: 3 };
+  let rewardsCfg: Record<string, Record<string, number>> = {};
+
+  if (badgeData?.badgeConfig) {
+    try {
+      const parsed = JSON.parse(badgeData.badgeConfig);
+      thresholds = parsed.thresholds || thresholds;
+      pointsCfg = parsed.points || pointsCfg;
+      rewardsCfg = parsed.rewards || {};
+    } catch {}
+  }
+
+  function getNextLevel(current: string): { level: string; threshold: number } | null {
+    const idx = LEVELS_ORDER.indexOf(current);
+    const nextKey = idx === -1 ? LEVELS_ORDER[0] : LEVELS_ORDER[idx + 1];
+    if (!nextKey) return null;
+    return { level: nextKey, threshold: thresholds[nextKey] || 0 };
+  }
+
+  function getActiveRewards(level: string): Record<string, number> {
+    return rewardsCfg[level] || {};
+  }
+
+  function hasAnyReward(rewards: Record<string, number>): boolean {
+    return Object.values(rewards).some((v) => v > 0);
+  }
+
+  function getClaimablePoints(store: any): number {
+    return (store.verificationScore || 0) - (store.lastClaimedScore || 0);
+  }
+
+  function getClaimableLevels(store: any): { level: string; threshold: number; canClaim: boolean }[] {
+    const claimable = getClaimablePoints(store);
+    return LEVELS_ORDER.map((lvl) => ({
+      level: lvl,
+      threshold: thresholds[lvl] || 0,
+      canClaim: claimable >= (thresholds[lvl] || 0),
+    }));
+  }
+
+  async function handleClaim(storeId: string, level: string) {
+    try {
+      await claimBadge({ variables: { storeId, level } });
+      setClaimMsg("Premio resgatado com sucesso!");
+      refetch();
+      setTimeout(() => { setClaimMsg(""); setClaimModal(null); }, 2000);
+    } catch (err: any) {
+      setClaimMsg(err.message);
+      setTimeout(() => setClaimMsg(""), 4000);
+    }
+  }
+
+  if (stores.length === 0) return null;
+
+  return (
+    <Section title="Selo de Verificacao">
+      <div className="space-y-4">
+        {stores.map((store: any) => {
+          const level = store.verificationLevel || "NONE";
+          const score = store.verificationScore || 0;
+          const badge = BADGE_CONFIG[level] || BADGE_CONFIG.NONE;
+          const next = getNextLevel(level);
+          const progressPercent = next ? Math.min((score / next.threshold) * 100, 100) : 100;
+          const currentRewards = getActiveRewards(level);
+          const hasRewards = level !== "NONE" && hasAnyReward(currentRewards);
+          const claimablePoints = getClaimablePoints(store);
+          const hasClaimable = getClaimableLevels(store).some((l) => l.canClaim);
+          const claimCount = store.badgeClaimCount || 0;
+
+          // Active benefits
+          const hasActiveCommission =
+            Number(store.commissionReductionPercent) > 0 &&
+            store.commissionReductionExpiresAt &&
+            new Date(store.commissionReductionExpiresAt) > new Date();
+          const freePromoDays = store.freePromoDaysCredit || 0;
+
+          return (
+            <div key={store.id} className={`p-4 rounded-xl border ${badge.border} ${badge.bg}`}>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">{badge.emoji || "⭕"}</span>
+                  <div>
+                    <p className={`font-bold text-base ${badge.color}`}>{badge.label}</p>
+                    <p className="text-xs text-[var(--text-muted)]">{store.name}</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-lg font-bold text-[var(--text-primary)]">{score} pts</p>
+                  <p className="text-xs text-[var(--text-muted)]">
+                    {store.totalSales || 0} vendas &middot; {store.totalProducts || 0} produtos
+                  </p>
+                </div>
+              </div>
+
+              {/* Progress bar */}
+              {next ? (
+                <div>
+                  <div className="flex justify-between text-xs text-[var(--text-muted)] mb-1">
+                    <span>Proximo: {BADGE_CONFIG[next.level]?.emoji} {BADGE_CONFIG[next.level]?.label}</span>
+                    <span>{score}/{next.threshold} pts</span>
+                  </div>
+                  <div className="w-full h-2.5 bg-[var(--bg-muted)] rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all duration-500"
+                      style={{ width: `${progressPercent}%`, background: badge.progressColor }}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <p className="text-xs text-[var(--text-muted)]">Nivel maximo atingido!</p>
+              )}
+
+              {/* Active benefits banner */}
+              {(freePromoDays > 0 || hasActiveCommission) && (
+                <div className="mt-3 p-2.5 rounded-lg bg-green-500/10 border border-green-500/20">
+                  <p className="text-xs font-semibold text-green-600 mb-1">Beneficios ativos</p>
+                  <div className="flex flex-wrap gap-2">
+                    {freePromoDays > 0 && (
+                      <span className="text-xs bg-green-500/20 text-green-700 px-2 py-0.5 rounded-full font-medium">
+                        {freePromoDays} dias promo gratis
+                      </span>
+                    )}
+                    {hasActiveCommission && (
+                      <span className="text-xs bg-green-500/20 text-green-700 px-2 py-0.5 rounded-full font-medium">
+                        -{Number(store.commissionReductionPercent)}% comissao (ate {new Date(store.commissionReductionExpiresAt).toLocaleDateString("pt-BR")})
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* How to earn */}
+              <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                <div className="p-2 rounded-lg bg-[var(--bg-muted)]">
+                  <p className="text-xs text-[var(--text-muted)]">Por produto</p>
+                  <p className="font-bold text-sm text-[var(--text-primary)]">+{pointsCfg.PER_PRODUCT} pts</p>
+                </div>
+                <div className="p-2 rounded-lg bg-[var(--bg-muted)]">
+                  <p className="text-xs text-[var(--text-muted)]">Por venda</p>
+                  <p className="font-bold text-sm text-[var(--text-primary)]">+{pointsCfg.PER_SALE} pts</p>
+                </div>
+                <div className="p-2 rounded-lg bg-[var(--bg-muted)]">
+                  <p className="text-xs text-[var(--text-muted)]">Por mes ativo</p>
+                  <p className="font-bold text-sm text-[var(--text-primary)]">+{pointsCfg.PER_MONTH_ACTIVE} pts</p>
+                </div>
+              </div>
+
+              {/* Levels overview */}
+              <div className="mt-3 flex gap-2 flex-wrap justify-center">
+                {LEVELS_ORDER.map((key) => {
+                  const b = BADGE_CONFIG[key];
+                  const lvlRewards = getActiveRewards(key);
+                  const hasR = hasAnyReward(lvlRewards);
+                  return (
+                    <div
+                      key={key}
+                      className="relative"
+                      onMouseEnter={() => setHoveredLevel(key)}
+                      onMouseLeave={() => setHoveredLevel(null)}
+                      onClick={() => hasR && setHoveredLevel(hoveredLevel === key ? null : key)}
+                    >
+                      <span
+                        className={`inline-block px-2.5 py-1 rounded-full text-xs font-semibold cursor-default ${
+                          level === key ? `${b.bg} ${b.color} ring-1 ring-current` : "bg-[var(--bg-muted)] text-[var(--text-muted)]"
+                        }`}
+                      >
+                        {b.emoji} {thresholds[key]} pts
+                      </span>
+
+                      {hoveredLevel === key && hasR && (
+                        <div className="absolute z-30 bottom-full left-1/2 -translate-x-1/2 mb-2 w-60 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl p-3 shadow-xl">
+                          <p className={`text-xs font-bold mb-2 ${b.color}`}>{b.emoji} {b.label} — Premios</p>
+                          <div className="space-y-1">
+                            {Object.entries(REWARD_LABELS).map(([rKey, meta]) => {
+                              const val = lvlRewards[rKey] ?? 0;
+                              if (val <= 0) return null;
+                              return (
+                                <div key={rKey} className="flex justify-between text-xs gap-1">
+                                  <span className="text-[var(--text-muted)]">{meta.label}</span>
+                                  <span className="text-[var(--text-primary)] font-semibold shrink-0">
+                                    {val} {meta.suffix}
+                                    <span className="text-[10px] text-[var(--text-muted)] ml-1">({meta.type})</span>
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-2.5 h-2.5 bg-[var(--bg-card)] border-r border-b border-[var(--border-color)] rotate-45" />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Claimable points + Claim button */}
+              <div className="mt-3 flex items-center justify-between gap-2">
+                <p className="text-xs text-[var(--text-muted)]">
+                  Pontos resgatáveis: <span className="font-bold text-[var(--text-primary)]">{claimablePoints}</span>
+                  {claimCount > 0 && <span className="ml-1">({claimCount}x resgatado)</span>}
+                </p>
+                {hasClaimable && (
+                  <button
+                    onClick={() => setClaimModal(store)}
+                    className="px-3 py-1.5 bg-orange-500 text-white rounded-lg text-xs font-semibold hover:bg-orange-600 transition cursor-pointer"
+                  >
+                    Resgatar premio
+                  </button>
+                )}
+              </div>
+
+              {/* Prizes button */}
+              {hasRewards && (
+                <button
+                  onClick={() => setPrizesModal({ store, level, rewards: currentRewards })}
+                  className="mt-2 w-full py-2 bg-orange-500/10 text-orange-500 rounded-lg text-sm font-semibold hover:bg-orange-500/20 transition cursor-pointer"
+                >
+                  Ver premios do nivel
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Claim Modal */}
+      {claimModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => { setClaimModal(null); setClaimMsg(""); }}>
+          <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl w-full max-w-sm mx-4 p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-[var(--text-primary)]">Resgatar Premio</h3>
+              <button onClick={() => { setClaimModal(null); setClaimMsg(""); }} className="text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer">&#10005;</button>
+            </div>
+
+            <p className="text-sm text-[var(--text-muted)] mb-1">
+              Pontos disponiveis: <span className="font-bold text-[var(--text-primary)]">{getClaimablePoints(claimModal)}</span>
+            </p>
+            <p className="text-xs text-[var(--text-muted)] mb-4">
+              {claimModal.badgeClaimCount === 0 ? "1a conquista: trial + dias promo + reducao comissao" : "Premios: dias promo + reducao comissao + desc. assinatura + cupom"}
+            </p>
+
+            {claimMsg && (
+              <div className={`mb-3 p-2.5 rounded-lg text-sm font-medium ${claimMsg.includes("sucesso") ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
+                {claimMsg}
+              </div>
+            )}
+
+            <div className="space-y-2">
+              {getClaimableLevels(claimModal).map(({ level: lvl, threshold, canClaim }) => {
+                const b = BADGE_CONFIG[lvl];
+                const rewards = getActiveRewards(lvl);
+                const isFirst = claimModal.badgeClaimCount === 0;
+                return (
+                  <button
+                    key={lvl}
+                    disabled={!canClaim || claiming}
+                    onClick={() => handleClaim(claimModal.id, lvl)}
+                    className={`w-full p-3 rounded-xl border text-left transition cursor-pointer ${
+                      canClaim
+                        ? `${b.bg} ${b.border} hover:ring-2 hover:ring-orange-400`
+                        : "bg-[var(--bg-muted)] border-[var(--border-light)] opacity-40 cursor-not-allowed"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className={`font-bold text-sm ${canClaim ? b.color : "text-[var(--text-muted)]"}`}>
+                        {b.emoji} {b.label} ({threshold} pts)
+                      </span>
+                      {canClaim && <span className="text-xs text-orange-500 font-semibold">Resgatar</span>}
+                    </div>
+                    <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+                      {Object.entries(REWARD_LABELS).map(([rKey, meta]) => {
+                        const val = rewards[rKey] ?? 0;
+                        if (val <= 0) return null;
+                        // Skip rewards that don't apply based on claim count
+                        if (isFirst && meta.type === "da 2a em diante") return null;
+                        if (!isFirst && meta.type === "1a vez") return null;
+                        return (
+                          <span key={rKey} className="text-[10px] text-[var(--text-muted)]">
+                            {meta.label}: <span className="font-semibold text-[var(--text-primary)]">{val}{meta.suffix.includes("%") ? "%" : ` ${meta.suffix}`}</span>
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Prizes Modal */}
+      {prizesModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setPrizesModal(null)}>
+          <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl w-full max-w-md mx-4 p-6 shadow-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-3">
+                <span className="text-3xl">{BADGE_CONFIG[prizesModal.level]?.emoji}</span>
+                <div>
+                  <h3 className="text-lg font-bold text-[var(--text-primary)]">Premios do Nivel</h3>
+                  <p className="text-sm text-[var(--text-muted)]">{prizesModal.store.name} — {BADGE_CONFIG[prizesModal.level]?.label}</p>
+                </div>
+              </div>
+              <button onClick={() => setPrizesModal(null)} className="text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer text-lg">&#10005;</button>
+            </div>
+
+            <div className="space-y-2.5">
+              {Object.entries(REWARD_LABELS).map(([key, meta]) => {
+                const val = prizesModal.rewards[key] ?? 0;
+                const active = val > 0;
+                return (
+                  <div
+                    key={key}
+                    className={`flex items-center justify-between p-3 rounded-xl border ${
+                      active
+                        ? "border-orange-500/30 bg-orange-500/5"
+                        : "border-[var(--border-light)] bg-[var(--bg-muted)] opacity-40"
+                    }`}
+                  >
+                    <div>
+                      <p className={`text-sm font-medium ${active ? "text-[var(--text-primary)]" : "text-[var(--text-muted)]"}`}>
+                        {meta.label}
+                      </p>
+                      <p className="text-[10px] text-[var(--text-muted)]">{meta.type}</p>
+                    </div>
+                    {active ? (
+                      <p className="text-sm font-bold text-orange-500">{val} {meta.suffix}</p>
+                    ) : (
+                      <p className="text-xs text-[var(--text-muted)]">—</p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Next level preview */}
+            {(() => {
+              const nextLvl = LEVELS_ORDER[LEVELS_ORDER.indexOf(prizesModal.level) + 1];
+              if (!nextLvl) return null;
+              const nextRewards = rewardsCfg[nextLvl] || {};
+              const nextBadge = BADGE_CONFIG[nextLvl];
+              if (!hasAnyReward(nextRewards)) return null;
+              return (
+                <div className="mt-4 pt-4 border-t border-[var(--border-light)]">
+                  <p className="text-xs text-[var(--text-muted)] mb-2">
+                    Proximo nivel: {nextBadge.emoji} <span className={nextBadge.color}>{nextBadge.label}</span> ({thresholds[nextLvl]} pts)
+                  </p>
+                  <div className="grid grid-cols-1 gap-1.5">
+                    {Object.entries(REWARD_LABELS).map(([key, meta]) => {
+                      const current = prizesModal.rewards[key] ?? 0;
+                      const nextVal = nextRewards[key] ?? 0;
+                      if (nextVal <= 0) return null;
+                      const improvement = nextVal - current;
+                      return (
+                        <div key={key} className="flex items-center justify-between text-xs">
+                          <span className="text-[var(--text-muted)]">{meta.label}</span>
+                          <span>
+                            <span className="text-[var(--text-primary)] font-semibold">{nextVal} {meta.suffix}</span>
+                            {improvement > 0 && <span className="text-green-500 ml-1">(+{improvement})</span>}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
+
+            <button
+              onClick={() => setPrizesModal(null)}
+              className="mt-5 w-full py-2.5 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition cursor-pointer"
+            >
+              Entendi
+            </button>
+          </div>
+        </div>
+      )}
+    </Section>
+  );
+}
+
 // ===== CONTRACTS SECTION =====
 function ContractsSection() {
   const { data } = useQuery(GET_MY_PLAN);
@@ -491,6 +904,7 @@ export default function SettingsPage() {
       <h1 className="text-2xl font-bold text-[var(--text-primary)] mb-6">Configuracoes</h1>
       <ProfileSection />
       <StoresSection />
+      <VerificationSection />
       <ContractsSection />
       <AppearanceSection />
     </div>
