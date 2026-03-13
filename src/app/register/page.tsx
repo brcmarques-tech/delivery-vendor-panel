@@ -58,8 +58,9 @@ export default function RegisterPage() {
         },
       });
       setSuccess(true);
-    } catch {
-      setError("Erro ao criar conta. Verifique se o email ou telefone já estão cadastrados.");
+    } catch (err: any) {
+      const msg = err?.graphQLErrors?.[0]?.message || err?.message || "";
+      setError(msg || "Erro ao criar conta. Tente novamente.");
     }
   }
 
