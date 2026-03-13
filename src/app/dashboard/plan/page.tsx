@@ -32,12 +32,12 @@ const supportLabels: Record<string, string> = {
   dedicated: "Suporte dedicado",
 };
 
-const billingLabels: Record<string, string> = {
-  monthly: "Mensal",
-  quarterly: "Trimestral",
-  semiannual: "Semestral",
-  annual: "Anual",
-};
+const billingOptions = [
+  { key: "monthly", label: "Mensal", shortLabel: "1 mes", discount: 0 },
+  { key: "quarterly", label: "Trimestral", shortLabel: "3 meses", discount: 10 },
+  { key: "semiannual", label: "Semestral", shortLabel: "6 meses", discount: 20 },
+  { key: "annual", label: "Anual", shortLabel: "12 meses", discount: 30 },
+];
 
 const billingDiscount: Record<string, number> = {
   monthly: 0,
@@ -215,7 +215,7 @@ function PlanContent() {
         />
       )}
 
-      <h1 className="text-2xl font-bold text-gray-800 mb-2">Meu Plano</h1>
+      <h1 className="text-2xl font-bold text-[var(--text-primary)] mb-2">Meu Plano</h1>
 
       {paymentStatus === "success" && (
         <div className="bg-green-50 border border-green-200 rounded-2xl p-4 mb-6">
@@ -239,7 +239,7 @@ function PlanContent() {
         </div>
       )}
 
-      <p className="text-gray-500 mb-4">
+      <p className="text-[var(--text-secondary)] mb-4">
         Voce esta no plano{" "}
         <span className="font-semibold text-orange-600">
           {planLabels[currentPlan]}
@@ -254,21 +254,23 @@ function PlanContent() {
       </p>
 
       {/* Billing period selector */}
-      <div className="flex gap-2 mb-6 flex-wrap">
-        {Object.entries(billingLabels).map(([key, label]) => (
+      <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl p-1.5 inline-flex gap-1 mb-6">
+        {billingOptions.map((opt) => (
           <button
-            key={key}
-            onClick={() => setBilling(key)}
-            className={`px-4 py-2 rounded-xl text-sm font-semibold transition cursor-pointer ${
-              billing === key
-                ? "bg-orange-500 text-white"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            key={opt.key}
+            onClick={() => setBilling(opt.key)}
+            className={`relative px-5 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
+              billing === opt.key
+                ? "bg-orange-500 text-white shadow-lg shadow-orange-500/25"
+                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
             }`}
           >
-            {label}
-            {billingDiscount[key] > 0 && (
-              <span className={`ml-1 ${billing === key ? "text-orange-100" : "text-green-600"}`}>
-                -{billingDiscount[key]}%
+            <span className="block">{opt.label}</span>
+            {opt.discount > 0 && (
+              <span className={`block text-xs mt-0.5 font-bold ${
+                billing === opt.key ? "text-orange-200" : "text-green-500"
+              }`}>
+                {opt.discount}% OFF
               </span>
             )}
           </button>
@@ -280,7 +282,7 @@ function PlanContent() {
         {/* Left arrow */}
         <button
           onClick={() => scrollRef.current?.scrollBy({ left: -320, behavior: "smooth" })}
-          className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-3 z-10 w-10 h-10 bg-white border-2 border-gray-200 rounded-full shadow-lg flex items-center justify-center text-gray-600 hover:bg-orange-50 hover:border-orange-300 transition cursor-pointer hidden md:flex"
+          className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-3 z-10 w-10 h-10 bg-[var(--bg-card)] border-2 border-[var(--border-color)] rounded-full shadow-lg flex items-center justify-center text-[var(--text-secondary)] hover:bg-orange-50 hover:border-orange-300 transition cursor-pointer hidden md:flex"
         >
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
             <path fillRule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clipRule="evenodd" />
@@ -290,7 +292,7 @@ function PlanContent() {
         {/* Right arrow */}
         <button
           onClick={() => scrollRef.current?.scrollBy({ left: 320, behavior: "smooth" })}
-          className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-3 z-10 w-10 h-10 bg-white border-2 border-gray-200 rounded-full shadow-lg flex items-center justify-center text-gray-600 hover:bg-orange-50 hover:border-orange-300 transition cursor-pointer hidden md:flex"
+          className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-3 z-10 w-10 h-10 bg-[var(--bg-card)] border-2 border-[var(--border-color)] rounded-full shadow-lg flex items-center justify-center text-[var(--text-secondary)] hover:bg-orange-50 hover:border-orange-300 transition cursor-pointer hidden md:flex"
         >
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
             <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
@@ -311,36 +313,44 @@ function PlanContent() {
             return (
               <div
                 key={plan.plan}
-                className={`rounded-2xl p-6 border-2 transition min-w-[280px] w-[280px] shrink-0 snap-center flex flex-col ${
+                className={`rounded-2xl p-6 border-2 transition min-w-[280px] w-[280px] shrink-0 snap-center flex flex-col relative ${
                   isCurrent
-                    ? "border-orange-500 bg-orange-50"
+                    ? "border-orange-500 bg-orange-50 dark:bg-orange-950/30"
                     : plan.plan === "CUSTOM"
-                    ? "border-emerald-400 bg-emerald-50 hover:border-emerald-500"
+                    ? "border-emerald-400 bg-emerald-50 dark:bg-emerald-950/20 hover:border-emerald-500"
                     : plan.plan === "ENTERPRISE"
-                    ? "border-amber-400 bg-amber-50 hover:border-amber-500"
-                    : "border-gray-200 bg-white hover:border-orange-300"
+                    ? "border-amber-400 bg-amber-50 dark:bg-amber-950/20 hover:border-amber-500"
+                    : plan.plan === "PRO"
+                    ? "border-blue-400 bg-[var(--bg-card)] hover:border-blue-500 ring-2 ring-blue-400/20"
+                    : "border-[var(--border-color)] bg-[var(--bg-card)] hover:border-orange-300"
                 }`}
               >
+                {/* Badge: mais popular */}
+                {plan.plan === "PRO" && !isCurrent && (
+                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-orange-500 to-red-500 text-white text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1 shadow-lg whitespace-nowrap">
+                    🔥 MAIS POPULAR
+                  </span>
+                )}
                 {isCurrent && (
                   <span className="bg-orange-500 text-white text-xs font-bold px-3 py-1 rounded-full self-start">
                     PLANO ATUAL
                   </span>
                 )}
 
-                <h3 className="text-xl font-bold text-gray-800 mt-3">
+                <h3 className="text-xl font-bold text-[var(--text-primary)] mt-3">
                   {planLabels[plan.plan]}
                 </h3>
 
                 <div className="mt-2">
                   {isContactSales ? (
-                    <p className="text-3xl font-bold text-gray-800">Sob consulta</p>
+                    <p className="text-3xl font-bold text-[var(--text-primary)]">Sob consulta</p>
                   ) : price === 0 ? (
-                    <p className="text-3xl font-bold text-gray-800">Gratis</p>
+                    <p className="text-3xl font-bold text-[var(--text-primary)]">Gratis</p>
                   ) : (
                     <>
-                      <p className="text-3xl font-bold text-gray-800">
+                      <p className="text-3xl font-bold text-[var(--text-primary)]">
                         R$ {price.toFixed(2)}
-                        <span className="text-sm font-normal text-gray-500">
+                        <span className="text-sm font-normal text-[var(--text-muted)]">
                           {getBillingLabel(billing)}
                         </span>
                       </p>
@@ -354,23 +364,23 @@ function PlanContent() {
                 </div>
 
                 {isContactSales ? (
-                  <p className="mt-6 text-sm text-gray-500 flex-1">
+                  <p className="mt-6 text-sm text-[var(--text-muted)] flex-1">
                     Entre em contato para montar um plano sob medida para o seu negocio.
                   </p>
                 ) : (
                   <ul className="mt-6 space-y-3 flex-1">
                     {/* Positive features first */}
                     {positives.map((f, i) => (
-                      <li key={`p-${i}`} className="flex items-center gap-2 text-gray-600">
+                      <li key={`p-${i}`} className="flex items-center gap-2 text-[var(--text-secondary)]">
                         <span className="text-green-500 shrink-0">&#10003;</span>
                         <span>{f.label}</span>
                       </li>
                     ))}
                     {/* Negative features last */}
                     {negatives.map((f, i) => (
-                      <li key={`n-${i}`} className="flex items-center gap-2 text-gray-600">
+                      <li key={`n-${i}`} className="flex items-center gap-2 text-[var(--text-secondary)]">
                         <span className="text-red-400 shrink-0">&#10007;</span>
-                        <span className="text-gray-400">{f.label}</span>
+                        <span className="text-[var(--text-muted)]">{f.label}</span>
                       </li>
                     ))}
                   </ul>
@@ -403,9 +413,9 @@ function PlanContent() {
         </div>
       </div>
 
-      <div className="mt-8 bg-blue-50 border border-blue-200 rounded-2xl p-6">
-        <h3 className="font-semibold text-blue-800">Como funciona?</h3>
-        <ul className="mt-2 text-sm text-blue-700 space-y-1">
+      <div className="mt-8 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl p-6">
+        <h3 className="font-semibold text-[var(--text-primary)]">Como funciona?</h3>
+        <ul className="mt-2 text-sm text-[var(--text-secondary)] space-y-1">
           <li>&bull; Escolha o periodo: mensal, trimestral (-10%), semestral (-20%) ou anual (-30%)</li>
           <li>&bull; Ao clicar em &quot;Fazer Upgrade&quot;, voce sera redirecionado para o Mercado Pago</li>
           <li>&bull; Aceita PIX, cartao de credito (com parcelamento) e boleto</li>
