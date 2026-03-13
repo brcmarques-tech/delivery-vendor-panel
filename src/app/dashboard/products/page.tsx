@@ -1067,7 +1067,7 @@ export default function ProductsPage() {
               <div className="flex flex-col items-center gap-3">
                 <div className="relative">
                   <img src={imagePreview} alt="Preview" className="w-36 h-36 rounded-2xl object-cover shadow-sm cursor-pointer hover:opacity-90 transition" onClick={() => fileInputRef.current?.click()} />
-                  <button type="button" onClick={(e) => { e.stopPropagation(); setImagePreview(null); setImageFile(null); }}
+                  <button type="button" onClick={(e) => { e.stopPropagation(); setImagePreview(null); setImageBase64(null); }}
                     className="absolute -top-2 -right-2 w-7 h-7 bg-red-500 text-white rounded-full flex items-center justify-center text-sm font-bold cursor-pointer hover:bg-red-600 transition shadow-md">&#10005;</button>
                 </div>
                 <button type="button" onClick={() => fileInputRef.current?.click()} className="text-sm text-orange-500 font-medium cursor-pointer hover:text-orange-600 transition">Trocar imagem</button>
