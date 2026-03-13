@@ -123,12 +123,12 @@ export default function OrdersPage() {
       )}
 
       <div className="flex flex-wrap items-center justify-between mb-6 gap-3">
-        <h1 className="text-2xl font-bold text-gray-800">Pedidos</h1>
+        <h1 className="text-2xl font-bold text-[var(--text-primary)]">Pedidos</h1>
         {stores.length > 1 && (
           <select
             value={selectedStore}
             onChange={(e) => setSelectedStore(e.target.value)}
-            className="px-4 py-2 border border-gray-200 rounded-xl text-gray-800 bg-white"
+            className="px-4 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)]"
           >
             {stores.map((s: any) => (
               <option key={s.id} value={s.id}>{s.name}</option>
@@ -138,9 +138,9 @@ export default function OrdersPage() {
       </div>
 
       {loading ? (
-        <p className="text-gray-500">Carregando...</p>
+        <p className="text-[var(--text-secondary)]">Carregando...</p>
       ) : orders.length === 0 ? (
-        <p className="text-gray-500 text-center mt-20">Nenhum pedido ainda</p>
+        <p className="text-[var(--text-secondary)] text-center mt-20">Nenhum pedido ainda</p>
       ) : (
         <div className="space-y-4">
           {orders.map((order: any) => {
@@ -148,11 +148,11 @@ export default function OrdersPage() {
             const canAdvance = !!nextStatus[order.status];
 
             return (
-              <div key={order.id} className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm">
+              <div key={order.id} className="bg-[var(--bg-card)] rounded-2xl p-4 sm:p-6 shadow-sm">
                 <div className="flex flex-wrap items-center justify-between mb-3 gap-2">
                   <div>
-                    <span className="font-bold text-gray-800">#{order.orderNumber}</span>
-                    <span className="text-sm text-gray-500 sm:ml-3">
+                    <span className="font-bold text-[var(--text-primary)]">#{order.orderNumber}</span>
+                    <span className="text-sm text-[var(--text-secondary)] sm:ml-3">
                       {order.customer.name} - {order.customer.phone}
                     </span>
                   </div>
@@ -161,10 +161,10 @@ export default function OrdersPage() {
                   </span>
                 </div>
 
-                <div className="border-t border-gray-100 pt-3 mb-3">
+                <div className="border-t border-[var(--border-light)] pt-3 mb-3">
                   {order.items.map((item: any) => (
                     <div key={item.id} className="flex justify-between text-sm py-1 items-center gap-2">
-                      <span className="text-gray-700 flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[var(--text-primary)] flex items-center gap-1.5 flex-wrap">
                         {item.product?.isVariableWeight && item.weightGrams
                           ? <span>{(item.weightGrams / 1000).toFixed(2)}kg</span>
                           : <span>{item.quantity}x</span>
@@ -181,9 +181,9 @@ export default function OrdersPage() {
                                 onChange={(e) => setWeightEdit({ itemId: item.id, value: e.target.value })}
                                 onKeyDown={(e) => { if (e.key === "Enter") handleAdjustWeight(item.id, weightEdit!.value); if (e.key === "Escape") setWeightEdit(null); }}
                                 placeholder="gramas"
-                                className="w-24 px-2 py-0.5 border border-orange-300 rounded-lg text-xs text-gray-800 focus:ring-1 focus:ring-orange-200 outline-none"
+                                className="w-24 px-2 py-0.5 border border-orange-300 rounded-lg text-xs text-[var(--text-primary)] bg-[var(--bg-input)] focus:ring-1 focus:ring-orange-200 outline-none"
                               />
-                              <span className="text-xs text-gray-400">g</span>
+                              <span className="text-xs text-[var(--text-muted)]">g</span>
                               <button
                                 onClick={() => handleAdjustWeight(item.id, weightEdit!.value)}
                                 className="px-2 py-0.5 bg-orange-500 text-white rounded-lg text-xs font-bold cursor-pointer hover:bg-orange-600 active:scale-95 transition"
@@ -206,7 +206,7 @@ export default function OrdersPage() {
                           )
                         )}
                       </span>
-                      <span className="text-gray-500 flex-shrink-0">
+                      <span className="text-[var(--text-secondary)] flex-shrink-0">
                         R$ {Number(item.totalPrice).toFixed(2)}
                       </span>
                     </div>
@@ -214,7 +214,7 @@ export default function OrdersPage() {
                 </div>
 
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <span className="font-bold text-lg text-gray-800">
+                  <span className="font-bold text-lg text-[var(--text-primary)]">
                     R$ {Number(order.total).toFixed(2)}
                   </span>
                   {canAdvance && (

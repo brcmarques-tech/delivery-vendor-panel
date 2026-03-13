@@ -7,7 +7,7 @@ import { useSearchParams } from "next/navigation";
 
 export default function DashboardPage() {
   return (
-    <Suspense fallback={<p className="text-gray-500">Carregando...</p>}>
+    <Suspense fallback={<p className="text-[var(--text-secondary)]">Carregando...</p>}>
       <DashboardContent />
     </Suspense>
   );
@@ -151,14 +151,14 @@ function DashboardContent() {
   }
 
   if (loading) {
-    return <p className="text-gray-500">Carregando...</p>;
+    return <p className="text-[var(--text-secondary)]">Carregando...</p>;
   }
 
   if (stores.length === 0) {
     return (
       <div className="text-center mt-20">
-        <h2 className="text-2xl font-bold text-gray-800 mb-2">Nenhuma loja cadastrada</h2>
-        <p className="text-gray-500 mb-6">Crie sua primeira loja para começar a vender</p>
+        <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-2">Nenhuma loja cadastrada</h2>
+        <p className="text-[var(--text-secondary)] mb-6">Crie sua primeira loja para começar a vender</p>
         <a href="/dashboard/settings" className="bg-orange-500 text-white px-6 py-3 rounded-xl font-bold cursor-pointer hover:bg-orange-600 active:scale-95 transition">
           Criar loja
         </a>
@@ -169,7 +169,7 @@ function DashboardContent() {
   return (
     <div>
       {!mpConnected && (
-        <div className="bg-gradient-to-r from-red-500 to-orange-500 rounded-2xl p-5 mb-6 max-w-2xl shadow-sm">
+        <div className="bg-gradient-to-r from-red-500 to-orange-500 rounded-2xl p-5 mb-6 shadow-sm">
           <div className="flex items-start gap-3">
             <span className="text-white text-2xl mt-0.5">⚠️</span>
             <div className="flex-1">
@@ -200,17 +200,17 @@ function DashboardContent() {
         </div>
       )}
 
-      <h1 className="text-2xl font-bold text-gray-800 mb-6">Visão Geral</h1>
+      <h1 className="text-2xl font-bold text-[var(--text-primary)] mb-6">Visão Geral</h1>
 
       {mpToast && (
-        <div className="bg-green-50 border border-green-200 rounded-2xl p-4 mb-6 flex items-center justify-between max-w-2xl">
+        <div className="bg-green-50 border border-green-200 rounded-2xl p-4 mb-6 flex items-center justify-between">
           <p className="text-green-700 font-medium text-sm">Mercado Pago conectado com sucesso!</p>
           <button onClick={() => setMpToast(false)} className="text-green-400 hover:text-green-600 text-lg cursor-pointer">✕</button>
         </div>
       )}
 
       {mpConnected && (
-        <div className="bg-green-50 border border-green-200 rounded-2xl p-5 mb-6 max-w-2xl">
+        <div className="bg-green-50 border border-green-200 rounded-2xl p-5 mb-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="text-green-500 text-lg">✓</span>
@@ -232,80 +232,80 @@ function DashboardContent() {
 
       <div className="grid grid-cols-1 gap-6">
         {stores.map((store: any) => (
-          <div key={store.id} className="bg-white rounded-2xl p-6 shadow-sm max-w-2xl">
+          <div key={store.id} className="bg-[var(--bg-card)] rounded-2xl p-6 shadow-sm">
             {editingId === store.id ? (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-bold text-gray-800">Editar loja</h2>
-                  <button onClick={cancelEdit} className="text-gray-400 hover:text-gray-600 text-xl cursor-pointer">✕</button>
+                  <h2 className="text-lg font-bold text-[var(--text-primary)]">Editar loja</h2>
+                  <button onClick={cancelEdit} className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] text-xl cursor-pointer">✕</button>
                 </div>
 
                 <div>
-                  <label className="text-sm text-gray-500 mb-1 block">Logo</label>
+                  <label className="text-sm text-[var(--text-secondary)] mb-1 block">Logo</label>
                   <div className="flex items-center gap-4">
                     <div
                       onClick={() => fileInputRef.current?.click()}
-                      className="w-20 h-20 rounded-2xl border-2 border-dashed border-gray-300 flex items-center justify-center cursor-pointer hover:border-orange-400 transition overflow-hidden"
+                      className="w-20 h-20 rounded-2xl border-2 border-dashed border-[var(--border-color)] flex items-center justify-center cursor-pointer hover:border-orange-400 transition overflow-hidden"
                     >
                       {logoPreview ? (
                         <img src={logoPreview} alt="Logo" className="w-full h-full object-cover" />
                       ) : (
-                        <span className="text-gray-400 text-2xl">+</span>
+                        <span className="text-[var(--text-muted)] text-2xl">+</span>
                       )}
                     </div>
                     <input ref={fileInputRef} type="file" accept="image/*" onChange={handleLogoSelect} className="hidden" />
-                    <span className="text-sm text-gray-400">Clique para alterar</span>
+                    <span className="text-sm text-[var(--text-muted)]">Clique para alterar</span>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="col-span-1 sm:col-span-2">
-                    <label className="text-sm text-gray-500">Nome</label>
-                    <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-gray-800" />
+                    <label className="text-sm text-[var(--text-secondary)]">Nome</label>
+                    <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full px-3 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)]" />
                   </div>
                   <div className="col-span-2">
-                    <label className="text-sm text-gray-500">Descrição</label>
-                    <input type="text" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-gray-800" />
+                    <label className="text-sm text-[var(--text-secondary)]">Descrição</label>
+                    <input type="text" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="w-full px-3 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)]" />
                   </div>
                   <div>
-                    <label className="text-sm text-gray-500">Telefone</label>
-                    <input type="text" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-gray-800" />
+                    <label className="text-sm text-[var(--text-secondary)]">Telefone</label>
+                    <input type="text" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="w-full px-3 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)]" />
                   </div>
                 </div>
 
-                <h3 className="font-bold text-gray-700 text-sm pt-2">Endereço</h3>
+                <h3 className="font-bold text-[var(--text-primary)] text-sm pt-2">Endereço</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="text-sm text-gray-500">Rua</label>
-                    <input type="text" value={form.street} onChange={(e) => setForm({ ...form, street: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-gray-800" />
+                    <label className="text-sm text-[var(--text-secondary)]">Rua</label>
+                    <input type="text" value={form.street} onChange={(e) => setForm({ ...form, street: e.target.value })} className="w-full px-3 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)]" />
                   </div>
                   <div>
-                    <label className="text-sm text-gray-500">Número</label>
-                    <input type="text" value={form.number} onChange={(e) => setForm({ ...form, number: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-gray-800" />
+                    <label className="text-sm text-[var(--text-secondary)]">Número</label>
+                    <input type="text" value={form.number} onChange={(e) => setForm({ ...form, number: e.target.value })} className="w-full px-3 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)]" />
                   </div>
                   <div>
-                    <label className="text-sm text-gray-500">Complemento</label>
-                    <input type="text" value={form.complement} onChange={(e) => setForm({ ...form, complement: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-gray-800" />
+                    <label className="text-sm text-[var(--text-secondary)]">Complemento</label>
+                    <input type="text" value={form.complement} onChange={(e) => setForm({ ...form, complement: e.target.value })} className="w-full px-3 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)]" />
                   </div>
                   <div>
-                    <label className="text-sm text-gray-500">Bairro</label>
-                    <input type="text" value={form.neighborhood} onChange={(e) => setForm({ ...form, neighborhood: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-gray-800" />
+                    <label className="text-sm text-[var(--text-secondary)]">Bairro</label>
+                    <input type="text" value={form.neighborhood} onChange={(e) => setForm({ ...form, neighborhood: e.target.value })} className="w-full px-3 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)]" />
                   </div>
                   <div>
-                    <label className="text-sm text-gray-500">Cidade</label>
-                    <input type="text" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-gray-800" />
+                    <label className="text-sm text-[var(--text-secondary)]">Cidade</label>
+                    <input type="text" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} className="w-full px-3 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)]" />
                   </div>
                   <div>
-                    <label className="text-sm text-gray-500">Estado</label>
-                    <input type="text" value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-gray-800" />
+                    <label className="text-sm text-[var(--text-secondary)]">Estado</label>
+                    <input type="text" value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} className="w-full px-3 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)]" />
                   </div>
                   <div>
-                    <label className="text-sm text-gray-500">CEP</label>
-                    <input type="text" value={form.zipCode} onChange={(e) => setForm({ ...form, zipCode: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-gray-800" />
+                    <label className="text-sm text-[var(--text-secondary)]">CEP</label>
+                    <input type="text" value={form.zipCode} onChange={(e) => setForm({ ...form, zipCode: e.target.value })} className="w-full px-3 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)]" />
                   </div>
                 </div>
 
-                <h3 className="font-bold text-gray-700 text-sm pt-2">Entrega</h3>
+                <h3 className="font-bold text-[var(--text-primary)] text-sm pt-2">Entrega</h3>
                 <div className="flex items-center gap-3 py-2">
                   <button
                     type="button"
@@ -314,12 +314,12 @@ function DashboardContent() {
                   >
                     <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${form.hasOwnDelivery ? "translate-x-6" : ""}`} />
                   </button>
-                  <span className="text-sm text-gray-700">
+                  <span className="text-sm text-[var(--text-primary)]">
                     {form.hasOwnDelivery ? "Entrega própria" : "Não possui entrega própria"}
                   </span>
                 </div>
                 {form.hasOwnDelivery ? (
-                  <p className="text-xs text-gray-400">Seus próprios entregadores farão as entregas.</p>
+                  <p className="text-xs text-[var(--text-muted)]">Seus próprios entregadores farão as entregas.</p>
                 ) : (
                   <div className="bg-blue-50 border border-blue-200 rounded-xl p-2">
                     <p className="text-xs text-blue-600">O app disponibilizará entregadores autônomos para realizar as entregas dos seus pedidos.</p>
@@ -334,40 +334,40 @@ function DashboardContent() {
                   >
                     <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${form.freeDelivery ? "translate-x-6" : ""}`} />
                   </button>
-                  <span className="text-sm text-gray-700">Entrega grátis</span>
+                  <span className="text-sm text-[var(--text-primary)]">Entrega grátis</span>
                 </div>
 
                 {!form.freeDelivery && (
                   <div className="mt-1">
-                    <label className="text-sm text-gray-500">Grátis acima de (R$)</label>
-                    <input type="number" step="0.01" placeholder="Opcional" value={form.freeDeliveryAbove} onChange={(e) => setForm({ ...form, freeDeliveryAbove: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-gray-800" />
+                    <label className="text-sm text-[var(--text-secondary)]">Grátis acima de (R$)</label>
+                    <input type="number" step="0.01" placeholder="Opcional" value={form.freeDeliveryAbove} onChange={(e) => setForm({ ...form, freeDeliveryAbove: e.target.value })} className="w-full px-3 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)]" />
                   </div>
                 )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
                   <div>
-                    <label className="text-sm text-gray-500">Início entregas</label>
-                    <input type="time" value={form.deliveryStartTime} onChange={(e) => setForm({ ...form, deliveryStartTime: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-gray-800" />
+                    <label className="text-sm text-[var(--text-secondary)]">Início entregas</label>
+                    <input type="time" value={form.deliveryStartTime} onChange={(e) => setForm({ ...form, deliveryStartTime: e.target.value })} className="w-full px-3 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)]" />
                   </div>
                   <div>
-                    <label className="text-sm text-gray-500">Fim entregas</label>
-                    <input type="time" value={form.deliveryEndTime} onChange={(e) => setForm({ ...form, deliveryEndTime: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-gray-800" />
+                    <label className="text-sm text-[var(--text-secondary)]">Fim entregas</label>
+                    <input type="time" value={form.deliveryEndTime} onChange={(e) => setForm({ ...form, deliveryEndTime: e.target.value })} className="w-full px-3 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)]" />
                   </div>
                 </div>
                 {form.hasOwnDelivery && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
                   <div>
-                    <label className="text-sm text-gray-500">Tempo (min)</label>
-                    <input type="number" value={form.estimatedDeliveryMinutes} onChange={(e) => setForm({ ...form, estimatedDeliveryMinutes: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-gray-800" />
+                    <label className="text-sm text-[var(--text-secondary)]">Tempo (min)</label>
+                    <input type="number" value={form.estimatedDeliveryMinutes} onChange={(e) => setForm({ ...form, estimatedDeliveryMinutes: e.target.value })} className="w-full px-3 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)]" />
                   </div>
                   <div>
-                    <label className="text-sm text-gray-500">Mínimo (R$)</label>
-                    <input type="number" step="0.01" value={form.minimumOrder} onChange={(e) => setForm({ ...form, minimumOrder: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-gray-800" />
+                    <label className="text-sm text-[var(--text-secondary)]">Mínimo (R$)</label>
+                    <input type="number" step="0.01" value={form.minimumOrder} onChange={(e) => setForm({ ...form, minimumOrder: e.target.value })} className="w-full px-3 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)]" />
                   </div>
                 </div>
                 )}
                 {!form.hasOwnDelivery && (
-                  <p className="text-xs text-gray-400 mt-2">Tempo estimado calculado automaticamente pela distancia.</p>
+                  <p className="text-xs text-[var(--text-muted)] mt-2">Tempo estimado calculado automaticamente pela distancia.</p>
                 )}
 
                 <div className="flex gap-3 pt-2">
@@ -380,7 +380,7 @@ function DashboardContent() {
                   </button>
                   <button
                     onClick={cancelEdit}
-                    className="px-6 py-2 bg-gray-100 text-gray-600 rounded-xl font-semibold cursor-pointer hover:bg-gray-200 transition"
+                    className="px-6 py-2 bg-[var(--bg-muted)] text-[var(--text-secondary)] rounded-xl font-semibold cursor-pointer hover:bg-[var(--bg-hover)] transition"
                   >
                     Cancelar
                   </button>
@@ -393,12 +393,12 @@ function DashboardContent() {
                     {store.logoUrl ? (
                       <img src={store.logoUrl} alt={store.name} className="w-12 h-12 rounded-xl object-cover" />
                     ) : null}
-                    <h2 className="text-lg font-bold text-gray-800">{store.name}</h2>
+                    <h2 className="text-lg font-bold text-[var(--text-primary)]">{store.name}</h2>
                   </div>
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => startEdit(store)}
-                      className="px-3 py-1 rounded-full text-sm font-semibold cursor-pointer bg-gray-100 text-gray-600 hover:bg-gray-200 transition"
+                      className="px-3 py-1 rounded-full text-sm font-semibold cursor-pointer bg-[var(--bg-muted)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] transition"
                     >
                       ✏️ Editar
                     </button>
@@ -416,21 +416,21 @@ function DashboardContent() {
                 </div>
 
                 {store.description && (
-                  <p className="text-sm text-gray-500 mb-4">{store.description}</p>
+                  <p className="text-sm text-[var(--text-secondary)] mb-4">{store.description}</p>
                 )}
 
                 <div className="grid grid-cols-2 gap-4 mb-4">
-                  <div className="bg-gray-50 rounded-xl p-3 text-center">
-                    <p className="text-2xl font-bold text-gray-800">{store.products?.length || 0}</p>
-                    <p className="text-xs text-gray-500">Produtos</p>
+                  <div className="bg-[var(--bg-muted)] rounded-xl p-3 text-center">
+                    <p className="text-2xl font-bold text-[var(--text-primary)]">{store.products?.length || 0}</p>
+                    <p className="text-xs text-[var(--text-secondary)]">Produtos</p>
                   </div>
-                  <div className="bg-gray-50 rounded-xl p-3 text-center">
-                    <p className="text-2xl font-bold text-gray-800">{store.categories?.length || 0}</p>
-                    <p className="text-xs text-gray-500">Categorias</p>
+                  <div className="bg-[var(--bg-muted)] rounded-xl p-3 text-center">
+                    <p className="text-2xl font-bold text-[var(--text-primary)]">{store.categories?.length || 0}</p>
+                    <p className="text-xs text-[var(--text-secondary)]">Categorias</p>
                   </div>
                 </div>
 
-                <div className="text-sm text-gray-500 space-y-1">
+                <div className="text-sm text-[var(--text-secondary)] space-y-1">
                   <p>Entrega: {store.hasOwnDelivery ? "Própria" : "Entregadores do app"}</p>
                   {store.freeDelivery ? (
                     <p className="text-green-600 font-medium">Entrega grátis</p>

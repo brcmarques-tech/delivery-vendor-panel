@@ -9,6 +9,7 @@ export default function RegisterPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [cpf, setCpf] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
@@ -18,9 +19,27 @@ export default function RegisterPage() {
   const [register, { loading }] = useMutation(REGISTER);
   const router = useRouter();
 
+  function validateCpf(value: string): boolean {
+    const d = value.replace(/\D/g, "");
+    if (d.length !== 11 || /^(\d)\1{10}$/.test(d)) return false;
+    let s = 0;
+    for (let i = 0; i < 9; i++) s += parseInt(d[i]) * (10 - i);
+    let c = 11 - (s % 11); if (c >= 10) c = 0;
+    if (parseInt(d[9]) !== c) return false;
+    s = 0;
+    for (let i = 0; i < 10; i++) s += parseInt(d[i]) * (11 - i);
+    c = 11 - (s % 11); if (c >= 10) c = 0;
+    return parseInt(d[10]) === c;
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+
+    if (!validateCpf(cpf)) {
+      setError("CPF inválido");
+      return;
+    }
 
     if (password !== confirmPassword) {
       setError("As senhas não coincidem");
@@ -35,7 +54,7 @@ export default function RegisterPage() {
     try {
       await register({
         variables: {
-          input: { name, email, password, phone, role: "VENDOR" },
+          input: { name, email, password, phone, cpf: cpf.replace(/\D/g, ""), role: "VENDOR" },
         },
       });
       setSuccess(true);
@@ -97,6 +116,20 @@ export default function RegisterPage() {
             placeholder="Telefone"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
+            className="w-full px-4 py-3 bg-gray-100 rounded-xl text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
+            required
+          />
+          <input
+            type="text"
+            placeholder="CPF"
+            value={cpf}
+            onChange={(e) => {
+              const v = e.target.value.replace(/\D/g, "").slice(0, 11);
+              const formatted = v.replace(/(\d{3})(\d{3})?(\d{3})?(\d{2})?/, (_, a, b, c, d) =>
+                [a, b, c].filter(Boolean).join(".") + (d ? `-${d}` : "")
+              );
+              setCpf(formatted);
+            }}
             className="w-full px-4 py-3 bg-gray-100 rounded-xl text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
             required
           />

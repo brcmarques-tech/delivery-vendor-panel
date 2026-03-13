@@ -13,7 +13,7 @@ export const REGISTER = gql`
   mutation Register($input: RegisterInput!) {
     register(input: $input) {
       accessToken
-      user { id name email role }
+      user { id name email role cpf }
     }
   }
 `;
@@ -166,9 +166,44 @@ export const TOGGLE_STORE_OPEN = gql`
 export const GET_MY_PLAN = gql`
   query Me {
     me {
-      id vendorPlan planExpiresAt mpConnected
+      id name cpf vendorPlan planExpiresAt mpConnected
+      acceptedTermsAt acceptedSubscriptionTermsAt
       stores { id }
     }
+  }
+`;
+
+export const GET_MY_PROFILE = gql`
+  query MyProfile {
+    me {
+      id name email phone vendorPlan
+    }
+  }
+`;
+
+export const UPDATE_PROFILE = gql`
+  mutation UpdateProfile($name: String, $phone: String, $currentPassword: String, $newPassword: String) {
+    updateProfile(name: $name, phone: $phone, currentPassword: $currentPassword, newPassword: $newPassword) {
+      id name phone
+    }
+  }
+`;
+
+export const GET_CONTRACT_CONTENT = gql`
+  query ContractContent($type: String!) {
+    contractContent(type: $type)
+  }
+`;
+
+export const ACCEPT_TERMS = gql`
+  mutation AcceptTerms {
+    acceptTerms { id acceptedTermsAt }
+  }
+`;
+
+export const ACCEPT_SUBSCRIPTION_TERMS = gql`
+  mutation AcceptSubscriptionTerms {
+    acceptSubscriptionTerms { id acceptedSubscriptionTermsAt }
   }
 `;
 
@@ -187,7 +222,10 @@ export const DISCONNECT_MP = gql`
 export const GET_AVAILABLE_PLANS = gql`
   query AvailablePlans {
     availablePlans {
-      plan maxStores canPromote monthlyPrice
+      plan maxStores monthlyPrice quarterlyPrice semiannualPrice annualPrice
+      commissionPercent freePromosPerWeek maxProductsPerStore maxEmailsPerMonth
+      listingPriority highlightDaysPerMonth canUseCoupons hasAnalytics
+      supportLevel isContactSales
     }
   }
 `;
@@ -231,8 +269,8 @@ export const SWAP_PROMOTION_PRODUCT = gql`
 `;
 
 export const CREATE_PLAN_UPGRADE = gql`
-  mutation CreatePlanUpgrade($plan: VendorPlan!) {
-    createPlanUpgrade(plan: $plan) {
+  mutation CreatePlanUpgrade($plan: VendorPlan!, $billingPeriod: String) {
+    createPlanUpgrade(plan: $plan, billingPeriod: $billingPeriod) {
       id checkoutUrl status
     }
   }
@@ -244,6 +282,45 @@ export const GET_ACTIVE_PROMOTIONS = gql`
       id title description imageUrl startDate endDate isActive isPaid price
       store { id name }
     }
+  }
+`;
+
+// ─── Coupons ───
+
+export const GET_STORE_COUPONS = gql`
+  query StoreCoupons($storeId: String!) {
+    storeCoupons(storeId: $storeId) {
+      id code discountType discountValue minimumOrder maxDiscount maxUses usesCount isActive expiresAt createdAt
+      store { id name }
+    }
+  }
+`;
+
+export const CREATE_COUPON = gql`
+  mutation CreateCoupon($input: CreateCouponInput!) {
+    createCoupon(input: $input) {
+      id code discountType discountValue minimumOrder maxDiscount maxUses isActive expiresAt
+    }
+  }
+`;
+
+export const UPDATE_COUPON = gql`
+  mutation UpdateCoupon($input: UpdateCouponInput!) {
+    updateCoupon(input: $input) {
+      id code discountType discountValue minimumOrder maxDiscount maxUses isActive expiresAt
+    }
+  }
+`;
+
+export const TOGGLE_COUPON_ACTIVE = gql`
+  mutation ToggleCouponActive($id: String!) {
+    toggleCouponActive(id: $id) { id isActive }
+  }
+`;
+
+export const DELETE_COUPON = gql`
+  mutation DeleteCoupon($id: String!) {
+    deleteCoupon(id: $id)
   }
 `;
 
