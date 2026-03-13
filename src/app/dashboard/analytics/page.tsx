@@ -274,7 +274,7 @@ export default function AnalyticsPage() {
                 <XAxis dataKey="day" tick={{ fontSize: 11, fill: "#9ca3af" }} />
                 <YAxis tick={{ fontSize: 11, fill: "#9ca3af" }} tickFormatter={(v) => `R$${v}`} />
                 <Tooltip
-                  formatter={(value: number) => [`R$ ${value.toFixed(2)}`, "Faturamento"]}
+                  formatter={(value: any) => [`R$ ${Number(value).toFixed(2)}`, "Faturamento"]}
                   contentStyle={{ borderRadius: 12, border: "1px solid var(--border-color)", background: "var(--bg-card)", color: "var(--text-primary)" }}
                 />
                 <Area type="monotone" dataKey="revenue" stroke="#f97316" strokeWidth={2} fill="url(#colorRevenue)" name="Faturamento" />
@@ -291,7 +291,7 @@ export default function AnalyticsPage() {
                 <XAxis dataKey="day" tick={{ fontSize: 11, fill: "#9ca3af" }} />
                 <YAxis tick={{ fontSize: 11, fill: "#9ca3af" }} allowDecimals={false} />
                 <Tooltip
-                  formatter={(value: number) => [value, "Pedidos"]}
+                  formatter={(value: any) => [value, "Pedidos"]}
                   contentStyle={{ borderRadius: 12, border: "1px solid var(--border-color)", background: "var(--bg-card)", color: "var(--text-primary)" }}
                 />
                 <Bar dataKey="pedidos" fill="#3b82f6" radius={[6, 6, 0, 0]} name="Pedidos" />
@@ -320,7 +320,7 @@ export default function AnalyticsPage() {
                     ))}
                   </Pie>
                   <Tooltip
-                    formatter={(value: number, name: string) => [value, name]}
+                    formatter={(value: any, name: any) => [value, name]}
                     contentStyle={{ borderRadius: 12, border: "1px solid var(--border-color)", background: "var(--bg-card)", color: "var(--text-primary)" }}
                   />
                   <Legend
@@ -342,7 +342,7 @@ export default function AnalyticsPage() {
                   <XAxis dataKey="hora" tick={{ fontSize: 10, fill: "#9ca3af" }} />
                   <YAxis tick={{ fontSize: 11, fill: "#9ca3af" }} allowDecimals={false} />
                   <Tooltip
-                    formatter={(value: number) => [value, "Pedidos"]}
+                    formatter={(value: any) => [value, "Pedidos"]}
                     contentStyle={{ borderRadius: 12, border: "1px solid var(--border-color)", background: "var(--bg-card)", color: "var(--text-primary)" }}
                   />
                   <Bar dataKey="pedidos" fill="#8b5cf6" radius={[4, 4, 0, 0]} name="Pedidos" />
@@ -366,8 +366,8 @@ export default function AnalyticsPage() {
                     width={120}
                   />
                   <Tooltip
-                    formatter={(value: number, name: string) => {
-                      if (name === "revenue") return [`R$ ${value.toFixed(2)}`, "Receita"];
+                    formatter={(value: any, name: any) => {
+                      if (name === "revenue") return [`R$ ${Number(value).toFixed(2)}`, "Receita"];
                       return [value, name];
                     }}
                     contentStyle={{ borderRadius: 12, border: "1px solid var(--border-color)", background: "var(--bg-card)", color: "var(--text-primary)" }}
