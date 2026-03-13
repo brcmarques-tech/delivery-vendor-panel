@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useSubscription } from "@apollo/client";
-import { GET_MY_STORES, GET_STORE_ORDERS, UPDATE_ORDER_STATUS, ORDER_CREATED_SUB, ORDER_UPDATED_SUB } from "@/lib/graphql";
+import { GET_MY_STORES, GET_STORE_ORDERS, UPDATE_ORDER_STATUS, ORDER_CREATED_SUB, ORDER_UPDATED_SUB, ADJUST_ORDER_ITEM_WEIGHT } from "@/lib/graphql";
 import { useState, useEffect } from "react";
 
 const statusLabels: Record<string, { label: string; color: string }> = {
@@ -91,6 +91,8 @@ export default function OrdersPage() {
   });
 
   const [updateStatus] = useMutation(UPDATE_ORDER_STATUS);
+  const [adjustWeight] = useMutation(ADJUST_ORDER_ITEM_WEIGHT);
+  const [weightEdit, setWeightEdit] = useState<{ itemId: string; value: string } | null>(null);
   const orders = ordersData?.storeOrders || [];
 
   async function handleAdvanceStatus(orderId: string, currentStatus: string) {
@@ -98,6 +100,18 @@ export default function OrdersPage() {
     if (!next) return;
     await updateStatus({ variables: { id: orderId, status: next } });
     refetch();
+  }
+
+  async function handleAdjustWeight(itemId: string, grams: string) {
+    const parsed = parseInt(grams);
+    if (!parsed || parsed <= 0) return;
+    try {
+      await adjustWeight({ variables: { orderItemId: itemId, actualWeightGrams: parsed } });
+      setWeightEdit(null);
+      refetch();
+    } catch (err: any) {
+      console.error("Erro ao ajustar peso:", err);
+    }
   }
 
   return (
@@ -149,11 +163,50 @@ export default function OrdersPage() {
 
                 <div className="border-t border-gray-100 pt-3 mb-3">
                   {order.items.map((item: any) => (
-                    <div key={item.id} className="flex justify-between text-sm py-1">
-                      <span className="text-gray-700">
-                        {item.quantity}x {item.product.name}
+                    <div key={item.id} className="flex justify-between text-sm py-1 items-center gap-2">
+                      <span className="text-gray-700 flex items-center gap-1.5 flex-wrap">
+                        {item.product?.isVariableWeight && item.weightGrams
+                          ? <span>{(item.weightGrams / 1000).toFixed(2)}kg</span>
+                          : <span>{item.quantity}x</span>
+                        }
+                        {item.product?.name || 'Produto removido'}
+                        {item.product?.isVariableWeight && order.status === "PENDING" && (
+                          weightEdit?.itemId === item.id && weightEdit ? (
+                            <span className="flex items-center gap-1 ml-1">
+                              <input
+                                type="number"
+                                min="1"
+                                autoFocus
+                                value={weightEdit.value}
+                                onChange={(e) => setWeightEdit({ itemId: item.id, value: e.target.value })}
+                                onKeyDown={(e) => { if (e.key === "Enter") handleAdjustWeight(item.id, weightEdit!.value); if (e.key === "Escape") setWeightEdit(null); }}
+                                placeholder="gramas"
+                                className="w-24 px-2 py-0.5 border border-orange-300 rounded-lg text-xs text-gray-800 focus:ring-1 focus:ring-orange-200 outline-none"
+                              />
+                              <span className="text-xs text-gray-400">g</span>
+                              <button
+                                onClick={() => handleAdjustWeight(item.id, weightEdit!.value)}
+                                className="px-2 py-0.5 bg-orange-500 text-white rounded-lg text-xs font-bold cursor-pointer hover:bg-orange-600 active:scale-95 transition"
+                              >OK</button>
+                              <button
+                                onClick={() => setWeightEdit(null)}
+                                className="px-1.5 py-0.5 text-gray-400 hover:text-gray-600 cursor-pointer text-xs"
+                              >&#10005;</button>
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => setWeightEdit({ itemId: item.id, value: String(item.weightGrams || "") })}
+                              className="p-0.5 rounded text-gray-400 hover:text-orange-500 cursor-pointer transition"
+                              title="Ajustar peso"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                            </button>
+                          )
+                        )}
                       </span>
-                      <span className="text-gray-500">
+                      <span className="text-gray-500 flex-shrink-0">
                         R$ {Number(item.totalPrice).toFixed(2)}
                       </span>
                     </div>

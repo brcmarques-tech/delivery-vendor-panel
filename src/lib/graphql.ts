@@ -25,7 +25,7 @@ export const GET_MY_STORES = gql`
       estimatedDeliveryMinutes minimumOrder deliveryStartTime deliveryEndTime freeDeliveryAbove
       phone street number complement neighborhood city state zipCode
       logoUrl bannerUrl
-      products { id name price isAvailable isActive stock imageUrl barcode category { id name } }
+      products { id name price isAvailable isActive stock imageUrl barcode isVariableWeight category { id name } }
       categories { id name }
     }
   }
@@ -46,8 +46,26 @@ export const GET_STORE_ORDERS = gql`
     storeOrders(storeId: $storeId) {
       id orderNumber status total createdAt
       customer { name phone }
-      items { id quantity totalPrice product { name } }
+      items { id quantity weightGrams unitPrice totalPrice product { name isVariableWeight } }
       delivery { id deliverer { name phone } }
+    }
+  }
+`;
+
+export const ADJUST_ORDER_ITEM_WEIGHT = gql`
+  mutation AdjustOrderItemWeight($orderItemId: ID!, $actualWeightGrams: Int!) {
+    adjustOrderItemWeight(orderItemId: $orderItemId, actualWeightGrams: $actualWeightGrams) {
+      id
+      subtotal
+      total
+      items {
+        id
+        quantity
+        weightGrams
+        unitPrice
+        totalPrice
+        product { id name isVariableWeight }
+      }
     }
   }
 `;
@@ -60,7 +78,7 @@ export const CREATE_STORE = gql`
 
 export const CREATE_PRODUCT = gql`
   mutation CreateProduct($input: CreateProductInput!) {
-    createProduct(input: $input) { id name price }
+    createProduct(input: $input) { id name price isVariableWeight }
   }
 `;
 
@@ -111,7 +129,7 @@ export const RESTORE_PRODUCT = gql`
 
 export const UPDATE_PRODUCT = gql`
   mutation UpdateProduct($input: UpdateProductInput!) {
-    updateProduct(input: $input) { id name price description unit imageUrl stock }
+    updateProduct(input: $input) { id name price description unit imageUrl stock isVariableWeight }
   }
 `;
 

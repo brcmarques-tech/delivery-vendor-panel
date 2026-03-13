@@ -135,8 +135,10 @@ export default function ProductsPage() {
   const showCatalog = activePanel === "catalog";
   const [error, setError] = useState("");
 
-  const [productForm, setProductForm] = useState({ name: "", description: "", price: "", unit: "", categoryId: "", stock: "", barcode: "" });
+  const [productForm, setProductForm] = useState({ name: "", description: "", price: "", unit: "", categoryId: "", stock: "", barcode: "", isVariableWeight: false });
   const [categoryName, setCategoryName] = useState("");
+  const [inlineNewCategory, setInlineNewCategory] = useState<"product" | "edit" | "csv" | null>(null);
+  const [inlineCategoryName, setInlineCategoryName] = useState("");
 
   const [createProduct] = useMutation(CREATE_PRODUCT);
   const [createCategory] = useMutation(CREATE_CATEGORY);
@@ -191,7 +193,7 @@ export default function ProductsPage() {
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [categoryMenuId, setCategoryMenuId] = useState<string | null>(null);
   const [editingProduct, setEditingProduct] = useState<any>(null);
-  const [editForm, setEditForm] = useState({ name: "", description: "", price: "", unit: "", categoryId: "", stock: "" });
+  const [editForm, setEditForm] = useState({ name: "", description: "", price: "", unit: "", categoryId: "", stock: "", isVariableWeight: false });
 
   // Inline edit (price/stock)
   const [inlineEdit, setInlineEdit] = useState<{ id: string; field: "price" | "stock"; value: string; original: string } | null>(null);
@@ -322,6 +324,7 @@ export default function ProductsPage() {
       categoryId: "",
       stock: "",
       barcode: product.barcode || "",
+      isVariableWeight: false,
     });
     if (product.imageUrl) {
       setImagePreview(product.imageUrl);
@@ -505,11 +508,12 @@ export default function ProductsPage() {
             price: parseFloat(productForm.price), unit: productForm.unit || undefined,
             storeId: activeStoreId, categoryId: productForm.categoryId || undefined,
             imageUrl, barcode: productForm.barcode || undefined,
+            isVariableWeight: productForm.isVariableWeight || undefined,
             ...(productForm.stock ? { stock: parseInt(productForm.stock) } : {}),
           },
         },
       });
-      setProductForm({ name: "", description: "", price: "", unit: "", categoryId: "", stock: "", barcode: "" });
+      setProductForm({ name: "", description: "", price: "", unit: "", categoryId: "", stock: "", barcode: "", isVariableWeight: false });
       setImagePreview(null); setImageBase64(null); setBarcodeInput(""); setBarcodeResult(null);
       setActivePanel("catalog"); setUploading(false);
       refetch();
@@ -522,6 +526,19 @@ export default function ProductsPage() {
     try {
       await createCategory({ variables: { name: categoryName, storeId: activeStoreId } });
       setCategoryName(""); setActivePanel("catalog"); refetch();
+    } catch (err: any) { setError(err.message || "Erro ao criar categoria"); }
+  }
+
+  async function handleInlineCreateCategory(target: "product" | "edit" | "csv") {
+    if (!inlineCategoryName.trim() || !activeStoreId) return;
+    try {
+      const res = await createCategory({ variables: { name: inlineCategoryName.trim(), storeId: activeStoreId } });
+      const newId = res.data?.createCategory?.id;
+      if (target === "product") setProductForm({ ...productForm, categoryId: newId || "" });
+      if (target === "edit") setEditForm({ ...editForm, categoryId: newId || "" });
+      setInlineCategoryName("");
+      setInlineNewCategory(null);
+      refetch();
     } catch (err: any) { setError(err.message || "Erro ao criar categoria"); }
   }
 
@@ -551,7 +568,7 @@ export default function ProductsPage() {
 
   function startEditing(product: any) {
     setEditingProduct(product);
-    setEditForm({ name: product.name, description: product.description || "", price: String(product.price), unit: product.unit || "", categoryId: product.category?.id || "", stock: String(product.stock || 0) });
+    setEditForm({ name: product.name, description: product.description || "", price: String(product.price), unit: product.unit || "", categoryId: product.category?.id || "", stock: String(product.stock || 0), isVariableWeight: product.isVariableWeight || false });
     setEditImagePreview(product.imageUrl || null); setEditImageBase64(null);
   }
 
@@ -571,6 +588,7 @@ export default function ProductsPage() {
             id: editingProduct.id, name: editForm.name, description: editForm.description || undefined,
             price: parseFloat(editForm.price), unit: editForm.unit || undefined,
             categoryId: editForm.categoryId || undefined, stock: parseInt(editForm.stock) || 0,
+            isVariableWeight: editForm.isVariableWeight,
             ...(imageUrl && { imageUrl }),
           },
         },
@@ -702,10 +720,15 @@ export default function ProductsPage() {
               onKeyDown={(e) => { if (e.key === "Enter") handleInlineBlurOrEnter(); if (e.key === "Escape") setInlineEdit(null); }}
               className="w-24 px-2 py-1 border border-orange-300 rounded-lg text-gray-800 text-sm focus:ring-2 focus:ring-orange-200 outline-none" />
           ) : (
-            <button onClick={() => startInlineEdit(product.id, "price", Number(product.price))}
-              className="cursor-pointer hover:bg-orange-50 hover:text-orange-600 px-2 py-1 rounded-lg transition text-left">
-              R$ {Number(product.price).toFixed(2)}
-            </button>
+            <div className="flex items-center gap-2">
+              <button onClick={() => startInlineEdit(product.id, "price", Number(product.price))}
+                className="cursor-pointer hover:bg-orange-50 hover:text-orange-600 px-2 py-1 rounded-lg transition text-left">
+                R$ {Number(product.price).toFixed(2)}
+              </button>
+              {product.isVariableWeight && (
+                <span className="px-1.5 py-0.5 bg-gray-100 text-gray-500 text-xs rounded-full font-medium">por peso</span>
+              )}
+            </div>
           )}
         </td>
         <td className="px-6 py-4 text-gray-600">
@@ -786,6 +809,134 @@ export default function ProductsPage() {
           <th className="text-left px-6 py-3 text-sm font-semibold text-gray-600 w-24">Acoes</th>
         </tr>
       </thead>
+    );
+  }
+
+  function renderProductCard(product: any) {
+    const status = getStatusInfo(product);
+    return (
+      <div
+        key={product.id}
+        className={`bg-white rounded-2xl shadow-sm p-4 flex flex-col gap-3 ${!product.isActive ? "opacity-50" : ""}`}
+      >
+        {/* Top row: image + info */}
+        <div className="flex items-start gap-3">
+          {/* Thumbnail */}
+          <button
+            onClick={() => product.imageUrl && setZoomedImage(product.imageUrl)}
+            className={`flex-shrink-0 ${product.imageUrl ? "cursor-pointer" : "cursor-default"}`}
+          >
+            {product.imageUrl ? (
+              <img src={product.imageUrl} alt={product.name} className="w-14 h-14 rounded-xl object-cover" />
+            ) : (
+              <div className="w-14 h-14 rounded-xl bg-gray-100 flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </div>
+            )}
+          </button>
+
+          {/* Name + category + status */}
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-gray-800 leading-tight">{product.name}</p>
+            {product.description && (
+              <p className="text-xs text-gray-400 mt-0.5 truncate">{product.description}</p>
+            )}
+            {product.category?.name && (
+              <p className="text-xs text-gray-400 mt-0.5">{product.category.name}</p>
+            )}
+          </div>
+
+          {/* Status badge */}
+          <div className="relative flex-shrink-0">
+            <button
+              onClick={(e) => { e.stopPropagation(); setStatusMenuId(statusMenuId === product.id ? null : product.id); }}
+              className={`px-2.5 py-1 rounded-full text-xs font-semibold cursor-pointer transition active:scale-95 flex items-center gap-1.5 ${status.color}`}
+            >
+              <span className={`w-1.5 h-1.5 rounded-full ${status.dot}`} />
+              {status.label}
+            </button>
+            {statusMenuId === product.id && (
+              <>
+                <div className="fixed inset-0 z-30" onClick={() => setStatusMenuId(null)} />
+                <div className="absolute right-0 top-full mt-1 z-40 bg-white border border-gray-200 rounded-xl shadow-lg py-1 min-w-[200px]">
+                  {product.isActive && (
+                    <button onClick={() => handleToggleAvailability(product.id)}
+                      className="w-full text-left px-4 py-2.5 text-sm text-gray-800 font-medium cursor-pointer transition hover:bg-gray-50 flex items-center gap-2">
+                      <span className={`w-2 h-2 rounded-full ${product.isAvailable ? "bg-red-500" : "bg-green-500"}`} />
+                      {product.isAvailable ? "Marcar indisponivel" : "Marcar disponivel"}
+                    </button>
+                  )}
+                  {product.isActive && <div className="border-t border-gray-100 my-1" />}
+                  <button onClick={() => handleToggleActive(product.id)}
+                    className="w-full text-left px-4 py-2.5 text-sm text-gray-800 font-medium cursor-pointer transition hover:bg-gray-50 flex items-center gap-2">
+                    <span className={`w-2 h-2 rounded-full ${product.isActive ? "bg-gray-400" : "bg-green-500"}`} />
+                    {product.isActive ? "Ocultar produto" : "Mostrar produto"}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Price + stock row */}
+        <div className="flex items-center gap-4 px-1">
+          <div className="flex-1">
+            <p className="text-xs text-gray-400 mb-0.5">Preco</p>
+            {inlineEdit && inlineEdit.id === product.id && inlineEdit.field === "price" ? (
+              <input type="number" step="0.01" autoFocus value={inlineEdit.value}
+                onChange={(e) => setInlineEdit({ ...inlineEdit, value: e.target.value })}
+                onBlur={handleInlineBlurOrEnter}
+                onKeyDown={(e) => { if (e.key === "Enter") handleInlineBlurOrEnter(); if (e.key === "Escape") setInlineEdit(null); }}
+                className="w-28 px-2 py-1 border border-orange-300 rounded-lg text-gray-800 text-sm focus:ring-2 focus:ring-orange-200 outline-none" />
+            ) : (
+              <div className="flex items-center gap-2">
+                <button onClick={() => startInlineEdit(product.id, "price", Number(product.price))}
+                  className="text-sm font-semibold text-gray-700 cursor-pointer hover:text-orange-600 transition">
+                  R$ {Number(product.price).toFixed(2)}
+                </button>
+                {product.isVariableWeight && (
+                  <span className="px-1.5 py-0.5 bg-gray-100 text-gray-500 text-xs rounded-full font-medium">por peso</span>
+                )}
+              </div>
+            )}
+          </div>
+          <div className="flex-1">
+            <p className="text-xs text-gray-400 mb-0.5">Estoque</p>
+            {inlineEdit && inlineEdit.id === product.id && inlineEdit.field === "stock" ? (
+              <input type="number" min="0" autoFocus value={inlineEdit.value}
+                onChange={(e) => setInlineEdit({ ...inlineEdit, value: e.target.value })}
+                onBlur={handleInlineBlurOrEnter}
+                onKeyDown={(e) => { if (e.key === "Enter") handleInlineBlurOrEnter(); if (e.key === "Escape") setInlineEdit(null); }}
+                className="w-20 px-2 py-1 border border-orange-300 rounded-lg text-gray-800 text-sm focus:ring-2 focus:ring-orange-200 outline-none" />
+            ) : (
+              <button onClick={() => startInlineEdit(product.id, "stock", product.stock || 0)}
+                className="text-sm font-semibold text-gray-700 cursor-pointer hover:text-orange-600 transition">
+                {product.stock > 0 ? product.stock : <span className="text-gray-400 text-xs font-normal">Ilimitado</span>}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Action buttons */}
+        <div className="flex items-center gap-2 pt-1 border-t border-gray-100">
+          <button onClick={() => startEditing(product)}
+            className="flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-sm font-medium text-gray-600 bg-gray-50 hover:bg-orange-50 hover:text-orange-600 cursor-pointer transition active:scale-95">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+            Editar
+          </button>
+          <button onClick={() => handleDeleteProduct(product.id)}
+            className="flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-sm font-medium text-gray-600 bg-gray-50 hover:bg-red-50 hover:text-red-600 cursor-pointer transition active:scale-95">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+            Excluir
+          </button>
+        </div>
+      </div>
     );
   }
 
@@ -912,19 +1063,26 @@ export default function ProductsPage() {
           {/* Image upload */}
           <div className="mb-4">
             <input type="file" ref={fileInputRef} accept="image/*" className="hidden" onChange={(e) => { if (e.target.files?.[0]) handleImageSelect(e.target.files[0], "create"); }} />
-            <div onClick={() => fileInputRef.current?.click()}
-              className="w-full h-40 border-2 border-dashed border-gray-200 rounded-xl flex items-center justify-center cursor-pointer hover:border-orange-400 hover:bg-orange-50/50 transition overflow-hidden">
-              {imagePreview ? (
-                <img src={imagePreview} alt="Preview" className="w-full h-full object-cover rounded-xl" />
-              ) : (
+            {imagePreview ? (
+              <div className="flex flex-col items-center gap-3">
+                <div className="relative">
+                  <img src={imagePreview} alt="Preview" className="w-36 h-36 rounded-2xl object-cover shadow-sm cursor-pointer hover:opacity-90 transition" onClick={() => fileInputRef.current?.click()} />
+                  <button type="button" onClick={(e) => { e.stopPropagation(); setImagePreview(null); setImageFile(null); }}
+                    className="absolute -top-2 -right-2 w-7 h-7 bg-red-500 text-white rounded-full flex items-center justify-center text-sm font-bold cursor-pointer hover:bg-red-600 transition shadow-md">&#10005;</button>
+                </div>
+                <button type="button" onClick={() => fileInputRef.current?.click()} className="text-sm text-orange-500 font-medium cursor-pointer hover:text-orange-600 transition">Trocar imagem</button>
+              </div>
+            ) : (
+              <div onClick={() => fileInputRef.current?.click()}
+                className="w-full py-6 border-2 border-dashed border-gray-200 rounded-xl flex items-center justify-center cursor-pointer hover:border-orange-400 hover:bg-orange-50/50 transition">
                 <div className="text-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 mx-auto text-gray-300 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 mx-auto text-gray-300 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
                   <p className="text-sm text-gray-400">Clique para adicionar imagem</p>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
             {productForm.name.trim() && !imagePreview && (
               <button type="button" onClick={() => handleWebSearch("create")} disabled={searchingImages}
                 className="mt-2 w-full py-2 text-sm text-blue-600 bg-blue-50 rounded-xl font-semibold cursor-pointer hover:bg-blue-100 active:scale-95 transition disabled:opacity-50 flex items-center justify-center gap-2">
@@ -935,7 +1093,7 @@ export default function ProductsPage() {
               </button>
             )}
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="relative">
               <input type="text" placeholder="Nome do produto" value={productForm.name}
                 onChange={(e) => handleNameChange(e.target.value)}
@@ -957,15 +1115,36 @@ export default function ProductsPage() {
                 </div>
               )}
             </div>
-            <input type="number" step="0.01" placeholder="Preco (R$)" value={productForm.price} onChange={(e) => setProductForm({ ...productForm, price: e.target.value })} className="px-4 py-2 border border-gray-200 rounded-xl text-gray-800" required />
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-semibold text-sm">R$</span>
+              <input type="number" step="0.01" placeholder="0.00" value={productForm.price} onChange={(e) => setProductForm({ ...productForm, price: e.target.value })} className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl text-gray-800" required />
+            </div>
             <input type="text" placeholder="Descricao (opcional)" value={productForm.description} onChange={(e) => setProductForm({ ...productForm, description: e.target.value })} className="px-4 py-2 border border-gray-200 rounded-xl text-gray-800" />
-            <input type="text" placeholder="Unidade: kg, un, lt (opcional)" value={productForm.unit} onChange={(e) => setProductForm({ ...productForm, unit: e.target.value })} className="px-4 py-2 border border-gray-200 rounded-xl text-gray-800" />
+            <input type="text" placeholder="Unidade: kg, un, lt (opcional)" value={productForm.unit} onChange={(e) => setProductForm({ ...productForm, unit: e.target.value })} className="px-4 py-2 border border-gray-200 rounded-xl text-gray-800" disabled={productForm.isVariableWeight} />
             <input type="number" min="0" placeholder="Estoque (0 = ilimitado)" value={productForm.stock} onChange={(e) => setProductForm({ ...productForm, stock: e.target.value })} className="px-4 py-2 border border-gray-200 rounded-xl text-gray-800" />
-            <select value={productForm.categoryId} onChange={(e) => setProductForm({ ...productForm, categoryId: e.target.value })} className="px-4 py-2 border border-gray-200 rounded-xl text-gray-800">
-              <option value="">Sem categoria</option>
-              {categories.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-            <button type="submit" disabled={uploading} className="col-span-2 px-6 py-2 bg-orange-500 text-white rounded-xl font-bold cursor-pointer hover:bg-orange-600 active:scale-95 transition disabled:opacity-50">
+            {inlineNewCategory === "product" ? (
+              <div className="flex gap-2">
+                <input type="text" autoFocus placeholder="Nome da categoria" value={inlineCategoryName}
+                  onChange={(e) => setInlineCategoryName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleInlineCreateCategory("product"); } if (e.key === "Escape") { setInlineNewCategory(null); setInlineCategoryName(""); } }}
+                  className="flex-1 px-4 py-2 border border-orange-300 rounded-xl text-gray-800 focus:ring-2 focus:ring-orange-200 outline-none" />
+                <button type="button" onClick={() => handleInlineCreateCategory("product")} className="px-4 py-2 bg-orange-500 text-white rounded-xl font-bold cursor-pointer hover:bg-orange-600 active:scale-95 transition text-sm">Criar</button>
+                <button type="button" onClick={() => { setInlineNewCategory(null); setInlineCategoryName(""); }} className="px-3 py-2 text-gray-400 hover:text-gray-600 cursor-pointer">&#10005;</button>
+              </div>
+            ) : (
+              <select value={productForm.categoryId} onChange={(e) => { if (e.target.value === "__new__") { setInlineNewCategory("product"); setInlineCategoryName(""); return; } setProductForm({ ...productForm, categoryId: e.target.value }); }} className="px-4 py-2 border border-gray-200 rounded-xl text-gray-800">
+                <option value="">Sem categoria</option>
+                {categories.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                <option value="__new__">+ Criar categoria</option>
+              </select>
+            )}
+            <label className="flex items-center gap-3 col-span-1 md:col-span-2 cursor-pointer">
+              <div className={`relative w-11 h-6 rounded-full transition ${productForm.isVariableWeight ? 'bg-orange-500' : 'bg-gray-200'}`} onClick={() => setProductForm({...productForm, isVariableWeight: !productForm.isVariableWeight, unit: !productForm.isVariableWeight ? 'kg' : productForm.unit})}>
+                <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${productForm.isVariableWeight ? 'translate-x-5' : ''}`} />
+              </div>
+              <span className="text-sm text-gray-600">Produto vendido por peso (preco por kg)</span>
+            </label>
+            <button type="submit" disabled={uploading} className="md:col-span-2 px-6 py-2 bg-orange-500 text-white rounded-xl font-bold cursor-pointer hover:bg-orange-600 active:scale-95 transition disabled:opacity-50">
               {uploading ? "Enviando..." : "Adicionar produto"}
             </button>
           </div>
@@ -1100,7 +1279,7 @@ export default function ProductsPage() {
                 <input type="text" value={restoreModal.editName} onChange={(e) => setRestoreModal({ ...restoreModal, editName: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-800 focus:border-green-400 outline-none" />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-medium text-gray-500 mb-1 block">Preco (R$)</label>
                   <input type="number" step="0.01" value={restoreModal.editPrice} onChange={(e) => setRestoreModal({ ...restoreModal, editPrice: e.target.value })}
@@ -1151,19 +1330,26 @@ export default function ProductsPage() {
               <h3 className="font-bold text-gray-800 mb-4 text-lg">Editar produto</h3>
               <div className="mb-4">
                 <input type="file" ref={editFileInputRef} accept="image/*" className="hidden" onChange={(e) => { if (e.target.files?.[0]) handleImageSelect(e.target.files[0], "edit"); }} />
-                <div onClick={() => editFileInputRef.current?.click()}
-                  className="w-full h-40 border-2 border-dashed border-gray-200 rounded-xl flex items-center justify-center cursor-pointer hover:border-orange-400 hover:bg-orange-50/50 transition overflow-hidden">
-                  {editImagePreview ? (
-                    <img src={editImagePreview} alt="Preview" className="w-full h-full object-cover rounded-xl" />
-                  ) : (
+                {editImagePreview ? (
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="relative">
+                      <img src={editImagePreview} alt="Preview" className="w-36 h-36 rounded-2xl object-cover shadow-sm cursor-pointer hover:opacity-90 transition" onClick={() => editFileInputRef.current?.click()} />
+                      <button type="button" onClick={(e) => { e.stopPropagation(); setEditImagePreview(null); setEditImageBase64(null); }}
+                        className="absolute -top-2 -right-2 w-7 h-7 bg-red-500 text-white rounded-full flex items-center justify-center text-sm font-bold cursor-pointer hover:bg-red-600 transition shadow-md">&#10005;</button>
+                    </div>
+                    <button type="button" onClick={() => editFileInputRef.current?.click()} className="text-sm text-orange-500 font-medium cursor-pointer hover:text-orange-600 transition">Trocar imagem</button>
+                  </div>
+                ) : (
+                  <div onClick={() => editFileInputRef.current?.click()}
+                    className="w-full py-6 border-2 border-dashed border-gray-200 rounded-xl flex items-center justify-center cursor-pointer hover:border-orange-400 hover:bg-orange-50/50 transition">
                     <div className="text-center">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 mx-auto text-gray-300 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 mx-auto text-gray-300 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                       </svg>
                       <p className="text-sm text-gray-400">Clique para adicionar imagem</p>
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
                 {editForm.name.trim() && !editImagePreview && (
                   <button type="button" onClick={() => handleWebSearch("edit")} disabled={searchingImages}
                     className="mt-2 w-full py-2 text-sm text-blue-600 bg-blue-50 rounded-xl font-semibold cursor-pointer hover:bg-blue-100 active:scale-95 transition disabled:opacity-50 flex items-center justify-center gap-2">
@@ -1178,12 +1364,30 @@ export default function ProductsPage() {
                 <input type="text" placeholder="Nome" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} className="w-full px-4 py-2 border border-gray-200 rounded-xl text-gray-800" required />
                 <input type="number" step="0.01" placeholder="Preco (R$)" value={editForm.price} onChange={(e) => setEditForm({ ...editForm, price: e.target.value })} className="w-full px-4 py-2 border border-gray-200 rounded-xl text-gray-800" required />
                 <input type="text" placeholder="Descricao (opcional)" value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} className="w-full px-4 py-2 border border-gray-200 rounded-xl text-gray-800" />
-                <input type="text" placeholder="Unidade: kg, un, lt (opcional)" value={editForm.unit} onChange={(e) => setEditForm({ ...editForm, unit: e.target.value })} className="w-full px-4 py-2 border border-gray-200 rounded-xl text-gray-800" />
+                <input type="text" placeholder="Unidade: kg, un, lt (opcional)" value={editForm.unit} onChange={(e) => setEditForm({ ...editForm, unit: e.target.value })} className="w-full px-4 py-2 border border-gray-200 rounded-xl text-gray-800" disabled={editForm.isVariableWeight} />
                 <input type="number" min="0" placeholder="Estoque (0 = ilimitado)" value={editForm.stock} onChange={(e) => setEditForm({ ...editForm, stock: e.target.value })} className="w-full px-4 py-2 border border-gray-200 rounded-xl text-gray-800" />
-                <select value={editForm.categoryId} onChange={(e) => setEditForm({ ...editForm, categoryId: e.target.value })} className="w-full px-4 py-2 border border-gray-200 rounded-xl text-gray-800">
-                  <option value="">Sem categoria</option>
-                  {categories.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <div className={`relative w-11 h-6 rounded-full transition ${editForm.isVariableWeight ? 'bg-orange-500' : 'bg-gray-200'}`} onClick={() => setEditForm({...editForm, isVariableWeight: !editForm.isVariableWeight, unit: !editForm.isVariableWeight ? 'kg' : editForm.unit})}>
+                    <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${editForm.isVariableWeight ? 'translate-x-5' : ''}`} />
+                  </div>
+                  <span className="text-sm text-gray-600">Produto vendido por peso (preco por kg)</span>
+                </label>
+                {inlineNewCategory === "edit" ? (
+                  <div className="flex gap-2">
+                    <input type="text" autoFocus placeholder="Nome da categoria" value={inlineCategoryName}
+                      onChange={(e) => setInlineCategoryName(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleInlineCreateCategory("edit"); } if (e.key === "Escape") { setInlineNewCategory(null); setInlineCategoryName(""); } }}
+                      className="flex-1 px-4 py-2 border border-orange-300 rounded-xl text-gray-800 focus:ring-2 focus:ring-orange-200 outline-none" />
+                    <button type="button" onClick={() => handleInlineCreateCategory("edit")} className="px-4 py-2 bg-orange-500 text-white rounded-xl font-bold cursor-pointer hover:bg-orange-600 active:scale-95 transition text-sm">Criar</button>
+                    <button type="button" onClick={() => { setInlineNewCategory(null); setInlineCategoryName(""); }} className="px-3 py-2 text-gray-400 hover:text-gray-600 cursor-pointer">&#10005;</button>
+                  </div>
+                ) : (
+                  <select value={editForm.categoryId} onChange={(e) => { if (e.target.value === "__new__") { setInlineNewCategory("edit"); setInlineCategoryName(""); return; } setEditForm({ ...editForm, categoryId: e.target.value }); }} className="w-full px-4 py-2 border border-gray-200 rounded-xl text-gray-800">
+                    <option value="">Sem categoria</option>
+                    {categories.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    <option value="__new__">+ Criar categoria</option>
+                  </select>
+                )}
               </div>
               <div className="flex gap-3 mt-6">
                 <button type="button" onClick={() => setEditingProduct(null)} className="flex-1 px-4 py-2 border border-gray-200 rounded-xl text-gray-600 font-semibold cursor-pointer hover:bg-gray-50 transition">Cancelar</button>
@@ -1303,7 +1507,13 @@ export default function ProductsPage() {
                   </div>
                 )}
               </div>
-              <div className={`bg-white rounded-2xl shadow-sm transition-all overflow-x-auto ${dragOverCategory === key ? "ring-2 ring-purple-400 ring-offset-2" : ""}`}>
+              {/* Mobile cards */}
+              <div className="md:hidden space-y-3">
+                {group.products.map((product: any) => renderProductCard(product))}
+              </div>
+
+              {/* Desktop table */}
+              <div className={`hidden md:block bg-white rounded-2xl shadow-sm transition-all overflow-x-auto ${dragOverCategory === key ? "ring-2 ring-purple-400 ring-offset-2" : ""}`}>
                 <table className="w-full">
                   {renderTableHeader()}
                   <tbody>{group.products.map((product: any) => renderProductRow(product))}</tbody>
@@ -1313,18 +1523,32 @@ export default function ProductsPage() {
           ))
         )
       ) : (
-        <div className="bg-white rounded-2xl shadow-sm overflow-x-auto">
-          <table className="w-full">
-            {renderTableHeader()}
-            <tbody>
-              {filteredProducts.length === 0 ? (
-                <tr><td colSpan={6} className="text-center py-12 text-gray-500">Nenhum produto nesta categoria</td></tr>
-              ) : (
-                filteredProducts.map((product: any) => renderProductRow(product))
-              )}
-            </tbody>
-          </table>
-        </div>
+        <>
+          {/* Mobile cards */}
+          <div className="md:hidden">
+            {filteredProducts.length === 0 ? (
+              <div className="bg-white rounded-2xl shadow-sm p-12 text-center text-gray-500">Nenhum produto nesta categoria</div>
+            ) : (
+              <div className="space-y-3">
+                {filteredProducts.map((product: any) => renderProductCard(product))}
+              </div>
+            )}
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden md:block bg-white rounded-2xl shadow-sm overflow-x-auto">
+            <table className="w-full">
+              {renderTableHeader()}
+              <tbody>
+                {filteredProducts.length === 0 ? (
+                  <tr><td colSpan={6} className="text-center py-12 text-gray-500">Nenhum produto nesta categoria</td></tr>
+                ) : (
+                  filteredProducts.map((product: any) => renderProductRow(product))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       {/* Inline edit confirmation modal */}
@@ -1391,7 +1615,7 @@ export default function ProductsPage() {
                 ) : webImageResults.length === 0 ? (
                   <p className="text-center text-gray-400 py-12">Nenhuma imagem encontrada</p>
                 ) : (
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {webImageResults.map((url, i) => (
                       <button key={i} onClick={() => handleSelectWebImage(url)} disabled={savingWebImage}
                         className="relative group rounded-xl overflow-hidden border-2 border-transparent hover:border-orange-500 cursor-pointer transition disabled:opacity-50">
@@ -1468,8 +1692,8 @@ export default function ProductsPage() {
                         )}
                       </div>
                       {/* Fields */}
-                      <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        <div className="col-span-2">
+                      <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-2">
+                        <div className="md:col-span-2">
                           <input type="text" placeholder="Nome" value={p.name}
                             onChange={(e) => updateCsvProduct(i, "name", e.target.value)}
                             className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-800 focus:border-blue-400 outline-none" />
@@ -1490,12 +1714,24 @@ export default function ProductsPage() {
                             className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-800 focus:border-blue-400 outline-none" />
                         </div>
                         <div>
-                          <select value={p.categoryId || ""}
-                            onChange={(e) => updateCsvProduct(i, "categoryId", e.target.value)}
-                            className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-800 focus:border-blue-400 outline-none">
-                            <option value="">Sem categoria</option>
-                            {categories.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                          </select>
+                          {inlineNewCategory === "csv" ? (
+                            <div className="flex gap-1">
+                              <input type="text" autoFocus placeholder="Nome" value={inlineCategoryName}
+                                onChange={(e) => setInlineCategoryName(e.target.value)}
+                                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleInlineCreateCategory("csv"); } if (e.key === "Escape") { setInlineNewCategory(null); setInlineCategoryName(""); } }}
+                                className="flex-1 px-2 py-1.5 border border-orange-300 rounded-lg text-sm text-gray-800 outline-none" />
+                              <button type="button" onClick={() => handleInlineCreateCategory("csv")} className="px-2 py-1.5 bg-orange-500 text-white rounded-lg text-xs font-bold cursor-pointer">OK</button>
+                              <button type="button" onClick={() => { setInlineNewCategory(null); setInlineCategoryName(""); }} className="px-1 text-gray-400 cursor-pointer">&#10005;</button>
+                            </div>
+                          ) : (
+                            <select value={p.categoryId || ""}
+                              onChange={(e) => { if (e.target.value === "__new__") { setInlineNewCategory("csv"); setInlineCategoryName(""); return; } updateCsvProduct(i, "categoryId", e.target.value); }}
+                              className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-800 focus:border-blue-400 outline-none">
+                              <option value="">Sem categoria</option>
+                              {categories.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                              <option value="__new__">+ Criar categoria</option>
+                            </select>
+                          )}
                         </div>
                         <div className="col-span-2">
                           <input type="text" placeholder="Descricao (opcional)" value={p.description || ""}
