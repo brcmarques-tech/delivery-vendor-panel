@@ -221,6 +221,26 @@ export default function PromotionsPage() {
     );
   }
 
+  if (!storesData) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500" />
+      </div>
+    );
+  }
+
+  if (!stores || stores.length === 0) {
+    return (
+      <div className="text-center mt-20">
+        <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-2">Nenhuma loja cadastrada</h2>
+        <p className="text-[var(--text-secondary)] mb-6">Crie sua primeira loja para começar a criar promoções</p>
+        <a href="/dashboard/settings" className="bg-orange-500 text-white px-6 py-3 rounded-xl font-bold cursor-pointer hover:bg-orange-600 active:scale-95 transition">
+          Criar loja
+        </a>
+      </div>
+    );
+  }
+
   return (
     <div>
       {success && (
