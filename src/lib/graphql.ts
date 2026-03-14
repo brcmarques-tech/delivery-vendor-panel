@@ -1,8 +1,8 @@
 import { gql } from '@apollo/client';
 
 export const LOGIN = gql`
-  mutation Login($input: LoginInput!) {
-    login(input: $input) {
+  mutation LoginVendor($input: LoginInput!) {
+    loginVendor(input: $input) {
       accessToken
       user { id name email role }
     }
@@ -10,8 +10,8 @@ export const LOGIN = gql`
 `;
 
 export const REGISTER = gql`
-  mutation Register($input: RegisterInput!) {
-    register(input: $input) {
+  mutation RegisterVendor($input: RegisterVendorInput!) {
+    registerVendor(input: $input) {
       accessToken
       user { id name email role cpf }
     }
@@ -166,9 +166,15 @@ export const TOGGLE_STORE_OPEN = gql`
   }
 `;
 
+export const REQUEST_VENDOR_STORE_DELETE = gql`
+  mutation RequestVendorStoreDelete($storeId: String!, $password: String!) {
+    requestVendorStoreDelete(storeId: $storeId, password: $password)
+  }
+`;
+
 export const GET_MY_PLAN = gql`
-  query Me {
-    me {
+  query MeVendor {
+    meVendor {
       id name cpf vendorPlan planExpiresAt mpConnected
       acceptedTermsAt acceptedSubscriptionTermsAt
       stores { id }
@@ -177,16 +183,16 @@ export const GET_MY_PLAN = gql`
 `;
 
 export const GET_MY_PROFILE = gql`
-  query MyProfile {
-    me {
+  query MyVendorProfile {
+    meVendor {
       id name email phone vendorPlan
     }
   }
 `;
 
 export const UPDATE_PROFILE = gql`
-  mutation UpdateProfile($name: String, $phone: String, $currentPassword: String, $newPassword: String) {
-    updateProfile(name: $name, phone: $phone, currentPassword: $currentPassword, newPassword: $newPassword) {
+  mutation UpdateVendorProfile($name: String, $phone: String, $currentPassword: String, $newPassword: String) {
+    updateVendorProfile(name: $name, phone: $phone, currentPassword: $currentPassword, newPassword: $newPassword) {
       id name phone
     }
   }
@@ -199,8 +205,8 @@ export const GET_CONTRACT_CONTENT = gql`
 `;
 
 export const ACCEPT_TERMS = gql`
-  mutation AcceptTerms {
-    acceptTerms { id acceptedTermsAt }
+  mutation AcceptVendorTerms {
+    acceptVendorTerms { id acceptedTermsAt }
   }
 `;
 
@@ -409,5 +415,17 @@ export const PRODUCT_UPDATED_SUB = gql`
       id name price isAvailable stock imageUrl
       category { id name }
     }
+  }
+`;
+
+export const REQUEST_PASSWORD_RESET = gql`
+  mutation RequestPasswordResetVendor($email: String!) {
+    requestPasswordResetVendor(email: $email)
+  }
+`;
+
+export const RESET_PASSWORD = gql`
+  mutation ResetPassword($token: String!, $newPassword: String!) {
+    resetPassword(token: $token, newPassword: $newPassword, type: "vendor")
   }
 `;

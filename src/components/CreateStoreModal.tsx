@@ -31,6 +31,7 @@ export default function CreateStoreModal({ open, onClose, onCreated }: CreateSto
   const [bannerPreview, setBannerPreview] = useState<string | null>(null);
   const [bannerBase64, setBannerBase64] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const [step, setStep] = useState(1);
   const logoRef = useRef<HTMLInputElement>(null);
   const bannerRef = useRef<HTMLInputElement>(null);
@@ -76,6 +77,8 @@ export default function CreateStoreModal({ open, onClose, onCreated }: CreateSto
   }
 
   async function handleSubmit() {
+    if (submitting || loading) return;
+    setSubmitting(true);
     setError("");
     const logoUrl = await uploadImg(logoBase64);
     const bannerUrl = await uploadImg(bannerBase64);
@@ -108,10 +111,12 @@ export default function CreateStoreModal({ open, onClose, onCreated }: CreateSto
       setStep(1);
       setLogoPreview(null);
       setBannerPreview(null);
+      setSubmitting(false);
       onCreated?.();
       onClose();
     } catch (err: any) {
       setError(err?.graphQLErrors?.[0]?.message || err?.message || "Erro ao criar loja.");
+      setSubmitting(false);
     }
   }
 
@@ -268,9 +273,9 @@ export default function CreateStoreModal({ open, onClose, onCreated }: CreateSto
                   className="flex-1 py-3 border border-[var(--border-color)] text-[var(--text-secondary)] rounded-xl font-bold cursor-pointer hover:bg-[var(--bg-hover)] active:scale-95 transition">
                   Voltar
                 </button>
-                <button onClick={handleSubmit} disabled={loading}
+                <button onClick={handleSubmit} disabled={submitting || loading}
                   className="flex-1 py-3 bg-orange-500 text-white rounded-xl font-bold cursor-pointer hover:bg-orange-600 active:scale-95 disabled:opacity-50 transition">
-                  {loading ? "Criando..." : "Criar loja"}
+                  {submitting || loading ? "Criando..." : "Criar loja"}
                 </button>
               </div>
             </div>

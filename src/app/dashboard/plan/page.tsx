@@ -93,7 +93,7 @@ function PlanContent() {
     return <p className="text-gray-500">Carregando...</p>;
   }
 
-  const user = userData?.me;
+  const user = userData?.meVendor;
   const plans = plansData?.availablePlans || [];
   const currentPlan = user?.vendorPlan || "FREE";
   const storeCount = user?.stores?.length || 0;
@@ -231,8 +231,8 @@ function PlanContent() {
           type="subscription"
           onAccept={handleAcceptSubTerms}
           loading={acceptingSub}
-          userName={userData?.me?.name}
-          userCpf={userData?.me?.cpf}
+          userName={userData?.meVendor?.name}
+          userCpf={userData?.meVendor?.cpf}
         />
       )}
 

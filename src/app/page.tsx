@@ -19,12 +19,8 @@ export default function LoginPage() {
     setError("");
     try {
       const { data } = await login({ variables: { input: { email, password } } });
-      if (data.login.user.role !== "VENDOR") {
-        setError("Acesso permitido apenas para vendedores");
-        return;
-      }
-      localStorage.setItem("token", data.login.accessToken);
-      localStorage.setItem("user", JSON.stringify(data.login.user));
+      localStorage.setItem("token", data.loginVendor.accessToken);
+      localStorage.setItem("user", JSON.stringify(data.loginVendor.user));
       await apolloClient.resetStore();
       router.push("/dashboard");
     } catch {
@@ -80,6 +76,11 @@ export default function LoginPage() {
                 </svg>
               )}
             </button>
+          </div>
+          <div className="text-right">
+            <a href="/forgot-password" className="text-sm text-orange-500 hover:underline">
+              Esqueci minha senha
+            </a>
           </div>
           <button
             type="submit"

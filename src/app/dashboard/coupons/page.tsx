@@ -56,7 +56,7 @@ export default function CouponsPage() {
   });
   const [error, setError] = useState("");
 
-  const plan = planData?.me?.vendorPlan || "FREE";
+  const plan = planData?.meVendor?.vendorPlan || "FREE";
   const canUseCoupons = plan !== "FREE";
 
   if (!canUseCoupons) {

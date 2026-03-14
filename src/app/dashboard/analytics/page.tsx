@@ -52,7 +52,7 @@ export default function AnalyticsPage() {
   const [selectedStore, setSelectedStore] = useState<string | null>(null);
   const [period, setPeriod] = useState<"7d" | "30d" | "90d" | "all">("30d");
 
-  const vendorPlan = userData?.me?.vendorPlan || "FREE";
+  const vendorPlan = userData?.meVendor?.vendorPlan || "FREE";
   const plans = plansData?.availablePlans || [];
   const currentPlanConfig = plans.find((p: any) => p.plan === vendorPlan);
   const hasAnalytics = currentPlanConfig?.hasAnalytics ?? false;

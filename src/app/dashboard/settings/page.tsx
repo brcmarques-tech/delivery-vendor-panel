@@ -43,8 +43,8 @@ function ProfileSection() {
   const [msg, setMsg] = useState("");
 
   useEffect(() => {
-    if (data?.me) {
-      setForm({ name: data.me.name || "", phone: data.me.phone || "" });
+    if (data?.meVendor) {
+      setForm({ name: data.meVendor.name || "", phone: data.meVendor.phone || "" });
     }
   }, [data]);
 
@@ -100,7 +100,7 @@ function ProfileSection() {
         </div>
         <div>
           <label className="text-sm text-[var(--text-secondary)]">Email</label>
-          <input type="text" value={data?.me?.email || ""} disabled className="w-full mt-1 px-4 py-2 border border-[var(--border-light)] rounded-xl text-[var(--text-muted)] bg-[var(--bg-muted)]" />
+          <input type="text" value={data?.meVendor?.email || ""} disabled className="w-full mt-1 px-4 py-2 border border-[var(--border-light)] rounded-xl text-[var(--text-muted)] bg-[var(--bg-muted)]" />
         </div>
       </div>
       <button onClick={handleSaveProfile} disabled={saving} className="px-6 py-2 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition cursor-pointer disabled:opacity-50">
@@ -137,7 +137,7 @@ function StoresSection() {
   const [createStore, { loading: creating }] = useMutation(CREATE_STORE);
   const [updateStore, { loading: updating }] = useMutation(UPDATE_STORE);
   const [uploadImage] = useMutation(UPLOAD_IMAGE);
-  const mpConnected = planData?.me?.mpConnected ?? false;
+  const mpConnected = planData?.meVendor?.mpConnected ?? false;
 
   const [showCreate, setShowCreate] = useState(false);
   const [editingStore, setEditingStore] = useState<string | null>(null);
@@ -839,8 +839,8 @@ function ContractsSection() {
   const { data } = useQuery(GET_MY_PLAN);
   const [viewingTerms, setViewingTerms] = useState<"terms" | "subscription" | null>(null);
 
-  const acceptedTermsAt = data?.me?.acceptedTermsAt;
-  const acceptedSubAt = data?.me?.acceptedSubscriptionTermsAt;
+  const acceptedTermsAt = data?.meVendor?.acceptedTermsAt;
+  const acceptedSubAt = data?.meVendor?.acceptedSubscriptionTermsAt;
 
   function formatDate(iso: string) {
     return new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
@@ -889,8 +889,8 @@ function ContractsSection() {
           type={viewingTerms}
           readOnly
           onClose={() => setViewingTerms(null)}
-          userName={data?.me?.name}
-          userCpf={data?.me?.cpf}
+          userName={data?.meVendor?.name}
+          userCpf={data?.meVendor?.cpf}
         />
       )}
     </Section>
@@ -905,7 +905,7 @@ function MercadoPagoSection() {
   const [getMpConnectUrl, { loading: mpUrlLoading }] = useLazyQuery(GET_MP_CONNECT_URL, { fetchPolicy: "network-only" });
   const [disconnectMp, { loading: disconnecting }] = useMutation(DISCONNECT_MP);
 
-  const mpConnected = planData?.me?.mpConnected ?? false;
+  const mpConnected = planData?.meVendor?.mpConnected ?? false;
   const stores = storesData?.myStores || [];
 
   if (stores.length === 0) return null;
