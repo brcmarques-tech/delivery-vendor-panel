@@ -4,6 +4,7 @@ import { useQuery, useMutation, useLazyQuery } from "@apollo/client";
 import { GET_MY_STORES, TOGGLE_STORE_OPEN, UPDATE_STORE, UPLOAD_IMAGE, GET_MY_PLAN, GET_MP_CONNECT_URL, DISCONNECT_MP } from "@/lib/graphql";
 import { useState, useRef, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
+import CreateStoreModal from "@/components/CreateStoreModal";
 
 export default function DashboardPage() {
   return (
@@ -50,6 +51,7 @@ function DashboardContent() {
   }
 
   const stores = data?.myStores || [];
+  const [showCreateStore, setShowCreateStore] = useState(false);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<any>({});
@@ -156,77 +158,34 @@ function DashboardContent() {
 
   if (stores.length === 0) {
     return (
-      <div className="text-center mt-20">
-        <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-2">Nenhuma loja cadastrada</h2>
-        <p className="text-[var(--text-secondary)] mb-6">Crie sua primeira loja para começar a vender</p>
-        <a href="/dashboard/settings" className="bg-orange-500 text-white px-6 py-3 rounded-xl font-bold cursor-pointer hover:bg-orange-600 active:scale-95 transition">
-          Criar loja
-        </a>
-      </div>
+      <>
+        <CreateStoreModal open={showCreateStore} onClose={() => setShowCreateStore(false)} onCreated={() => refetch()} />
+        <div className="text-center mt-20">
+          <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-2">Nenhuma loja cadastrada</h2>
+          <p className="text-[var(--text-secondary)] mb-6">Crie sua primeira loja para começar a vender</p>
+          <button onClick={() => setShowCreateStore(true)} className="bg-orange-500 text-white px-6 py-3 rounded-xl font-bold cursor-pointer hover:bg-orange-600 active:scale-95 transition">
+            Criar loja
+          </button>
+        </div>
+      </>
     );
   }
 
   return (
     <div>
-      {!mpConnected && (
-        <div className="bg-gradient-to-r from-red-500 to-orange-500 rounded-2xl p-5 mb-6 shadow-sm">
-          <div className="flex items-start gap-3">
-            <span className="text-white text-2xl mt-0.5">⚠️</span>
-            <div className="flex-1">
-              <h3 className="font-bold text-white text-base mb-2">Conta Mercado Pago não conectada</h3>
-              <ul className="space-y-1 mb-4">
-                <li className="text-white/90 text-sm flex items-start gap-2">
-                  <span className="mt-0.5">•</span>
-                  Sua loja só pode receber pagamento na entrega
-                </li>
-                <li className="text-white/90 text-sm flex items-start gap-2">
-                  <span className="mt-0.5">•</span>
-                  Entregadores autônomos do app não estão disponíveis para sua loja
-                </li>
-                <li className="text-white/90 text-sm flex items-start gap-2">
-                  <span className="mt-0.5">•</span>
-                  Conecte sua conta para aceitar PIX, cartão e ter acesso a entregadores
-                </li>
-              </ul>
-              <button
-                onClick={handleConnectMp}
-                disabled={mpUrlLoading}
-                className="px-5 py-2.5 bg-[var(--bg-card)] text-orange-600 rounded-xl text-sm font-bold cursor-pointer hover:bg-orange-50 active:scale-95 disabled:opacity-50 transition"
-              >
-                {mpUrlLoading ? "Carregando..." : "Conectar agora"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <CreateStoreModal open={showCreateStore} onClose={() => setShowCreateStore(false)} onCreated={() => refetch()} />
 
-      <h1 className="text-2xl font-bold text-[var(--text-primary)] mb-6">Visão Geral</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold text-[var(--text-primary)]">Visão Geral</h1>
+        <button onClick={() => setShowCreateStore(true)} className="px-5 py-2.5 bg-orange-500 text-white rounded-xl text-sm font-bold cursor-pointer hover:bg-orange-600 active:scale-95 transition flex items-center gap-2">
+          <span className="text-lg leading-none">+</span> Nova loja
+        </button>
+      </div>
 
       {mpToast && (
         <div className="bg-green-50 border border-green-200 rounded-2xl p-4 mb-6 flex items-center justify-between">
           <p className="text-green-700 font-medium text-sm">Mercado Pago conectado com sucesso!</p>
           <button onClick={() => setMpToast(false)} className="text-green-400 hover:text-green-600 text-lg cursor-pointer">✕</button>
-        </div>
-      )}
-
-      {mpConnected && (
-        <div className="bg-green-50 border border-green-200 rounded-2xl p-5 mb-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-green-500 text-lg">✓</span>
-              <div>
-                <h3 className="font-bold text-green-700 text-sm mb-1">Mercado Pago conectado</h3>
-                <p className="text-green-600 text-sm">Você recebe pagamentos diretamente na sua conta.</p>
-              </div>
-            </div>
-            <button
-              onClick={handleDisconnectMp}
-              disabled={disconnecting}
-              className="px-4 py-2 bg-[var(--bg-card)] border border-green-300 text-green-700 rounded-xl text-sm font-semibold cursor-pointer hover:bg-green-100 disabled:opacity-50 transition"
-            >
-              {disconnecting ? "..." : "Desconectar"}
-            </button>
-          </div>
         </div>
       )}
 

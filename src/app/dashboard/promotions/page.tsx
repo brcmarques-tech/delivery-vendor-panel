@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery, useMutation } from "@apollo/client";
+import CreateStoreModal from "@/components/CreateStoreModal";
 import {
   GET_MY_STORES,
   GET_MY_PLAN,
@@ -23,6 +24,7 @@ export default function PromotionsPage() {
   const [swapId, setSwapId] = useState<string | null>(null);
   const [swapForm, setSwapForm] = useState({ productId: "", promotionalPrice: "", title: "" });
 
+  const [showCreateStore, setShowCreateStore] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
     title: "",
@@ -231,13 +233,16 @@ export default function PromotionsPage() {
 
   if (!stores || stores.length === 0) {
     return (
-      <div className="text-center mt-20">
-        <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-2">Nenhuma loja cadastrada</h2>
-        <p className="text-[var(--text-secondary)] mb-6">Crie sua primeira loja para começar a criar promoções</p>
-        <a href="/dashboard/settings" className="bg-orange-500 text-white px-6 py-3 rounded-xl font-bold cursor-pointer hover:bg-orange-600 active:scale-95 transition">
-          Criar loja
-        </a>
-      </div>
+      <>
+        <CreateStoreModal open={showCreateStore} onClose={() => setShowCreateStore(false)} onCreated={() => { storesData && window.location.reload(); }} />
+        <div className="text-center mt-20">
+          <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-2">Nenhuma loja cadastrada</h2>
+          <p className="text-[var(--text-secondary)] mb-6">Crie sua primeira loja para começar a criar promoções</p>
+          <button onClick={() => setShowCreateStore(true)} className="bg-orange-500 text-white px-6 py-3 rounded-xl font-bold cursor-pointer hover:bg-orange-600 active:scale-95 transition">
+            Criar loja
+          </button>
+        </div>
+      </>
     );
   }
 

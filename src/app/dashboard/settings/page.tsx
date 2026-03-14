@@ -1,10 +1,10 @@
 "use client";
 
-import { useMutation, useQuery } from "@apollo/client";
+import { useMutation, useQuery, useLazyQuery } from "@apollo/client";
 import {
   CREATE_STORE, UPDATE_STORE, UPLOAD_IMAGE, GET_MY_STORES,
   GET_MY_PROFILE, UPDATE_PROFILE, GET_MY_PLAN, GET_BADGE_CONFIG,
-  CLAIM_BADGE_REWARD,
+  CLAIM_BADGE_REWARD, GET_MP_CONNECT_URL, DISCONNECT_MP,
 } from "@/lib/graphql";
 import { useState, useRef, useEffect } from "react";
 import TermsModal from "@/components/TermsModal";
@@ -898,12 +898,79 @@ function ContractsSection() {
 }
 
 // ===== MAIN PAGE =====
+// ===== MERCADO PAGO SECTION =====
+function MercadoPagoSection() {
+  const { data: planData, refetch: refetchPlan } = useQuery(GET_MY_PLAN);
+  const { data: storesData } = useQuery(GET_MY_STORES);
+  const [getMpConnectUrl, { loading: mpUrlLoading }] = useLazyQuery(GET_MP_CONNECT_URL, { fetchPolicy: "network-only" });
+  const [disconnectMp, { loading: disconnecting }] = useMutation(DISCONNECT_MP);
+
+  const mpConnected = planData?.me?.mpConnected ?? false;
+  const stores = storesData?.myStores || [];
+
+  if (stores.length === 0) return null;
+
+  async function handleConnectMp() {
+    const { data: urlData } = await getMpConnectUrl();
+    const url = urlData?.mpConnectUrl;
+    if (url) window.location.href = url;
+  }
+
+  async function handleDisconnectMp() {
+    await disconnectMp();
+    refetchPlan();
+  }
+
+  return (
+    <Section title="Mercado Pago">
+      {!mpConnected ? (
+        <div className="space-y-3">
+          <p className="text-sm text-[var(--text-secondary)]">
+            Conecte sua conta do Mercado Pago para aceitar pagamentos via PIX, cartão de crédito e débito.
+            Sem conexão, sua loja só aceita pagamento na entrega.
+          </p>
+          <ul className="space-y-1 text-sm text-[var(--text-muted)]">
+            <li>• Receba pagamentos diretamente na sua conta</li>
+            <li>• Aceite PIX, cartão de crédito e débito</li>
+            <li>• Habilite entregadores autônomos do app</li>
+          </ul>
+          <button
+            onClick={handleConnectMp}
+            disabled={mpUrlLoading}
+            className="px-6 py-3 bg-[#009ee3] text-white rounded-xl font-bold cursor-pointer hover:bg-[#0087c9] active:scale-95 disabled:opacity-50 transition"
+          >
+            {mpUrlLoading ? "Carregando..." : "Conectar Mercado Pago"}
+          </button>
+        </div>
+      ) : (
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-green-500 text-lg">✓</span>
+            <div>
+              <p className="font-semibold text-green-700 text-sm">Conta conectada</p>
+              <p className="text-green-600 text-xs">Você recebe pagamentos diretamente na sua conta.</p>
+            </div>
+          </div>
+          <button
+            onClick={handleDisconnectMp}
+            disabled={disconnecting}
+            className="px-4 py-2 border border-red-300 text-red-600 rounded-xl text-sm font-semibold cursor-pointer hover:bg-red-50 disabled:opacity-50 transition"
+          >
+            {disconnecting ? "..." : "Desconectar"}
+          </button>
+        </div>
+      )}
+    </Section>
+  );
+}
+
 export default function SettingsPage() {
   return (
     <div className="max-w-4xl mx-auto">
       <h1 className="text-2xl font-bold text-[var(--text-primary)] mb-6">Configuracoes</h1>
       <ProfileSection />
       <StoresSection />
+      <MercadoPagoSection />
       <VerificationSection />
       <ContractsSection />
       <AppearanceSection />

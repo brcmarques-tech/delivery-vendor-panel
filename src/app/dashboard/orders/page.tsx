@@ -3,6 +3,7 @@
 import { useQuery, useMutation, useSubscription } from "@apollo/client";
 import { GET_MY_STORES, GET_STORE_ORDERS, UPDATE_ORDER_STATUS, ORDER_CREATED_SUB, ORDER_UPDATED_SUB, ADJUST_ORDER_ITEM_WEIGHT } from "@/lib/graphql";
 import { useState, useEffect } from "react";
+import CreateStoreModal from "@/components/CreateStoreModal";
 
 const statusLabels: Record<string, { label: string; color: string }> = {
   AWAITING_PAYMENT: { label: "Aguardando pagamento", color: "bg-orange-100 text-orange-700" },
@@ -55,6 +56,7 @@ function playNotificationSound() {
 export default function OrdersPage() {
   const { data: storesData } = useQuery(GET_MY_STORES);
   const stores = storesData?.myStores || [];
+  const [showCreateStore, setShowCreateStore] = useState(false);
   const [selectedStore, setSelectedStore] = useState<string>("");
   const [notification, setNotification] = useState<string | null>(null);
 
@@ -124,13 +126,16 @@ export default function OrdersPage() {
 
   if (stores.length === 0) {
     return (
-      <div className="text-center mt-20">
-        <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-2">Nenhuma loja cadastrada</h2>
-        <p className="text-[var(--text-secondary)] mb-6">Crie sua primeira loja para começar a receber pedidos</p>
-        <a href="/dashboard/settings" className="bg-orange-500 text-white px-6 py-3 rounded-xl font-bold cursor-pointer hover:bg-orange-600 active:scale-95 transition">
-          Criar loja
-        </a>
-      </div>
+      <>
+        <CreateStoreModal open={showCreateStore} onClose={() => setShowCreateStore(false)} onCreated={() => { storesData && window.location.reload(); }} />
+        <div className="text-center mt-20">
+          <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-2">Nenhuma loja cadastrada</h2>
+          <p className="text-[var(--text-secondary)] mb-6">Crie sua primeira loja para começar a receber pedidos</p>
+          <button onClick={() => setShowCreateStore(true)} className="bg-orange-500 text-white px-6 py-3 rounded-xl font-bold cursor-pointer hover:bg-orange-600 active:scale-95 transition">
+            Criar loja
+          </button>
+        </div>
+      </>
     );
   }
 

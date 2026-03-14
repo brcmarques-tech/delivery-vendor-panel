@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useLazyQuery } from "@apollo/client";
+import CreateStoreModal from "@/components/CreateStoreModal";
 import {
   GET_MY_STORES,
   CREATE_PRODUCT,
@@ -126,6 +127,7 @@ function ProductImage({ name, imageUrl, size = 12 }: { name: string; imageUrl?: 
 export default function ProductsPage() {
   const { data: storesData, refetch, error: storesError } = useQuery(GET_MY_STORES);
   const stores = storesData?.myStores || [];
+  const [showCreateStore, setShowCreateStore] = useState(false);
   const [selectedStoreId, setSelectedStoreId] = useState<string>("");
   const [activePanel, setActivePanel] = useState<"catalog" | "product" | "category" | "csv" | "trash" | null>("catalog");
   const showProductForm = activePanel === "product";
@@ -950,13 +952,16 @@ export default function ProductsPage() {
 
   if (stores.length === 0) {
     return (
-      <div className="text-center mt-20">
-        <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-2">Nenhuma loja cadastrada</h2>
-        <p className="text-[var(--text-secondary)] mb-6">Crie sua primeira loja para começar a cadastrar produtos</p>
-        <a href="/dashboard/settings" className="bg-orange-500 text-white px-6 py-3 rounded-xl font-bold cursor-pointer hover:bg-orange-600 active:scale-95 transition">
-          Criar loja
-        </a>
-      </div>
+      <>
+        <CreateStoreModal open={showCreateStore} onClose={() => setShowCreateStore(false)} onCreated={() => refetch()} />
+        <div className="text-center mt-20">
+          <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-2">Nenhuma loja cadastrada</h2>
+          <p className="text-[var(--text-secondary)] mb-6">Crie sua primeira loja para começar a cadastrar produtos</p>
+          <button onClick={() => setShowCreateStore(true)} className="bg-orange-500 text-white px-6 py-3 rounded-xl font-bold cursor-pointer hover:bg-orange-600 active:scale-95 transition">
+            Criar loja
+          </button>
+        </div>
+      </>
     );
   }
 
