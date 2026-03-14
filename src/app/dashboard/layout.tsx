@@ -53,7 +53,7 @@ export default function DashboardLayout({
 
   // Show terms on first login if not accepted
   useEffect(() => {
-    if (meData?.me && !meData.me.acceptedTermsAt) {
+    if (meData?.meVendor && !meData.meVendor.acceptedTermsAt) {
       setShowTerms(true);
     }
   }, [meData]);
@@ -122,8 +122,8 @@ export default function DashboardLayout({
           type="terms"
           onAccept={handleAcceptTerms}
           loading={acceptingTerms}
-          userName={meData?.me?.name}
-          userCpf={meData?.me?.cpf}
+          userName={meData?.meVendor?.name}
+          userCpf={meData?.meVendor?.cpf}
         />
       )}
       {/* Mobile header */}

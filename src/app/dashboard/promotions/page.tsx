@@ -35,7 +35,7 @@ export default function PromotionsPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  const currentPlan = userData?.me?.vendorPlan || "FREE";
+  const currentPlan = userData?.meVendor?.vendorPlan || "FREE";
   const stores = storesData?.myStores || [];
   const hasBadgeCredit = stores.some((s: any) => s.freePromoDaysCredit > 0);
   const canPromote = currentPlan === "PRO" || currentPlan === "PREMIUM" || currentPlan === "ENTERPRISE" || hasBadgeCredit;

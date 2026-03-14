@@ -1,9 +1,10 @@
 "use client";
 
 import { useQuery, useMutation, useLazyQuery } from "@apollo/client";
-import { GET_MY_STORES, TOGGLE_STORE_OPEN, UPDATE_STORE, UPLOAD_IMAGE, GET_MY_PLAN, GET_MP_CONNECT_URL, DISCONNECT_MP } from "@/lib/graphql";
+import { GET_MY_STORES, TOGGLE_STORE_OPEN, UPDATE_STORE, UPLOAD_IMAGE, GET_MY_PLAN, GET_MP_CONNECT_URL, DISCONNECT_MP, REQUEST_VENDOR_STORE_DELETE } from "@/lib/graphql";
 import { useState, useRef, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
+import CreateStoreModal from "@/components/CreateStoreModal";
 
 export default function DashboardPage() {
   return (
@@ -21,11 +22,12 @@ function DashboardContent() {
   const [uploadImage] = useMutation(UPLOAD_IMAGE);
   const [getMpConnectUrl, { loading: mpUrlLoading }] = useLazyQuery(GET_MP_CONNECT_URL, { fetchPolicy: "network-only" });
   const [disconnectMp, { loading: disconnecting }] = useMutation(DISCONNECT_MP);
+  const [requestStoreDelete] = useMutation(REQUEST_VENDOR_STORE_DELETE);
 
   const searchParams = useSearchParams();
   const [mpToast, setMpToast] = useState(false);
 
-  const mpConnected = planData?.me?.mpConnected ?? false;
+  const mpConnected = planData?.meVendor?.mpConnected ?? false;
 
   useEffect(() => {
     if (searchParams.get("mp") === "connected") {
@@ -50,6 +52,7 @@ function DashboardContent() {
   }
 
   const stores = data?.myStores || [];
+  const [showCreateStore, setShowCreateStore] = useState(false);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<any>({});
@@ -57,6 +60,13 @@ function DashboardContent() {
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [logoBase64, setLogoBase64] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Delete store
+  const [deletingStoreId, setDeletingStoreId] = useState<string | null>(null);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleteError, setDeleteError] = useState("");
+  const [deleteSuccess, setDeleteSuccess] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   function startEdit(store: any) {
     setEditingId(store.id);
@@ -150,57 +160,58 @@ function DashboardContent() {
     refetch();
   }
 
+  async function handleRequestDelete() {
+    if (!deletingStoreId || !deletePassword) {
+      setDeleteError("Digite sua senha para confirmar");
+      return;
+    }
+    setDeleteError("");
+    setDeleteLoading(true);
+    try {
+      await requestStoreDelete({ variables: { storeId: deletingStoreId, password: deletePassword } });
+      setDeleteSuccess(true);
+    } catch (err: any) {
+      setDeleteError(err?.graphQLErrors?.[0]?.message || err?.message || "Erro ao solicitar exclusao");
+    }
+    setDeleteLoading(false);
+  }
+
+  function closeDeleteModal() {
+    setDeletingStoreId(null);
+    setDeletePassword("");
+    setDeleteError("");
+    setDeleteSuccess(false);
+  }
+
   if (loading) {
     return <p className="text-[var(--text-secondary)]">Carregando...</p>;
   }
 
   if (stores.length === 0) {
     return (
-      <div className="text-center mt-20">
-        <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-2">Nenhuma loja cadastrada</h2>
-        <p className="text-[var(--text-secondary)] mb-6">Crie sua primeira loja para começar a vender</p>
-        <a href="/dashboard/settings" className="bg-orange-500 text-white px-6 py-3 rounded-xl font-bold cursor-pointer hover:bg-orange-600 active:scale-95 transition">
-          Criar loja
-        </a>
-      </div>
+      <>
+        <CreateStoreModal open={showCreateStore} onClose={() => setShowCreateStore(false)} onCreated={() => refetch()} />
+        <div className="text-center mt-20">
+          <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-2">Nenhuma loja cadastrada</h2>
+          <p className="text-[var(--text-secondary)] mb-6">Crie sua primeira loja para começar a vender</p>
+          <button onClick={() => setShowCreateStore(true)} className="bg-orange-500 text-white px-6 py-3 rounded-xl font-bold cursor-pointer hover:bg-orange-600 active:scale-95 transition">
+            Criar loja
+          </button>
+        </div>
+      </>
     );
   }
 
   return (
     <div>
-      {!mpConnected && (
-        <div className="bg-gradient-to-r from-red-500 to-orange-500 rounded-2xl p-5 mb-6 shadow-sm">
-          <div className="flex items-start gap-3">
-            <span className="text-white text-2xl mt-0.5">⚠️</span>
-            <div className="flex-1">
-              <h3 className="font-bold text-white text-base mb-2">Conta Mercado Pago não conectada</h3>
-              <ul className="space-y-1 mb-4">
-                <li className="text-white/90 text-sm flex items-start gap-2">
-                  <span className="mt-0.5">•</span>
-                  Sua loja só pode receber pagamento na entrega
-                </li>
-                <li className="text-white/90 text-sm flex items-start gap-2">
-                  <span className="mt-0.5">•</span>
-                  Entregadores autônomos do app não estão disponíveis para sua loja
-                </li>
-                <li className="text-white/90 text-sm flex items-start gap-2">
-                  <span className="mt-0.5">•</span>
-                  Conecte sua conta para aceitar PIX, cartão e ter acesso a entregadores
-                </li>
-              </ul>
-              <button
-                onClick={handleConnectMp}
-                disabled={mpUrlLoading}
-                className="px-5 py-2.5 bg-[var(--bg-card)] text-orange-600 rounded-xl text-sm font-bold cursor-pointer hover:bg-orange-50 active:scale-95 disabled:opacity-50 transition"
-              >
-                {mpUrlLoading ? "Carregando..." : "Conectar agora"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <CreateStoreModal open={showCreateStore} onClose={() => setShowCreateStore(false)} onCreated={() => refetch()} />
 
-      <h1 className="text-2xl font-bold text-[var(--text-primary)] mb-6">Visão Geral</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold text-[var(--text-primary)]">Visão Geral</h1>
+        <button onClick={() => setShowCreateStore(true)} className="px-5 py-2.5 bg-orange-500 text-white rounded-xl text-sm font-bold cursor-pointer hover:bg-orange-600 active:scale-95 transition flex items-center gap-2">
+          <span className="text-lg leading-none">+</span> Nova loja
+        </button>
+      </div>
 
       {mpToast && (
         <div className="bg-green-50 border border-green-200 rounded-2xl p-4 mb-6 flex items-center justify-between">
@@ -209,23 +220,50 @@ function DashboardContent() {
         </div>
       )}
 
-      {mpConnected && (
-        <div className="bg-green-50 border border-green-200 rounded-2xl p-5 mb-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-green-500 text-lg">✓</span>
-              <div>
-                <h3 className="font-bold text-green-700 text-sm mb-1">Mercado Pago conectado</h3>
-                <p className="text-green-600 text-sm">Você recebe pagamentos diretamente na sua conta.</p>
-              </div>
-            </div>
-            <button
-              onClick={handleDisconnectMp}
-              disabled={disconnecting}
-              className="px-4 py-2 bg-[var(--bg-card)] border border-green-300 text-green-700 rounded-xl text-sm font-semibold cursor-pointer hover:bg-green-100 disabled:opacity-50 transition"
-            >
-              {disconnecting ? "..." : "Desconectar"}
-            </button>
+      {/* Delete store modal */}
+      {deletingStoreId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={closeDeleteModal}>
+          <div className="bg-[var(--bg-card)] rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6" onClick={(e) => e.stopPropagation()}>
+            {deleteSuccess ? (
+              <>
+                <h3 className="text-lg font-bold text-green-600 mb-2">Email enviado!</h3>
+                <p className="text-sm text-[var(--text-secondary)] mb-4">
+                  Um email de confirmacao foi enviado para voce. Clique no link do email para concluir a exclusao da loja.
+                </p>
+                <p className="text-xs text-[var(--text-muted)] mb-6">O link expira em 30 minutos.</p>
+                <button onClick={closeDeleteModal} className="w-full py-2.5 bg-[var(--bg-muted)] text-[var(--text-secondary)] rounded-xl font-semibold cursor-pointer hover:bg-[var(--bg-hover)] transition">
+                  Fechar
+                </button>
+              </>
+            ) : (
+              <>
+                <h3 className="text-lg font-bold text-[var(--text-primary)] mb-2">Excluir loja?</h3>
+                <p className="text-sm text-[var(--text-secondary)] mb-4">
+                  Esta acao e irreversivel. Todos os produtos, categorias e dados da loja serao removidos. Digite sua senha e confirme pelo email.
+                </p>
+                {deleteError && (
+                  <div className="mb-4 px-3 py-2 bg-red-50 text-red-600 rounded-xl text-sm">{deleteError}</div>
+                )}
+                <input
+                  type="password"
+                  placeholder="Sua senha..."
+                  value={deletePassword}
+                  onChange={(e) => setDeletePassword(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleRequestDelete()}
+                  className="w-full px-4 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-red-400 mb-4"
+                />
+                <div className="flex gap-2">
+                  <button onClick={handleRequestDelete} disabled={deleteLoading}
+                    className="flex-1 py-2.5 bg-red-500 text-white rounded-xl text-sm font-bold cursor-pointer hover:bg-red-600 disabled:opacity-50 transition">
+                    {deleteLoading ? "Verificando..." : "Confirmar exclusao"}
+                  </button>
+                  <button onClick={closeDeleteModal}
+                    className="flex-1 py-2.5 bg-[var(--bg-muted)] text-[var(--text-secondary)] rounded-xl text-sm font-semibold cursor-pointer hover:bg-[var(--bg-hover)] transition">
+                    Cancelar
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -411,6 +449,12 @@ function DashboardContent() {
                       }`}
                     >
                       {store.isOpen ? "Aberta" : "Fechada"}
+                    </button>
+                    <button
+                      onClick={() => setDeletingStoreId(store.id)}
+                      className="px-3 py-1 rounded-full text-sm font-semibold cursor-pointer active:scale-95 transition bg-red-50 text-red-500 hover:bg-red-100"
+                    >
+                      Excluir
                     </button>
                   </div>
                 </div>
