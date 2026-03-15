@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useSubscription } from "@apollo/client";
 import { GET_MY_STORES, GET_STORE_ORDERS, UPDATE_ORDER_STATUS, ORDER_CREATED_SUB, ORDER_UPDATED_SUB, ADJUST_ORDER_ITEM_WEIGHT } from "@/lib/graphql";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import CreateStoreModal from "@/components/CreateStoreModal";
 
 const statusLabels: Record<string, { label: string; color: string }> = {
@@ -15,6 +15,7 @@ const statusLabels: Record<string, { label: string; color: string }> = {
   DELIVERING: { label: "A caminho", color: "bg-cyan-100 text-cyan-700" },
   DELIVERED: { label: "Entregue", color: "bg-gray-100 text-gray-700" },
   CANCELLED: { label: "Cancelado", color: "bg-red-100 text-red-700" },
+  EXPIRED: { label: "Expirado", color: "bg-red-100 text-red-400" },
 };
 
 const nextStatus: Record<string, string> = {
@@ -25,6 +26,14 @@ const nextStatus: Record<string, string> = {
   PICKED_UP: "DELIVERING",
   DELIVERING: "DELIVERED",
 };
+
+// Active = in progress orders, Completed = delivered, Incomplete = cancelled/expired/awaiting_payment
+const ACTIVE_STATUSES = ["PENDING", "ACCEPTED", "PREPARING", "READY", "PICKED_UP", "DELIVERING"];
+const COMPLETED_STATUSES = ["DELIVERED"];
+const INCOMPLETE_STATUSES = ["CANCELLED", "EXPIRED", "AWAITING_PAYMENT"];
+
+type TabKey = "active" | "completed" | "incomplete";
+type DateFilter = "today" | "week" | "month" | "year" | "all";
 
 function playNotificationSound() {
   const ctx = new AudioContext();
@@ -53,12 +62,39 @@ function playNotificationSound() {
   }, 200);
 }
 
+function getDateRange(filter: DateFilter): Date | null {
+  const now = new Date();
+  switch (filter) {
+    case "today":
+      return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    case "week": {
+      const d = new Date(now);
+      d.setDate(d.getDate() - d.getDay());
+      d.setHours(0, 0, 0, 0);
+      return d;
+    }
+    case "month":
+      return new Date(now.getFullYear(), now.getMonth(), 1);
+    case "year":
+      return new Date(now.getFullYear(), 0, 1);
+    case "all":
+      return null;
+  }
+}
+
+function formatDate(dateStr: string) {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" });
+}
+
 export default function OrdersPage() {
   const { data: storesData } = useQuery(GET_MY_STORES);
   const stores = storesData?.myStores || [];
   const [showCreateStore, setShowCreateStore] = useState(false);
   const [selectedStore, setSelectedStore] = useState<string>("");
   const [notification, setNotification] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<TabKey>("active");
+  const [dateFilter, setDateFilter] = useState<DateFilter>("today");
 
   useEffect(() => {
     if (stores.length > 0 && !selectedStore) {
@@ -71,7 +107,6 @@ export default function OrdersPage() {
     skip: !selectedStore,
   });
 
-  // Real-time: refetch on new orders or status changes
   useSubscription(ORDER_CREATED_SUB, {
     variables: { storeId: selectedStore },
     skip: !selectedStore,
@@ -95,7 +130,36 @@ export default function OrdersPage() {
   const [updateStatus] = useMutation(UPDATE_ORDER_STATUS);
   const [adjustWeight] = useMutation(ADJUST_ORDER_ITEM_WEIGHT);
   const [weightEdit, setWeightEdit] = useState<{ itemId: string; value: string } | null>(null);
-  const orders = ordersData?.storeOrders || [];
+  const allOrders = ordersData?.storeOrders || [];
+
+  // Filter orders by tab and date
+  const filteredOrders = useMemo(() => {
+    let statusList: string[];
+    switch (activeTab) {
+      case "active": statusList = ACTIVE_STATUSES; break;
+      case "completed": statusList = COMPLETED_STATUSES; break;
+      case "incomplete": statusList = INCOMPLETE_STATUSES; break;
+    }
+
+    let orders = allOrders.filter((o: any) => statusList.includes(o.status));
+
+    // Apply date filter only for completed and incomplete tabs
+    if (activeTab !== "active") {
+      const minDate = getDateRange(dateFilter);
+      if (minDate) {
+        orders = orders.filter((o: any) => new Date(o.createdAt) >= minDate);
+      }
+    }
+
+    return orders;
+  }, [allOrders, activeTab, dateFilter]);
+
+  // Count for tab badges
+  const counts = useMemo(() => ({
+    active: allOrders.filter((o: any) => ACTIVE_STATUSES.includes(o.status)).length,
+    completed: allOrders.filter((o: any) => COMPLETED_STATUSES.includes(o.status)).length,
+    incomplete: allOrders.filter((o: any) => INCOMPLETE_STATUSES.includes(o.status)).length,
+  }), [allOrders]);
 
   async function handleAdvanceStatus(orderId: string, currentStatus: string) {
     const next = nextStatus[currentStatus];
@@ -139,6 +203,20 @@ export default function OrdersPage() {
     );
   }
 
+  const tabs: { key: TabKey; label: string; count: number }[] = [
+    { key: "active", label: "Ativos", count: counts.active },
+    { key: "completed", label: "Concluídos", count: counts.completed },
+    { key: "incomplete", label: "Não concluídos", count: counts.incomplete },
+  ];
+
+  const dateFilters: { key: DateFilter; label: string }[] = [
+    { key: "today", label: "Hoje" },
+    { key: "week", label: "Semana" },
+    { key: "month", label: "Mês" },
+    { key: "year", label: "Ano" },
+    { key: "all", label: "Todos" },
+  ];
+
   return (
     <div>
       {notification && (
@@ -147,7 +225,7 @@ export default function OrdersPage() {
         </div>
       )}
 
-      <div className="flex flex-wrap items-center justify-between mb-6 gap-3">
+      <div className="flex flex-wrap items-center justify-between mb-4 gap-3">
         <h1 className="text-2xl font-bold text-[var(--text-primary)]">Pedidos</h1>
         {stores.length > 1 && (
           <select
@@ -162,13 +240,60 @@ export default function OrdersPage() {
         )}
       </div>
 
+      {/* Tabs */}
+      <div className="flex gap-1 mb-4 bg-[var(--bg-input)] rounded-xl p-1">
+        {tabs.map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={`flex-1 px-3 py-2 rounded-lg text-sm font-semibold transition cursor-pointer ${
+              activeTab === tab.key
+                ? "bg-orange-500 text-white shadow-sm"
+                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+            }`}
+          >
+            {tab.label}
+            {tab.count > 0 && (
+              <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-xs ${
+                activeTab === tab.key ? "bg-orange-600" : "bg-[var(--bg-hover)]"
+              }`}>
+                {tab.count}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* Date filter - only for completed and incomplete */}
+      {activeTab !== "active" && (
+        <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
+          {dateFilters.map((df) => (
+            <button
+              key={df.key}
+              onClick={() => setDateFilter(df.key)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer whitespace-nowrap ${
+                dateFilter === df.key
+                  ? "bg-orange-500 text-white"
+                  : "bg-[var(--bg-input)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+              }`}
+            >
+              {df.label}
+            </button>
+          ))}
+        </div>
+      )}
+
       {loading ? (
         <p className="text-[var(--text-secondary)]">Carregando...</p>
-      ) : orders.length === 0 ? (
-        <p className="text-[var(--text-secondary)] text-center mt-20">Nenhum pedido ainda</p>
+      ) : filteredOrders.length === 0 ? (
+        <p className="text-[var(--text-secondary)] text-center mt-20">
+          {activeTab === "active" && "Nenhum pedido ativo"}
+          {activeTab === "completed" && "Nenhum pedido concluído neste período"}
+          {activeTab === "incomplete" && "Nenhum pedido não concluído neste período"}
+        </p>
       ) : (
         <div className="space-y-4">
-          {orders.map((order: any) => {
+          {filteredOrders.map((order: any) => {
             const status = statusLabels[order.status] || { label: order.status, color: "bg-gray-100" };
             const canAdvance = !!nextStatus[order.status];
 
@@ -181,9 +306,12 @@ export default function OrdersPage() {
                       {order.customer.name} - {order.customer.phone}
                     </span>
                   </div>
-                  <span className={`px-3 py-1 rounded-full text-xs font-semibold ${status.color}`}>
-                    {status.label}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-[var(--text-muted)]">{formatDate(order.createdAt)}</span>
+                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${status.color}`}>
+                      {status.label}
+                    </span>
+                  </div>
                 </div>
 
                 <div className="border-t border-[var(--border-light)] pt-3 mb-3">
