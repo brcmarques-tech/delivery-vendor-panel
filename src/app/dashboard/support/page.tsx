@@ -45,7 +45,7 @@ export default function SupportPage() {
 
         {/* WhatsApp */}
         <a
-          href="https://wa.me/5553991971031?text=Ol%C3%A1%2C%20preciso%20de%20ajuda%20com%20o%20painel%20do%20vendedor."
+          href="https://wa.me/5553984424244?text=Ol%C3%A1%2C%20preciso%20de%20ajuda%20com%20o%20painel%20do%20vendedor."
           target="_blank"
           rel="noopener noreferrer"
           className="block bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl p-6 hover:border-green-300 hover:shadow-md transition group"
@@ -58,7 +58,7 @@ export default function SupportPage() {
             Atendimento rapido pelo WhatsApp.
           </p>
           <span className="text-sm font-medium text-green-600">
-            (53) 99197-1031
+            (53) 98442-4244
           </span>
         </a>
       </div>
