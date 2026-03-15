@@ -16,6 +16,7 @@ const navItems = [
   { href: "/dashboard/coupons", label: "Cupons", icon: "🎟️" },
   { href: "/dashboard/analytics", label: "Analytics", icon: "📈" },
   { href: "/dashboard/plan", label: "Meu Plano", icon: "💎" },
+  { href: "/dashboard/support", label: "Suporte", icon: "🆘" },
   { href: "/dashboard/settings", label: "Configurações", icon: "⚙️" },
 ];
 
