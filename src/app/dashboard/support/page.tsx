@@ -43,19 +43,24 @@ export default function SupportPage() {
           </span>
         </a>
 
-        {/* WhatsApp placeholder */}
-        <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl p-6 opacity-60">
-          <div className="w-12 h-12 bg-green-50 rounded-xl flex items-center justify-center mb-4">
+        {/* WhatsApp */}
+        <a
+          href="https://wa.me/5553991971031?text=Ol%C3%A1%2C%20preciso%20de%20ajuda%20com%20o%20painel%20do%20vendedor."
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl p-6 hover:border-green-300 hover:shadow-md transition group"
+        >
+          <div className="w-12 h-12 bg-green-50 rounded-xl flex items-center justify-center mb-4 group-hover:bg-green-100 transition">
             <span className="text-2xl">💬</span>
           </div>
           <h3 className="font-semibold text-[var(--text-primary)] mb-1">WhatsApp</h3>
           <p className="text-sm text-[var(--text-secondary)] mb-3">
-            Atendimento por WhatsApp em breve.
+            Atendimento rapido pelo WhatsApp.
           </p>
-          <span className="text-sm font-medium text-[var(--text-muted)]">
-            Em breve
+          <span className="text-sm font-medium text-green-600">
+            (53) 99197-1031
           </span>
-        </div>
+        </a>
       </div>
 
       {/* FAQ */}
