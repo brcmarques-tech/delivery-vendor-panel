@@ -176,6 +176,12 @@ export default function RegisterPage() {
       router.push("/dashboard");
     } catch (err: any) {
       const msg = err?.message || "";
+      // Extract name/email from Google JWT to pre-fill the form
+      try {
+        const payload = JSON.parse(atob(response.credential.split(".")[1]));
+        if (payload.name) setName(payload.name);
+        if (payload.email) setEmail(payload.email);
+      } catch {}
       if (msg.includes("GOOGLE_NO_ACCOUNT")) {
         setError("Nenhuma conta encontrada com este email Google. Preencha o cadastro abaixo.");
       } else {
