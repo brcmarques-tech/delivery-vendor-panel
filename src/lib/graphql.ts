@@ -243,6 +243,15 @@ export const GOOGLE_AUTH_VENDOR = gql`
   }
 `;
 
+export const REGISTER_VENDOR_WITH_GOOGLE = gql`
+  mutation RegisterVendorWithGoogle($idToken: String!, $phone: String!, $cpf: String!) {
+    registerVendorWithGoogle(idToken: $idToken, phone: $phone, cpf: $cpf) {
+      accessToken
+      user { id name email role cpf emailVerified phoneVerified }
+    }
+  }
+`;
+
 export const GET_CONTRACT_CONTENT = gql`
   query ContractContent($type: String!) {
     contractContent(type: $type)
