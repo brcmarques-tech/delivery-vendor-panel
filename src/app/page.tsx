@@ -54,6 +54,10 @@ export default function LoginPage() {
       callback: handleGoogleResponse,
       auto_select: false,
     });
+    const el = document.getElementById("google-hidden-btn");
+    if (el) {
+      window.google.accounts.id.renderButton(el, { theme: "outline", size: "large", type: "icon" });
+    }
   }, [handleGoogleResponse]);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -83,10 +87,15 @@ export default function LoginPage() {
                 callback: handleGoogleResponse,
                 auto_select: false,
               });
+              window.google.accounts.id.renderButton(
+                document.getElementById("google-hidden-btn"),
+                { theme: "outline", size: "large", type: "icon" }
+              );
             }
           }}
         />
       )}
+      <div id="google-hidden-btn" style={{ position: "absolute", opacity: 0, pointerEvents: "none", width: 0, height: 0, overflow: "hidden" }} />
       <div className="bg-white p-8 rounded-2xl shadow-lg w-full max-w-md">
         <div className="flex justify-center mb-6">
           <img src="/logo-dark.svg" alt="Delivery" className="h-16" />
@@ -158,9 +167,9 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={() => {
-                if (window.google) {
-                  window.google.accounts.id.prompt();
-                }
+                const hiddenBtn = document.getElementById("google-hidden-btn");
+                const inner = hiddenBtn?.querySelector('[role="button"]') as HTMLElement;
+                if (inner) inner.click();
               }}
               disabled={googleLoading}
               className="w-full py-3 border border-gray-300 rounded-xl font-semibold text-gray-700 flex items-center justify-center gap-3 hover:bg-gray-50 active:scale-[0.98] disabled:opacity-40 transition cursor-pointer"

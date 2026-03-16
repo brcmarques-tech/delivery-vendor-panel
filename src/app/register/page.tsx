@@ -576,12 +576,13 @@ export default function RegisterPage() {
                   <span className="text-sm text-gray-400">ou</span>
                   <div className="flex-1 h-px bg-gray-200" />
                 </div>
+                <div id="google-hidden-btn" style={{ position: "absolute", opacity: 0, pointerEvents: "none", width: 0, height: 0, overflow: "hidden" }} />
                 <button
                   type="button"
                   onClick={() => {
-                    if ((window as any).google) {
-                      (window as any).google.accounts.id.prompt();
-                    }
+                    const hiddenBtn = document.getElementById("google-hidden-btn");
+                    const inner = hiddenBtn?.querySelector('[role="button"]') as HTMLElement;
+                    if (inner) inner.click();
                   }}
                   disabled={googleLoading}
                   className="w-full py-3 border border-gray-300 rounded-xl font-semibold text-gray-700 flex items-center justify-center gap-3 hover:bg-gray-50 active:scale-[0.98] disabled:opacity-40 transition cursor-pointer"
@@ -607,6 +608,10 @@ export default function RegisterPage() {
                         callback: handleGoogleResponse,
                         auto_select: false,
                       });
+                      (window as any).google.accounts.id.renderButton(
+                        document.getElementById("google-hidden-btn"),
+                        { theme: "outline", size: "large", type: "icon" }
+                      );
                     }
                   }}
                 />
