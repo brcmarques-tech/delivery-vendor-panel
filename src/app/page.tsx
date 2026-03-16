@@ -31,8 +31,14 @@ export default function LoginPage() {
     setGoogleLoading(true);
     try {
       const { data } = await googleAuth({ variables: { idToken: response.credential } });
+      const user = data.googleAuthVendor.user;
+      if (user.role !== "VENDOR") {
+        setError("Sua conta esta aguardando aprovacao do administrador.");
+        setGoogleLoading(false);
+        return;
+      }
       localStorage.setItem("token", data.googleAuthVendor.accessToken);
-      localStorage.setItem("user", JSON.stringify(data.googleAuthVendor.user));
+      localStorage.setItem("user", JSON.stringify(user));
       await apolloClient.resetStore();
       router.push("/dashboard");
     } catch (err: any) {

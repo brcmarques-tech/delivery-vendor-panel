@@ -172,8 +172,14 @@ export default function RegisterPage() {
     setGoogleLoading(true);
     try {
       const { data } = await googleAuth({ variables: { idToken: response.credential } });
+      const user = data.googleAuthVendor.user;
+      if (user.role !== "VENDOR") {
+        setError("Sua conta esta aguardando aprovacao do administrador.");
+        setGoogleLoading(false);
+        return;
+      }
       localStorage.setItem("token", data.googleAuthVendor.accessToken);
-      localStorage.setItem("user", JSON.stringify(data.googleAuthVendor.user));
+      localStorage.setItem("user", JSON.stringify(user));
       await apolloClient.resetStore();
       router.push("/dashboard");
     } catch (err: any) {
@@ -342,17 +348,14 @@ export default function RegisterPage() {
     setError("");
     try {
       if (googleIdToken) {
-        const { data } = await registerWithGoogle({
+        await registerWithGoogle({
           variables: {
             idToken: googleIdToken,
             phone: phone.replace(/\D/g, ""),
             cpf: cpf.replace(/\D/g, ""),
           },
         });
-        localStorage.setItem("token", data.registerVendorWithGoogle.accessToken);
-        localStorage.setItem("user", JSON.stringify(data.registerVendorWithGoogle.user));
-        await apolloClient.resetStore();
-        router.push("/dashboard");
+        setSuccess(true);
       } else {
         await registerMutation({
           variables: {
