@@ -221,25 +221,29 @@ function ProfileSection() {
         {saving ? "Salvando..." : "Salvar perfil"}
       </button>
 
-      <hr className="my-6 border-[var(--border-light)]" />
-      <h3 className="font-semibold text-[var(--text-primary)] mb-3">Alterar senha</h3>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-        <div>
-          <label className="text-sm text-[var(--text-secondary)]">Senha atual</label>
-          <input type="password" value={passForm.current} onChange={(e) => setPassForm({ ...passForm, current: e.target.value })} className="w-full mt-1 px-4 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-orange-400" />
-        </div>
-        <div>
-          <label className="text-sm text-[var(--text-secondary)]">Nova senha</label>
-          <input type="password" value={passForm.new} onChange={(e) => setPassForm({ ...passForm, new: e.target.value })} className="w-full mt-1 px-4 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-orange-400" />
-        </div>
-        <div>
-          <label className="text-sm text-[var(--text-secondary)]">Confirmar nova senha</label>
-          <input type="password" value={passForm.confirm} onChange={(e) => setPassForm({ ...passForm, confirm: e.target.value })} className="w-full mt-1 px-4 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-orange-400" />
-        </div>
-      </div>
-      <button onClick={handleChangePassword} disabled={saving} className="px-6 py-2 bg-[var(--text-secondary)] text-white rounded-xl font-semibold hover:opacity-80 transition cursor-pointer disabled:opacity-50">
-        Alterar senha
-      </button>
+      {!isGoogleAccount && (
+        <>
+          <hr className="my-6 border-[var(--border-light)]" />
+          <h3 className="font-semibold text-[var(--text-primary)] mb-3">Alterar senha</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+            <div>
+              <label className="text-sm text-[var(--text-secondary)]">Senha atual</label>
+              <input type="password" value={passForm.current} onChange={(e) => setPassForm({ ...passForm, current: e.target.value })} className="w-full mt-1 px-4 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-orange-400" />
+            </div>
+            <div>
+              <label className="text-sm text-[var(--text-secondary)]">Nova senha</label>
+              <input type="password" value={passForm.new} onChange={(e) => setPassForm({ ...passForm, new: e.target.value })} className="w-full mt-1 px-4 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-orange-400" />
+            </div>
+            <div>
+              <label className="text-sm text-[var(--text-secondary)]">Confirmar nova senha</label>
+              <input type="password" value={passForm.confirm} onChange={(e) => setPassForm({ ...passForm, confirm: e.target.value })} className="w-full mt-1 px-4 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-orange-400" />
+            </div>
+          </div>
+          <button onClick={handleChangePassword} disabled={saving} className="px-6 py-2 bg-[var(--text-secondary)] text-white rounded-xl font-semibold hover:opacity-80 transition cursor-pointer disabled:opacity-50">
+            Alterar senha
+          </button>
+        </>
+      )}
     </Section>
   );
 }
