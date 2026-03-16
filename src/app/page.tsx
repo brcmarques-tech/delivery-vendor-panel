@@ -1,4 +1,11 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
+
+declare global {
+  interface Window {
+    google?: any;
+  }
+}
 
 import { useState, useEffect, useCallback } from "react";
 import { useMutation } from "@apollo/client";
