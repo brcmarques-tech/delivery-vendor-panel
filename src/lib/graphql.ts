@@ -4,7 +4,7 @@ export const LOGIN = gql`
   mutation LoginVendor($input: LoginInput!) {
     loginVendor(input: $input) {
       accessToken
-      user { id name email role }
+      user { id name email role emailVerified phoneVerified }
     }
   }
 `;
@@ -13,8 +13,43 @@ export const REGISTER = gql`
   mutation RegisterVendor($input: RegisterVendorInput!) {
     registerVendor(input: $input) {
       accessToken
-      user { id name email role cpf }
+      user { id name email role cpf emailVerified phoneVerified }
     }
+  }
+`;
+
+export const VALIDATE_REGISTRATION = gql`
+  mutation ValidateRegistration($email: String!, $cpf: String!, $phone: String!, $userType: String) {
+    validateRegistration(email: $email, cpf: $cpf, phone: $phone, userType: $userType) {
+      valid
+      emailError
+      cpfError
+      phoneError
+    }
+  }
+`;
+
+export const SEND_VERIFICATION_CODE = gql`
+  mutation SendVerificationCode($input: SendCodeInput!) {
+    sendVerificationCode(input: $input)
+  }
+`;
+
+export const VERIFY_CODE = gql`
+  mutation VerifyCode($input: VerifyCodeInput!) {
+    verifyCode(input: $input)
+  }
+`;
+
+export const SEND_EMAIL_VERIFICATION = gql`
+  mutation SendEmailVerification($userType: String) {
+    sendEmailVerification(userType: $userType)
+  }
+`;
+
+export const CONFIRM_EMAIL_VERIFICATION = gql`
+  mutation ConfirmEmailVerification($code: String!, $userType: String) {
+    confirmEmailVerification(code: $code, userType: $userType)
   }
 `;
 
@@ -177,6 +212,7 @@ export const GET_MY_PLAN = gql`
     meVendor {
       id name cpf vendorPlan planExpiresAt mpConnected
       acceptedTermsAt acceptedSubscriptionTermsAt
+      emailVerified phoneVerified
       stores { id }
     }
   }
@@ -185,15 +221,24 @@ export const GET_MY_PLAN = gql`
 export const GET_MY_PROFILE = gql`
   query MyVendorProfile {
     meVendor {
-      id name email phone vendorPlan
+      id name email phone vendorPlan emailVerified googleId
     }
   }
 `;
 
 export const UPDATE_PROFILE = gql`
-  mutation UpdateVendorProfile($name: String, $phone: String, $currentPassword: String, $newPassword: String) {
-    updateVendorProfile(name: $name, phone: $phone, currentPassword: $currentPassword, newPassword: $newPassword) {
-      id name phone
+  mutation UpdateVendorProfile($name: String, $phone: String, $currentPassword: String, $newPassword: String, $email: String) {
+    updateVendorProfile(name: $name, phone: $phone, currentPassword: $currentPassword, newPassword: $newPassword, email: $email) {
+      id name phone email emailVerified
+    }
+  }
+`;
+
+export const GOOGLE_AUTH_VENDOR = gql`
+  mutation GoogleAuthVendor($idToken: String!) {
+    googleAuthVendor(idToken: $idToken) {
+      accessToken
+      user { id name email role cpf emailVerified phoneVerified }
     }
   }
 `;

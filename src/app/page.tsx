@@ -1,10 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useMutation } from "@apollo/client";
-import { LOGIN } from "@/lib/graphql";
+import { LOGIN, GOOGLE_AUTH_VENDOR } from "@/lib/graphql";
 import { apolloClient } from "@/lib/apollo";
 import { useRouter } from "next/navigation";
+import Script from "next/script";
+
+const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -12,7 +15,42 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [login, { loading }] = useMutation(LOGIN);
+  const [googleAuth] = useMutation(GOOGLE_AUTH_VENDOR);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const router = useRouter();
+
+  const handleGoogleResponse = useCallback(async (response: any) => {
+    setError("");
+    setGoogleLoading(true);
+    try {
+      const { data } = await googleAuth({ variables: { idToken: response.credential } });
+      localStorage.setItem("token", data.googleAuthVendor.accessToken);
+      localStorage.setItem("user", JSON.stringify(data.googleAuthVendor.user));
+      await apolloClient.resetStore();
+      router.push("/dashboard");
+    } catch (err: any) {
+      const msg = err?.message || "";
+      if (msg.includes("GOOGLE_NO_ACCOUNT")) {
+        setError("Nenhuma conta encontrada com este email. Cadastre-se primeiro.");
+      } else {
+        setError("Erro ao entrar com Google. Tente novamente.");
+      }
+    } finally {
+      setGoogleLoading(false);
+    }
+  }, [googleAuth, router]);
+
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID || typeof window === "undefined" || !window.google) return;
+    window.google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      callback: handleGoogleResponse,
+    });
+    window.google.accounts.id.renderButton(
+      document.getElementById("google-signin-btn"),
+      { theme: "outline", size: "large", width: "100%", text: "continue_with", locale: "pt-BR" }
+    );
+  }, [handleGoogleResponse]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -30,6 +68,24 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      {GOOGLE_CLIENT_ID && (
+        <Script
+          src="https://accounts.google.com/gsi/client"
+          strategy="afterInteractive"
+          onLoad={() => {
+            if (window.google) {
+              window.google.accounts.id.initialize({
+                client_id: GOOGLE_CLIENT_ID,
+                callback: handleGoogleResponse,
+              });
+              window.google.accounts.id.renderButton(
+                document.getElementById("google-signin-btn"),
+                { theme: "outline", size: "large", width: "100%", text: "continue_with", locale: "pt-BR" }
+              );
+            }
+          }}
+        />
+      )}
       <div className="bg-white p-8 rounded-2xl shadow-lg w-full max-w-md">
         <div className="flex justify-center mb-6">
           <img src="/logo-dark.svg" alt="Delivery" className="h-16" />
@@ -90,6 +146,20 @@ export default function LoginPage() {
             {loading ? "Entrando..." : "Entrar"}
           </button>
         </form>
+
+        {GOOGLE_CLIENT_ID && (
+          <>
+            <div className="flex items-center gap-3 my-5">
+              <div className="flex-1 h-px bg-gray-200" />
+              <span className="text-sm text-gray-400">ou</span>
+              <div className="flex-1 h-px bg-gray-200" />
+            </div>
+            <div id="google-signin-btn" className="flex justify-center" />
+            {googleLoading && (
+              <p className="text-center text-sm text-gray-500 mt-2">Entrando com Google...</p>
+            )}
+          </>
+        )}
 
         <p className="text-center text-gray-500 mt-6 text-sm">
           Ainda não tem conta?{" "}

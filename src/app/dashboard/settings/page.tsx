@@ -5,6 +5,7 @@ import {
   CREATE_STORE, UPDATE_STORE, UPLOAD_IMAGE, GET_MY_STORES,
   GET_MY_PROFILE, UPDATE_PROFILE, GET_MY_PLAN, GET_BADGE_CONFIG,
   CLAIM_BADGE_REWARD, GET_MP_CONNECT_URL, DISCONNECT_MP,
+  SEND_EMAIL_VERIFICATION, CONFIRM_EMAIL_VERIFICATION,
 } from "@/lib/graphql";
 import { useState, useRef, useEffect } from "react";
 import TermsModal from "@/components/TermsModal";
@@ -38,19 +39,29 @@ function Toggle({ value, onChange, label }: { value: boolean; onChange: () => vo
 function ProfileSection() {
   const { data, loading, refetch } = useQuery(GET_MY_PROFILE);
   const [updateProfile, { loading: saving }] = useMutation(UPDATE_PROFILE);
-  const [form, setForm] = useState({ name: "", phone: "" });
+  const [sendEmailVerification] = useMutation(SEND_EMAIL_VERIFICATION);
+  const [confirmEmailVerification] = useMutation(CONFIRM_EMAIL_VERIFICATION);
+  const [form, setForm] = useState({ name: "", phone: "", email: "" });
   const [passForm, setPassForm] = useState({ current: "", new: "", confirm: "" });
   const [msg, setMsg] = useState("");
+  const [showEmailVerify, setShowEmailVerify] = useState(false);
+  const [emailCode, setEmailCode] = useState("");
+  const [emailVerifyMsg, setEmailVerifyMsg] = useState("");
+  const [sendingCode, setSendingCode] = useState(false);
+  const [verifyingCode, setVerifyingCode] = useState(false);
+  const [resendTimer, setResendTimer] = useState(0);
 
   useEffect(() => {
     if (data?.meVendor) {
-      setForm({ name: data.meVendor.name || "", phone: data.meVendor.phone || "" });
+      setForm({ name: data.meVendor.name || "", phone: data.meVendor.phone || "", email: data.meVendor.email || "" });
     }
   }, [data]);
 
   async function handleSaveProfile() {
     try {
-      await updateProfile({ variables: { name: form.name, phone: form.phone } });
+      const vars: any = { name: form.name, phone: form.phone };
+      if (form.email !== data?.meVendor?.email) vars.email = form.email;
+      await updateProfile({ variables: vars });
       setMsg("Perfil atualizado!");
       refetch();
       setTimeout(() => setMsg(""), 3000);
@@ -80,7 +91,52 @@ function ProfileSection() {
     }
   }
 
+  useEffect(() => {
+    if (resendTimer <= 0) return;
+    const t = setTimeout(() => setResendTimer(resendTimer - 1), 1000);
+    return () => clearTimeout(t);
+  }, [resendTimer]);
+
+  async function handleSendEmailCode() {
+    setSendingCode(true);
+    setEmailVerifyMsg("");
+    try {
+      await sendEmailVerification({ variables: { userType: "vendor" } });
+      setShowEmailVerify(true);
+      setEmailCode("");
+      setResendTimer(60);
+      setEmailVerifyMsg("Codigo enviado para seu email!");
+    } catch (err: any) {
+      setEmailVerifyMsg(err.message);
+    } finally {
+      setSendingCode(false);
+    }
+  }
+
+  async function handleConfirmEmailCode() {
+    if (emailCode.length !== 6) {
+      setEmailVerifyMsg("Digite o codigo de 6 digitos");
+      return;
+    }
+    setVerifyingCode(true);
+    setEmailVerifyMsg("");
+    try {
+      await confirmEmailVerification({ variables: { code: emailCode, userType: "vendor" } });
+      setShowEmailVerify(false);
+      setEmailCode("");
+      setEmailVerifyMsg("");
+      refetch();
+    } catch (err: any) {
+      setEmailVerifyMsg(err.message);
+    } finally {
+      setVerifyingCode(false);
+    }
+  }
+
   if (loading) return <p className="text-[var(--text-muted)] text-sm">Carregando...</p>;
+
+  const emailVerified = data?.meVendor?.emailVerified;
+  const isGoogleAccount = !!data?.meVendor?.googleId;
 
   return (
     <Section title="Minha Conta">
@@ -100,7 +156,65 @@ function ProfileSection() {
         </div>
         <div>
           <label className="text-sm text-[var(--text-secondary)]">Email</label>
-          <input type="text" value={data?.meVendor?.email || ""} disabled className="w-full mt-1 px-4 py-2 border border-[var(--border-light)] rounded-xl text-[var(--text-muted)] bg-[var(--bg-muted)]" />
+          <div className="flex items-center gap-2 mt-1">
+            {isGoogleAccount ? (
+              <div className="flex-1 flex items-center gap-2 px-4 py-2 border border-[var(--border-light)] rounded-xl bg-[var(--bg-muted)]">
+                <svg className="w-4 h-4" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+                <span className="text-[var(--text-muted)]">{data?.meVendor?.email}</span>
+              </div>
+            ) : (
+              <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="flex-1 px-4 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-orange-400" />
+            )}
+            {emailVerified ? (
+              <span className="flex items-center gap-1 px-3 py-2 bg-green-100 text-green-700 rounded-xl text-sm font-medium whitespace-nowrap">
+                ✓ Verificado
+              </span>
+            ) : (
+              <button
+                onClick={handleSendEmailCode}
+                disabled={sendingCode}
+                className="px-3 py-2 bg-amber-500 text-white rounded-xl text-sm font-semibold hover:bg-amber-600 transition cursor-pointer disabled:opacity-50 whitespace-nowrap"
+              >
+                {sendingCode ? "Enviando..." : "Verificar email"}
+              </button>
+            )}
+          </div>
+          {showEmailVerify && !emailVerified && (
+            <div className="mt-3 p-4 border border-amber-300 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-700 rounded-xl">
+              <p className="text-sm text-[var(--text-secondary)] mb-2">
+                Digite o codigo de 6 digitos enviado para <strong>{data?.meVendor?.email}</strong>
+              </p>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  maxLength={6}
+                  value={emailCode}
+                  onChange={(e) => setEmailCode(e.target.value.replace(/\D/g, ""))}
+                  placeholder="000000"
+                  className="w-32 px-4 py-2 border border-[var(--border-color)] rounded-xl text-center text-lg font-mono tracking-widest bg-[var(--bg-input)] text-[var(--text-primary)] focus:outline-none focus:border-orange-400"
+                />
+                <button
+                  onClick={handleConfirmEmailCode}
+                  disabled={verifyingCode}
+                  className="px-4 py-2 bg-green-500 text-white rounded-xl text-sm font-semibold hover:bg-green-600 transition cursor-pointer disabled:opacity-50"
+                >
+                  {verifyingCode ? "Verificando..." : "Confirmar"}
+                </button>
+                <button
+                  onClick={handleSendEmailCode}
+                  disabled={sendingCode || resendTimer > 0}
+                  className="px-4 py-2 text-orange-500 text-sm font-medium hover:underline cursor-pointer disabled:opacity-50 disabled:no-underline"
+                >
+                  {resendTimer > 0 ? `Reenviar (${resendTimer}s)` : "Reenviar"}
+                </button>
+              </div>
+              {emailVerifyMsg && (
+                <p className={`mt-2 text-sm ${emailVerifyMsg.includes("enviado") ? "text-green-600" : "text-red-500"}`}>
+                  {emailVerifyMsg}
+                </p>
+              )}
+            </div>
+          )}
         </div>
       </div>
       <button onClick={handleSaveProfile} disabled={saving} className="px-6 py-2 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition cursor-pointer disabled:opacity-50">
