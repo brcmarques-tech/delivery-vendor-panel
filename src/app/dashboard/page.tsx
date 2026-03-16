@@ -227,6 +227,29 @@ function DashboardContent() {
         </a>
       )}
 
+      {!mpConnected && (
+        <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 mb-6">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="#3B82F6" className="w-5 h-5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Z" />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-blue-800">Conecte seu Mercado Pago</p>
+              <p className="text-xs text-blue-600">Para receber pagamentos dos clientes, conecte sua conta do Mercado Pago.</p>
+            </div>
+            <button
+              onClick={handleConnectMp}
+              disabled={mpUrlLoading}
+              className="px-4 py-2 bg-[#009ee3] text-white rounded-xl text-sm font-bold cursor-pointer hover:bg-[#0087c4] active:scale-95 disabled:opacity-50 transition flex-shrink-0"
+            >
+              {mpUrlLoading ? "Carregando..." : "Conectar"}
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-[var(--text-primary)]">Visão Geral</h1>
         <button onClick={() => setShowCreateStore(true)} className="px-5 py-2.5 bg-orange-500 text-white rounded-xl text-sm font-bold cursor-pointer hover:bg-orange-600 active:scale-95 transition flex items-center gap-2">
