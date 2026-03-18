@@ -40,9 +40,9 @@ const errorLink = onError(({ graphQLErrors }) => {
     (e) => e.message?.includes('SESSION_EXPIRED') || e.extensions?.code === 'UNAUTHENTICATED'
   );
   if (sessionExpired && localStorage.getItem('token')) {
+    // Silent logout — the subscription handles the user-facing alert
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    alert('Sua conta foi conectada em outro dispositivo. Você foi desconectado.');
     window.location.href = '/';
   }
 });

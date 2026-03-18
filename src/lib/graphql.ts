@@ -235,8 +235,8 @@ export const UPDATE_PROFILE = gql`
 `;
 
 export const GOOGLE_AUTH_VENDOR = gql`
-  mutation GoogleAuthVendor($idToken: String!) {
-    googleAuthVendor(idToken: $idToken) {
+  mutation GoogleAuthVendor($idToken: String!, $forceLogin: Boolean) {
+    googleAuthVendor(idToken: $idToken, forceLogin: $forceLogin) {
       accessToken
       user { id name email role cpf emailVerified phoneVerified }
     }
