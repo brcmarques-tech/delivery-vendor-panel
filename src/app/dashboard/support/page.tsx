@@ -73,8 +73,8 @@ export default function SupportPage() {
               a: 'Acesse "Meu Plano" no menu lateral para ver os planos disponiveis e fazer upgrade.',
             },
             {
-              q: "Como conecto meu Mercado Pago?",
-              a: 'Va em "Configuracoes" e clique em "Conectar Mercado Pago" na secao de pagamentos.',
+              q: "Como configuro meu pagamento?",
+              a: 'Va em "Configuracoes" e acesse a secao "Pagamento" para configurar sua conta.',
             },
             {
               q: "Como adiciono produtos?",

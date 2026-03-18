@@ -8,16 +8,36 @@ import { apolloClient } from "@/lib/apollo";
 import { GET_MY_PLAN, ACCEPT_TERMS } from "@/lib/graphql";
 import TermsModal from "@/components/TermsModal";
 
-const navItems = [
-  { href: "/dashboard", label: "Visão Geral", icon: "📊" },
-  { href: "/dashboard/orders", label: "Pedidos", icon: "📋" },
-  { href: "/dashboard/products", label: "Produtos", icon: "📦" },
-  { href: "/dashboard/promotions", label: "Promoções", icon: "📢" },
-  { href: "/dashboard/coupons", label: "Cupons", icon: "🎟️" },
-  { href: "/dashboard/analytics", label: "Analytics", icon: "📈" },
-  { href: "/dashboard/plan", label: "Meu Plano", icon: "💎" },
-  { href: "/dashboard/support", label: "Suporte", icon: "🆘" },
-  { href: "/dashboard/settings", label: "Configurações", icon: "⚙️" },
+const navGroups = [
+  {
+    label: "Principal",
+    items: [
+      { href: "/dashboard", label: "Visão Geral", icon: "📊" },
+      { href: "/dashboard/orders", label: "Pedidos", icon: "📋" },
+    ],
+  },
+  {
+    label: "Catálogo",
+    items: [
+      { href: "/dashboard/products", label: "Produtos", icon: "📦" },
+      { href: "/dashboard/promotions", label: "Promoções", icon: "📢" },
+      { href: "/dashboard/coupons", label: "Cupons", icon: "🎟️" },
+    ],
+  },
+  {
+    label: "Gestão",
+    items: [
+      { href: "/dashboard/analytics", label: "Analytics", icon: "📈" },
+      { href: "/dashboard/plan", label: "Meu Plano", icon: "💎" },
+      { href: "/dashboard/support", label: "Suporte", icon: "🆘" },
+    ],
+  },
+  {
+    label: "Sistema",
+    items: [
+      { href: "/dashboard/settings", label: "Configurações", icon: "⚙️" },
+    ],
+  },
 ];
 
 export default function DashboardLayout({
@@ -78,20 +98,27 @@ export default function DashboardLayout({
         <p className="text-xs text-[var(--text-muted)] mt-1 text-center">Painel do Vendedor</p>
       </div>
 
-      <nav className="flex-1 p-4 space-y-1">
-        {navItems.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition ${
-              pathname === item.href
-                ? "bg-orange-50 text-orange-600 font-semibold"
-                : "text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
-            }`}
-          >
-            <span>{item.icon}</span>
-            <span>{item.label}</span>
-          </Link>
+      <nav className="flex-1 p-4 space-y-4 overflow-y-auto">
+        {navGroups.map((group) => (
+          <div key={group.label}>
+            <p className="px-4 mb-1 text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">{group.label}</p>
+            <div className="space-y-0.5">
+              {group.items.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`flex items-center gap-3 px-4 py-2.5 rounded-xl transition ${
+                    pathname === item.href
+                      ? "bg-orange-50 text-orange-600 font-semibold"
+                      : "text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
+                  }`}
+                >
+                  <span>{item.icon}</span>
+                  <span className="text-sm">{item.label}</span>
+                </Link>
+              ))}
+            </div>
+          </div>
         ))}
       </nav>
 

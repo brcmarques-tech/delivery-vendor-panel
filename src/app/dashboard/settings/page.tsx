@@ -1,14 +1,15 @@
 "use client";
 
-import { useMutation, useQuery, useLazyQuery } from "@apollo/client";
+import { useMutation, useQuery } from "@apollo/client";
 import {
-  CREATE_STORE, UPDATE_STORE, UPLOAD_IMAGE, GET_MY_STORES,
+  UPDATE_STORE, UPLOAD_IMAGE, GET_MY_STORES,
   GET_MY_PROFILE, UPDATE_PROFILE, GET_MY_PLAN, GET_BADGE_CONFIG,
-  CLAIM_BADGE_REWARD, GET_MP_CONNECT_URL, DISCONNECT_MP,
+  CLAIM_BADGE_REWARD, DISCONNECT_PAYMENT,
   SEND_EMAIL_VERIFICATION, CONFIRM_EMAIL_VERIFICATION,
 } from "@/lib/graphql";
 import { useState, useRef, useEffect } from "react";
 import TermsModal from "@/components/TermsModal";
+import CreateStoreModal from "@/components/CreateStoreModal";
 import { useTheme } from "@/lib/ThemeProvider";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -252,12 +253,11 @@ function ProfileSection() {
 function StoresSection() {
   const { data, loading, refetch } = useQuery(GET_MY_STORES);
   const { data: planData } = useQuery(GET_MY_PLAN);
-  const [createStore, { loading: creating }] = useMutation(CREATE_STORE);
   const [updateStore, { loading: updating }] = useMutation(UPDATE_STORE);
   const [uploadImage] = useMutation(UPLOAD_IMAGE);
-  const mpConnected = planData?.meVendor?.mpConnected ?? false;
+  const paymentConnected = planData?.meVendor?.paymentConnected ?? false;
 
-  const [showCreate, setShowCreate] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingStore, setEditingStore] = useState<string | null>(null);
   const [form, setForm] = useState(emptyStoreForm());
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
@@ -301,12 +301,7 @@ function StoresSection() {
 
   function startCreate() {
     setEditingStore(null);
-    setShowCreate(true);
-    setForm(emptyStoreForm());
-    setLogoPreview(null);
-    setBannerPreview(null);
-    setLogoBase64(null);
-    setBannerBase64(null);
+    setShowCreateModal(true);
   }
 
   function handleImage(e: React.ChangeEvent<HTMLInputElement>, type: "logo" | "banner") {
@@ -357,25 +352,19 @@ function StoresSection() {
     if (bannerUrl) input.bannerUrl = bannerUrl;
 
     try {
-      if (editingStore) {
-        input.id = editingStore;
-        await updateStore({ variables: { input } });
-        setMsg("Loja atualizada!");
-      } else {
-        await createStore({ variables: { input } });
-        setMsg("Loja criada!");
-      }
+      input.id = editingStore;
+      await updateStore({ variables: { input } });
+      setMsg("Loja atualizada!");
       refetch();
       setEditingStore(null);
-      setShowCreate(false);
       setTimeout(() => setMsg(""), 3000);
     } catch (err: any) {
       setMsg(err.message);
     }
   }
 
-  const isSubmitting = creating || updating;
-  const isEditing = showCreate || editingStore;
+  const isSubmitting = updating;
+  const isEditing = !!editingStore;
 
   return (
     <Section title="Minhas Lojas">
@@ -433,8 +422,8 @@ function StoresSection() {
       {isEditing && (
         <form onSubmit={handleSubmit}>
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold text-[var(--text-primary)]">{editingStore ? "Editar loja" : "Nova loja"}</h3>
-            <button type="button" onClick={() => { setShowCreate(false); setEditingStore(null); }} className="text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">
+            <h3 className="font-bold text-[var(--text-primary)]">Editar loja</h3>
+            <button type="button" onClick={() => setEditingStore(null)} className="text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">
               Cancelar
             </button>
           </div>
@@ -479,52 +468,77 @@ function StoresSection() {
 
             {/* Delivery */}
             <h4 className="font-semibold text-[var(--text-secondary)] text-sm pt-2">Entrega</h4>
-            <Toggle value={form.hasOwnDelivery} onChange={() => setForm({ ...form, hasOwnDelivery: !form.hasOwnDelivery })} label={form.hasOwnDelivery ? "Entrega propria" : "Entregadores do app"} />
-            {!form.hasOwnDelivery && !mpConnected && (
-              <div className="bg-amber-50 border border-amber-300 rounded-xl p-3 text-xs text-amber-700 font-medium">
-                Para usar entregadores do app, conecte sua conta Mercado Pago.
-              </div>
-            )}
-
-            <Toggle value={form.freeDelivery} onChange={() => setForm({ ...form, freeDelivery: !form.freeDelivery })} label="Entrega gratis" />
-
-            {!form.freeDelivery && (
-              <div>
-                <label className="text-sm text-[var(--text-secondary)]">Entrega gratis acima de (R$)</label>
-                <input type="number" step="0.01" placeholder="Opcional" value={form.freeDeliveryAbove} onChange={(e) => setForm({ ...form, freeDeliveryAbove: e.target.value })} className="w-full px-4 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-orange-400" />
-              </div>
-            )}
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm text-[var(--text-secondary)]">Horario inicio entregas</label>
-                <input type="time" value={form.deliveryStartTime} onChange={(e) => setForm({ ...form, deliveryStartTime: e.target.value })} className="w-full px-4 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-orange-400" />
-              </div>
-              <div>
-                <label className="text-sm text-[var(--text-secondary)]">Horario fim entregas</label>
-                <input type="time" value={form.deliveryEndTime} onChange={(e) => setForm({ ...form, deliveryEndTime: e.target.value })} className="w-full px-4 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-orange-400" />
-              </div>
+            <div className="grid grid-cols-2 gap-3">
+              <button type="button" onClick={() => setForm({ ...form, hasOwnDelivery: false })}
+                className={`p-3 rounded-xl border-2 text-center cursor-pointer transition ${!form.hasOwnDelivery ? "border-orange-500 bg-orange-500/10" : "border-[var(--border-color)] hover:border-[var(--border-light)]"}`}>
+                <div className={`w-5 h-5 rounded-full border-2 mx-auto mb-1.5 flex items-center justify-center ${!form.hasOwnDelivery ? "border-orange-500" : "border-[var(--text-muted)]"}`}>
+                  {!form.hasOwnDelivery && <div className="w-2.5 h-2.5 rounded-full bg-orange-500" />}
+                </div>
+                <span className={`text-sm font-semibold ${!form.hasOwnDelivery ? "text-orange-500" : "text-[var(--text-secondary)]"}`}>Entregadores do app</span>
+                <p className="text-xs text-[var(--text-muted)] mt-0.5">A plataforma gerencia</p>
+              </button>
+              <button type="button" onClick={() => setForm({ ...form, hasOwnDelivery: true })}
+                className={`p-3 rounded-xl border-2 text-center cursor-pointer transition ${form.hasOwnDelivery ? "border-orange-500 bg-orange-500/10" : "border-[var(--border-color)] hover:border-[var(--border-light)]"}`}>
+                <div className={`w-5 h-5 rounded-full border-2 mx-auto mb-1.5 flex items-center justify-center ${form.hasOwnDelivery ? "border-orange-500" : "border-[var(--text-muted)]"}`}>
+                  {form.hasOwnDelivery && <div className="w-2.5 h-2.5 rounded-full bg-orange-500" />}
+                </div>
+                <span className={`text-sm font-semibold ${form.hasOwnDelivery ? "text-orange-500" : "text-[var(--text-secondary)]"}`}>Entregadores da empresa</span>
+                <p className="text-xs text-[var(--text-muted)] mt-0.5">Você gerencia a entrega</p>
+              </button>
             </div>
+            {!form.hasOwnDelivery && !paymentConnected && (
+              <div className="bg-amber-50 border border-amber-300 rounded-xl p-3 text-xs text-amber-700 font-medium">
+                Para usar entregadores do app, configure seu pagamento na seção abaixo.
+              </div>
+            )}
 
             {form.hasOwnDelivery && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm text-[var(--text-secondary)]">Tempo estimado (min)</label>
-                  <input type="number" value={form.estimatedDeliveryMinutes} onChange={(e) => setForm({ ...form, estimatedDeliveryMinutes: e.target.value })} className="w-full px-4 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-orange-400" />
+              <>
+                <Toggle value={form.freeDelivery} onChange={() => setForm({ ...form, freeDelivery: !form.freeDelivery })} label="Entrega grátis" />
+
+                {!form.freeDelivery && (
+                  <div>
+                    <label className="text-sm text-[var(--text-secondary)]">Entrega grátis acima de (R$)</label>
+                    <input type="number" step="0.01" placeholder="Opcional" value={form.freeDeliveryAbove} onChange={(e) => setForm({ ...form, freeDeliveryAbove: e.target.value })} className="w-full px-4 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-orange-400" />
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm text-[var(--text-secondary)]">Horário início entregas</label>
+                    <input type="time" value={form.deliveryStartTime} onChange={(e) => setForm({ ...form, deliveryStartTime: e.target.value })} className="w-full px-4 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-orange-400" />
+                  </div>
+                  <div>
+                    <label className="text-sm text-[var(--text-secondary)]">Horário fim entregas</label>
+                    <input type="time" value={form.deliveryEndTime} onChange={(e) => setForm({ ...form, deliveryEndTime: e.target.value })} className="w-full px-4 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-orange-400" />
+                  </div>
                 </div>
-                <div>
-                  <label className="text-sm text-[var(--text-secondary)]">Pedido minimo (R$)</label>
-                  <input type="number" step="0.01" value={form.minimumOrder} onChange={(e) => setForm({ ...form, minimumOrder: e.target.value })} className="w-full px-4 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-orange-400" />
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm text-[var(--text-secondary)]">Tempo estimado (min)</label>
+                    <input type="number" value={form.estimatedDeliveryMinutes} onChange={(e) => setForm({ ...form, estimatedDeliveryMinutes: e.target.value })} className="w-full px-4 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-orange-400" />
+                  </div>
+                  <div>
+                    <label className="text-sm text-[var(--text-secondary)]">Pedido mínimo (R$)</label>
+                    <input type="number" step="0.01" value={form.minimumOrder} onChange={(e) => setForm({ ...form, minimumOrder: e.target.value })} className="w-full px-4 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-orange-400" />
+                  </div>
                 </div>
-              </div>
+              </>
             )}
 
             <button type="submit" disabled={isSubmitting} className="mt-2 w-full py-3 bg-orange-500 text-white rounded-xl font-bold cursor-pointer hover:bg-orange-600 active:scale-95 disabled:opacity-50 transition">
-              {isSubmitting ? "Salvando..." : editingStore ? "Salvar alteracoes" : "Criar loja"}
+              {isSubmitting ? "Salvando..." : "Salvar alteracoes"}
             </button>
           </div>
         </form>
       )}
+
+      <CreateStoreModal
+        open={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onCreated={() => { refetch(); setShowCreateModal(false); }}
+      />
     </Section>
   );
 }
@@ -1016,49 +1030,38 @@ function ContractsSection() {
 }
 
 // ===== MAIN PAGE =====
-// ===== MERCADO PAGO SECTION =====
-function MercadoPagoSection() {
+// ===== PAGAMENTO SECTION =====
+function PaymentSection() {
   const { data: planData, refetch: refetchPlan } = useQuery(GET_MY_PLAN);
   const { data: storesData } = useQuery(GET_MY_STORES);
-  const [getMpConnectUrl, { loading: mpUrlLoading }] = useLazyQuery(GET_MP_CONNECT_URL, { fetchPolicy: "network-only" });
-  const [disconnectMp, { loading: disconnecting }] = useMutation(DISCONNECT_MP);
+  const [disconnectPayment, { loading: disconnecting }] = useMutation(DISCONNECT_PAYMENT);
 
-  const mpConnected = planData?.meVendor?.mpConnected ?? false;
+  const paymentConnected = planData?.meVendor?.paymentConnected ?? false;
   const stores = storesData?.myStores || [];
 
   if (stores.length === 0) return null;
 
-  async function handleConnectMp() {
-    const { data: urlData } = await getMpConnectUrl();
-    const url = urlData?.mpConnectUrl;
-    if (url) window.location.href = url;
-  }
-
-  async function handleDisconnectMp() {
-    await disconnectMp();
+  async function handleDisconnect() {
+    await disconnectPayment();
     refetchPlan();
   }
 
   return (
-    <Section title="Mercado Pago">
-      {!mpConnected ? (
+    <Section title="Pagamento">
+      {!paymentConnected ? (
         <div className="space-y-3">
           <p className="text-sm text-[var(--text-secondary)]">
-            Conecte sua conta do Mercado Pago para aceitar pagamentos via PIX, cartão de crédito e débito.
-            Sem conexão, sua loja só aceita pagamento na entrega.
+            Configure sua conta de pagamento para aceitar pagamentos via PIX, cartao de credito e debito.
+            Sem conexao, sua loja so aceita pagamento na entrega.
           </p>
           <ul className="space-y-1 text-sm text-[var(--text-muted)]">
             <li>• Receba pagamentos diretamente na sua conta</li>
-            <li>• Aceite PIX, cartão de crédito e débito</li>
-            <li>• Habilite entregadores autônomos do app</li>
+            <li>• Aceite PIX, cartao de credito e debito</li>
+            <li>• Habilite entregadores autonomos do app</li>
           </ul>
-          <button
-            onClick={handleConnectMp}
-            disabled={mpUrlLoading}
-            className="px-6 py-3 bg-[#009ee3] text-white rounded-xl font-bold cursor-pointer hover:bg-[#0087c9] active:scale-95 disabled:opacity-50 transition"
-          >
-            {mpUrlLoading ? "Carregando..." : "Conectar Mercado Pago"}
-          </button>
+          <p className="text-sm text-[var(--text-muted)]">
+            Entre em contato com o suporte para configurar sua conta de pagamento.
+          </p>
         </div>
       ) : (
         <div className="flex items-center justify-between">
@@ -1066,11 +1069,11 @@ function MercadoPagoSection() {
             <span className="text-green-500 text-lg">✓</span>
             <div>
               <p className="font-semibold text-green-700 text-sm">Conta conectada</p>
-              <p className="text-green-600 text-xs">Você recebe pagamentos diretamente na sua conta.</p>
+              <p className="text-green-600 text-xs">Voce recebe pagamentos diretamente na sua conta.</p>
             </div>
           </div>
           <button
-            onClick={handleDisconnectMp}
+            onClick={handleDisconnect}
             disabled={disconnecting}
             className="px-4 py-2 border border-red-300 text-red-600 rounded-xl text-sm font-semibold cursor-pointer hover:bg-red-50 disabled:opacity-50 transition"
           >
@@ -1088,7 +1091,7 @@ export default function SettingsPage() {
       <h1 className="text-2xl font-bold text-[var(--text-primary)] mb-6">Configuracoes</h1>
       <ProfileSection />
       <StoresSection />
-      <MercadoPagoSection />
+      <PaymentSection />
       <VerificationSection />
       <ContractsSection />
       <AppearanceSection />

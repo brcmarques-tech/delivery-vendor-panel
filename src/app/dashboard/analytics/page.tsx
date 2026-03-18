@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@apollo/client";
-import { GET_MY_STORES, GET_STORE_ORDERS, GET_MY_PLAN, GET_AVAILABLE_PLANS } from "@/lib/graphql";
+import { GET_MY_STORES, GET_STORE_ORDERS, GET_MY_PLAN, GET_AVAILABLE_PLANS, GET_STORE_CART_SUMMARY } from "@/lib/graphql";
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import {
@@ -45,12 +45,90 @@ function StatCard({ label, value, sub, color }: { label: string; value: string; 
   );
 }
 
+const PODIUM_MEDALS = ["🥇", "🥈", "🥉", "4", "5"];
+const PODIUM_COLORS = [
+  { bar: "from-yellow-500 to-amber-400", border: "border-yellow-500/30", bg: "bg-yellow-500/10", text: "text-yellow-500" },
+  { bar: "from-gray-400 to-gray-300", border: "border-gray-400/30", bg: "bg-gray-400/10", text: "text-gray-400" },
+  { bar: "from-amber-700 to-amber-600", border: "border-amber-600/30", bg: "bg-amber-600/10", text: "text-amber-600" },
+  { bar: "from-blue-500 to-blue-400", border: "border-blue-500/20", bg: "bg-blue-500/5", text: "text-blue-400" },
+  { bar: "from-purple-500 to-purple-400", border: "border-purple-500/20", bg: "bg-purple-500/5", text: "text-purple-400" },
+];
+// Heights: 1st=tallest, 2nd, 3rd, 4th, 5th
+const PODIUM_HEIGHTS = [160, 120, 96, 72, 56];
+// Podium order: 4th, 2nd, 1st, 3rd, 5th (Olympic style)
+const PODIUM_ORDER = [3, 1, 0, 2, 4];
+
+function PodiumChart({ title, items, valueLabel }: {
+  title: string;
+  items: { name: string; value: string; sub: string; imageUrl?: string }[];
+  valueLabel?: string;
+}) {
+  if (items.length === 0) return null;
+  const count = Math.min(items.length, 5);
+  // Reorder for podium: [4th, 2nd, 1st, 3rd, 5th]
+  const podiumSlots = PODIUM_ORDER.slice(0, count).filter((i) => i < count);
+
+  return (
+    <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border-color)] p-6">
+      <h3 className="font-semibold text-[var(--text-primary)] mb-6">{title}</h3>
+
+      {/* Podium */}
+      <div className="flex items-end justify-center gap-2 sm:gap-3 mb-4" style={{ minHeight: 220 }}>
+        {podiumSlots.map((idx) => {
+          const item = items[idx];
+          const colors = PODIUM_COLORS[idx];
+          const height = PODIUM_HEIGHTS[idx];
+          const medal = PODIUM_MEDALS[idx];
+          const isTop3 = idx < 3;
+
+          return (
+            <div key={idx} className="flex flex-col items-center flex-1 max-w-[110px]">
+              {/* Image thumbnail */}
+              {item.imageUrl ? (
+                <img
+                  src={item.imageUrl}
+                  alt={item.name}
+                  className="w-10 h-10 rounded-full object-cover border-2 border-[var(--border-color)] mb-1"
+                />
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-[var(--bg-hover)] border-2 border-[var(--border-color)] flex items-center justify-center mb-1">
+                  <span className="text-sm font-bold text-[var(--text-secondary)]">{item.name.charAt(0)}</span>
+                </div>
+              )}
+              {/* Name above bar */}
+              <p className="text-xs text-[var(--text-secondary)] text-center truncate w-full mb-1.5 px-0.5" title={item.name}>
+                {item.name}
+              </p>
+              {/* Value */}
+              <p className={`text-xs font-bold ${colors.text} mb-1`}>{item.value}</p>
+              {/* Bar */}
+              <div
+                className={`w-full rounded-t-xl bg-gradient-to-t ${colors.bar} relative flex flex-col items-center justify-start pt-2 transition-all duration-500`}
+                style={{ height }}
+              >
+                {/* Medal/position */}
+                <span className={`${isTop3 ? "text-2xl" : "text-sm font-bold text-white/70"}`}>
+                  {medal}
+                </span>
+                {/* Sub info */}
+                <p className="text-[10px] text-white/70 mt-1 text-center px-1">{item.sub}</p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function AnalyticsPage() {
   const { data: userData, loading: loadingUser } = useQuery(GET_MY_PLAN);
   const { data: plansData } = useQuery(GET_AVAILABLE_PLANS);
   const { data: storesData, loading: loadingStores } = useQuery(GET_MY_STORES);
   const [selectedStore, setSelectedStore] = useState<string | null>(null);
   const [period, setPeriod] = useState<"7d" | "30d" | "90d" | "all">("30d");
+  const [showCart, setShowCart] = useState(false);
+  const [cartSearch, setCartSearch] = useState("");
 
   const vendorPlan = userData?.meVendor?.vendorPlan || "FREE";
   const plans = plansData?.availablePlans || [];
@@ -64,6 +142,12 @@ export default function AnalyticsPage() {
     variables: { storeId },
     skip: !storeId || !hasAnalytics,
   });
+
+  const { data: cartData } = useQuery(GET_STORE_CART_SUMMARY, {
+    variables: { storeId },
+    skip: !storeId || !hasAnalytics,
+  });
+  const cartSummary = cartData?.storeCartSummary || [];
 
   const analytics = useMemo(() => {
     if (!ordersData?.storeOrders) return null;
@@ -128,11 +212,11 @@ export default function AnalyticsPage() {
     }));
 
     // Top products (for bar chart)
-    const productSales: Record<string, { name: string; qty: number; revenue: number }> = {};
+    const productSales: Record<string, { name: string; qty: number; revenue: number; imageUrl?: string }> = {};
     delivered.forEach((o) => {
       (o.items || []).forEach((item: any) => {
         const name = item.product?.name || "Removido";
-        if (!productSales[name]) productSales[name] = { name, qty: 0, revenue: 0 };
+        if (!productSales[name]) productSales[name] = { name, qty: 0, revenue: 0, imageUrl: item.product?.imageUrl };
         productSales[name].qty += item.quantity;
         productSales[name].revenue += Number(item.totalPrice);
       });
@@ -158,6 +242,135 @@ export default function AnalyticsPage() {
     const uniqueCustomers = new Set(orders.map((o) => o.customer?.name).filter(Boolean)).size;
     const conversionRate = orders.length > 0 ? (delivered.length / orders.length) * 100 : 0;
 
+    // Top customers by spending
+    const customerMap: Record<string, { name: string; orders: number; total: number; items: number; avatarUrl?: string }> = {};
+    delivered.forEach((o) => {
+      const name = o.customer?.name || "Desconhecido";
+      const id = o.customer?.id || name;
+      if (!customerMap[id]) customerMap[id] = { name, orders: 0, total: 0, items: 0, avatarUrl: o.customer?.avatarUrl };
+      customerMap[id].orders += 1;
+      customerMap[id].total += Number(o.total);
+      customerMap[id].items += (o.items || []).reduce((sum: number, i: any) => sum + i.quantity, 0);
+    });
+    const topCustomers = Object.values(customerMap)
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 5)
+      .map((c) => ({ ...c, total: Math.round(c.total * 100) / 100 }));
+
+    // Most popular items by quantity (all orders, not just delivered)
+    const itemPopularity: Record<string, { name: string; qty: number; orders: number; imageUrl?: string }> = {};
+    orders.forEach((o) => {
+      const seen = new Set<string>();
+      (o.items || []).forEach((item: any) => {
+        const name = item.product?.name || "Removido";
+        if (!itemPopularity[name]) itemPopularity[name] = { name, qty: 0, orders: 0, imageUrl: item.product?.imageUrl };
+        itemPopularity[name].qty += item.quantity;
+        if (!seen.has(name)) {
+          itemPopularity[name].orders += 1;
+          seen.add(name);
+        }
+      });
+    });
+    const popularItems = Object.values(itemPopularity)
+      .sort((a, b) => b.qty - a.qty)
+      .slice(0, 10);
+
+    // Best seller (product #1 by revenue)
+    const bestSeller = topProducts.length > 0 ? topProducts[0] : null;
+
+    // Least selling products (reverse of topProducts, only products with sales)
+    const leastSelling = Object.values(productSales)
+      .sort((a, b) => a.revenue - b.revenue)
+      .slice(0, 5)
+      .map((p) => ({ ...p, revenue: Math.round(p.revenue * 100) / 100 }));
+
+    // --- Coupon impact ---
+    const ordersWithCoupon = delivered.filter((o) => o.couponCode);
+    const ordersWithoutCoupon = delivered.filter((o) => !o.couponCode);
+    const totalDiscountGiven = delivered.reduce((sum, o) => sum + Number(o.discount || 0), 0);
+    const avgTicketWithCoupon = ordersWithCoupon.length > 0
+      ? ordersWithCoupon.reduce((sum, o) => sum + Number(o.total), 0) / ordersWithCoupon.length : 0;
+    const avgTicketWithoutCoupon = ordersWithoutCoupon.length > 0
+      ? ordersWithoutCoupon.reduce((sum, o) => sum + Number(o.total), 0) / ordersWithoutCoupon.length : 0;
+    // Coupon usage by code
+    const couponUsage: Record<string, { code: string; uses: number; totalDiscount: number; totalRevenue: number }> = {};
+    ordersWithCoupon.forEach((o) => {
+      const code = o.couponCode!;
+      if (!couponUsage[code]) couponUsage[code] = { code, uses: 0, totalDiscount: 0, totalRevenue: 0 };
+      couponUsage[code].uses += 1;
+      couponUsage[code].totalDiscount += Number(o.discount || 0);
+      couponUsage[code].totalRevenue += Number(o.total);
+    });
+    const couponBreakdown = Object.values(couponUsage)
+      .sort((a, b) => b.uses - a.uses)
+      .map((c) => ({ ...c, totalDiscount: Math.round(c.totalDiscount * 100) / 100, totalRevenue: Math.round(c.totalRevenue * 100) / 100 }));
+
+    const couponStats = {
+      ordersWithCoupon: ordersWithCoupon.length,
+      ordersWithoutCoupon: ordersWithoutCoupon.length,
+      totalDiscountGiven: Math.round(totalDiscountGiven * 100) / 100,
+      avgTicketWithCoupon: Math.round(avgTicketWithCoupon * 100) / 100,
+      avgTicketWithoutCoupon: Math.round(avgTicketWithoutCoupon * 100) / 100,
+      breakdown: couponBreakdown,
+    };
+
+    // --- Promotional items impact ---
+    let promoItemsRevenue = 0;
+    let promoItemsSaved = 0; // how much customer saved (regular - promo) * qty
+    let promoItemsQty = 0;
+    let regularItemsRevenue = 0;
+    let regularItemsQty = 0;
+    const promoProductMap: Record<string, { name: string; revenue: number; saved: number; qty: number; weightKg: number; imageUrl?: string }> = {};
+
+    delivered.forEach((o) => {
+      (o.items || []).forEach((item: any) => {
+        const product = item.product;
+        if (!product) return;
+        const regularPrice = Number(product.price || 0);
+        const unitPrice = Number(item.unitPrice || 0);
+        const qty = item.quantity || 0;
+        const isPromo = regularPrice > 0 && unitPrice < regularPrice;
+        const totalPrice = Number(item.totalPrice || 0);
+        const isWeight = product.isVariableWeight;
+        const weightKg = isWeight && item.weightGrams ? item.weightGrams / 1000 : 0;
+
+        if (isPromo) {
+          promoItemsRevenue += totalPrice;
+          const savedPerUnit = regularPrice - unitPrice;
+          const savedTotal = isWeight ? savedPerUnit * weightKg : savedPerUnit * qty;
+          promoItemsSaved += savedTotal;
+          promoItemsQty += isWeight ? weightKg : qty;
+
+          const name = product.name || "Removido";
+          if (!promoProductMap[name]) promoProductMap[name] = { name, revenue: 0, saved: 0, qty: 0, weightKg: 0, imageUrl: product.imageUrl };
+          promoProductMap[name].revenue += totalPrice;
+          promoProductMap[name].saved += savedTotal;
+          if (isWeight) {
+            promoProductMap[name].weightKg += weightKg;
+          } else {
+            promoProductMap[name].qty += qty;
+          }
+        } else {
+          regularItemsRevenue += totalPrice;
+          regularItemsQty += isWeight ? (item.weightGrams ? item.weightGrams / 1000 : 0) : qty;
+        }
+      });
+    });
+
+    const promoProducts = Object.values(promoProductMap)
+      .sort((a, b) => b.revenue - a.revenue)
+      .map((p) => ({ ...p, revenue: Math.round(p.revenue * 100) / 100, saved: Math.round(p.saved * 100) / 100 }));
+
+    const promoStats = {
+      promoItemsRevenue: Math.round(promoItemsRevenue * 100) / 100,
+      promoItemsSaved: Math.round(promoItemsSaved * 100) / 100,
+      promoItemsQty: Math.round(promoItemsQty * 100) / 100,
+      regularItemsRevenue: Math.round(regularItemsRevenue * 100) / 100,
+      regularItemsQty: Math.round(regularItemsQty * 100) / 100,
+      promoProducts,
+      promoSharePercent: totalRevenue > 0 ? Math.round((promoItemsRevenue / totalRevenue) * 1000) / 10 : 0,
+    };
+
     return {
       totalOrders: orders.length,
       delivered: delivered.length,
@@ -167,9 +380,15 @@ export default function AnalyticsPage() {
       byStatus,
       dailyData,
       topProducts,
+      leastSelling,
       hourlyData,
       uniqueCustomers,
       conversionRate,
+      topCustomers,
+      popularItems,
+      bestSeller,
+      couponStats,
+      promoStats,
     };
   }, [ordersData, period]);
 
@@ -244,19 +463,22 @@ export default function AnalyticsPage() {
         <p className="text-[var(--text-muted)]">Nenhum dado disponivel.</p>
       ) : (
         <>
-          {/* Stats cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <StatCard label="Total de Pedidos" value={String(analytics.totalOrders)} />
+          {/* Financeiro */}
+          <h2 className="text-lg font-bold text-[var(--text-primary)] mb-3">Financeiro</h2>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
             <StatCard label="Faturamento" value={`R$ ${analytics.totalRevenue.toFixed(2)}`} color="text-green-600" sub={`${analytics.delivered} entregue(s)`} />
             <StatCard label="Ticket Medio" value={`R$ ${analytics.avgTicket.toFixed(2)}`} color="text-blue-600" />
+            <StatCard label="Taxa de Conversao" value={`${analytics.conversionRate.toFixed(1)}%`} sub="entregues / total" color="text-orange-500" />
             <StatCard label="Clientes Unicos" value={String(analytics.uniqueCustomers)} color="text-purple-600" />
           </div>
 
+          {/* Pedidos */}
+          <h2 className="text-lg font-bold text-[var(--text-primary)] mb-3">Pedidos</h2>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            <StatCard label="Taxa de Conversao" value={`${analytics.conversionRate.toFixed(1)}%`} sub="entregues / total" />
+            <StatCard label="Total de Pedidos" value={String(analytics.totalOrders)} />
             <StatCard label="Entregues" value={String(analytics.delivered)} color="text-green-600" />
-            <StatCard label="Cancelados" value={String(analytics.cancelled)} color="text-red-500" />
             <StatCard label="Em Andamento" value={String(analytics.totalOrders - analytics.delivered - analytics.cancelled)} color="text-orange-500" />
+            <StatCard label="Cancelados" value={String(analytics.cancelled)} color="text-red-500" />
           </div>
 
           {/* Revenue area chart */}
@@ -351,10 +573,276 @@ export default function AnalyticsPage() {
             </div>
           </div>
 
-          {/* Top products */}
+          {/* Podium: Top Products by Revenue */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <PodiumChart
+              title="Top Produtos (Receita)"
+              items={analytics.topProducts.slice(0, 5).map((p: any) => ({
+                name: p.name,
+                value: `R$ ${p.revenue.toFixed(2)}`,
+                sub: `${p.qty} un.`,
+                imageUrl: p.imageUrl,
+              }))}
+            />
+
+            {/* Podium: Most Popular Items by Quantity */}
+            <PodiumChart
+              title="Itens Mais Pedidos"
+              items={analytics.popularItems.slice(0, 5).map((p: any) => ({
+                name: p.name,
+                value: `${p.qty} un.`,
+                sub: `${p.orders} pedido${p.orders > 1 ? "s" : ""}`,
+                imageUrl: p.imageUrl,
+              }))}
+            />
+          </div>
+
+          {/* Podium: Top Customers + Least Selling */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <PodiumChart
+              title="Clientes que Mais Compraram"
+              items={analytics.topCustomers.slice(0, 5).map((c: any) => ({
+                name: c.name,
+                value: `R$ ${c.total.toFixed(2)}`,
+                sub: `${c.orders} pedido${c.orders > 1 ? "s" : ""}`,
+                imageUrl: c.avatarUrl,
+              }))}
+            />
+
+            {/* Least selling products */}
+            {analytics.leastSelling && analytics.leastSelling.length > 0 && (
+              <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border-color)] p-6">
+                <h3 className="font-semibold text-[var(--text-primary)] mb-4">Produtos que Menos Vendem</h3>
+                <div className="space-y-3">
+                  {analytics.leastSelling.map((p: any, i: number) => (
+                    <div key={i} className="flex items-center gap-3">
+                      <span className="text-sm font-bold text-red-400 w-6 text-center">{i + 1}</span>
+                      {p.imageUrl ? (
+                        <img src={p.imageUrl} alt={p.name} className="w-8 h-8 rounded-lg object-cover" />
+                      ) : (
+                        <div className="w-8 h-8 rounded-lg bg-[var(--bg-hover)] flex items-center justify-center">
+                          <span className="text-xs font-bold text-[var(--text-secondary)]">{p.name.charAt(0)}</span>
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-[var(--text-primary)] truncate">{p.name}</p>
+                        <p className="text-xs text-[var(--text-secondary)]">
+                          {p.qty} un. vendida{p.qty !== 1 ? "s" : ""}
+                        </p>
+                      </div>
+                      <p className="text-sm font-semibold text-red-400">R$ {p.revenue.toFixed(2)}</p>
+                    </div>
+                  ))}
+                </div>
+                {analytics.leastSelling.length > 0 && (
+                  <p className="text-xs text-[var(--text-muted)] mt-4 italic">
+                    Considere criar promocoes ou cupons para esses produtos
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* --- Coupon Impact --- */}
+          {analytics.couponStats && (analytics.couponStats.ordersWithCoupon > 0 ) && (
+            <div className="mb-6">
+              <h2 className="text-lg font-bold text-[var(--text-primary)] mb-4">Impacto dos Cupons</h2>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                <StatCard
+                  label="Pedidos com Cupom"
+                  value={String(analytics.couponStats.ordersWithCoupon)}
+                  color="text-green-600"
+                  sub={`de ${analytics.couponStats.ordersWithCoupon + analytics.couponStats.ordersWithoutCoupon} entregues`}
+                />
+                <StatCard
+                  label="Total em Descontos"
+                  value={`R$ ${analytics.couponStats.totalDiscountGiven.toFixed(2)}`}
+                  color="text-red-500"
+                />
+                <StatCard
+                  label="Ticket Medio c/ Cupom"
+                  value={`R$ ${analytics.couponStats.avgTicketWithCoupon.toFixed(2)}`}
+                  color="text-blue-600"
+                />
+                <StatCard
+                  label="Ticket Medio s/ Cupom"
+                  value={`R$ ${analytics.couponStats.avgTicketWithoutCoupon.toFixed(2)}`}
+                  color="text-gray-500"
+                />
+              </div>
+
+              {analytics.couponStats.breakdown.length > 0 && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Coupon comparison bar */}
+                  <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border-color)] p-6">
+                    <h3 className="font-semibold text-[var(--text-primary)] mb-4">Comparativo: Com vs Sem Cupom</h3>
+                    <ResponsiveContainer width="100%" height={200}>
+                      <BarChart data={[
+                        { name: "Com Cupom", pedidos: analytics.couponStats.ordersWithCoupon, ticket: analytics.couponStats.avgTicketWithCoupon },
+                        { name: "Sem Cupom", pedidos: analytics.couponStats.ordersWithoutCoupon, ticket: analytics.couponStats.avgTicketWithoutCoupon },
+                      ]}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
+                        <XAxis dataKey="name" tick={{ fontSize: 12, fill: "var(--text-secondary)" }} />
+                        <YAxis tick={{ fontSize: 11, fill: "#9ca3af" }} allowDecimals={false} />
+                        <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid var(--border-color)", background: "var(--bg-card)", color: "var(--text-primary)" }} />
+                        <Bar dataKey="pedidos" fill="#22c55e" radius={[6, 6, 0, 0]} name="Pedidos" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  {/* Coupon breakdown by code */}
+                  <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border-color)] p-6">
+                    <h3 className="font-semibold text-[var(--text-primary)] mb-4">Desempenho por Cupom</h3>
+                    <ResponsiveContainer width="100%" height={Math.max(analytics.couponStats.breakdown.length * 50, 200)}>
+                      <BarChart data={analytics.couponStats.breakdown} layout="vertical" margin={{ left: 10 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" horizontal={false} />
+                        <XAxis type="number" tick={{ fontSize: 11, fill: "#9ca3af" }} />
+                        <YAxis type="category" dataKey="code" tick={{ fontSize: 12, fill: "var(--text-secondary)" }} width={100} />
+                        <Tooltip
+                          formatter={(value: any, name: any) => {
+                            if (name === "uses") return [value, "Usos"];
+                            if (name === "totalRevenue") return [`R$ ${Number(value).toFixed(2)}`, "Receita gerada"];
+                            if (name === "totalDiscount") return [`R$ ${Number(value).toFixed(2)}`, "Desconto dado"];
+                            return [value, name];
+                          }}
+                          contentStyle={{ borderRadius: 12, border: "1px solid var(--border-color)", background: "var(--bg-card)", color: "var(--text-primary)" }}
+                        />
+                        <Bar dataKey="totalRevenue" fill="#22c55e" radius={[0, 6, 6, 0]} name="totalRevenue" />
+                        <Bar dataKey="totalDiscount" fill="#ef4444" radius={[0, 6, 6, 0]} name="totalDiscount" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* --- Promotional Items Impact --- */}
+          {analytics.promoStats && (analytics.promoStats.promoItemsRevenue > 0 ) && (
+            <div className="mb-6">
+              <h2 className="text-lg font-bold text-[var(--text-primary)] mb-4">Impacto das Promocoes</h2>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                <StatCard
+                  label="Receita Promocional"
+                  value={`R$ ${analytics.promoStats.promoItemsRevenue.toFixed(2)}`}
+                  color="text-green-600"
+                  sub={`${analytics.promoStats.promoSharePercent}% do total`}
+                />
+                <StatCard
+                  label="Economia p/ Clientes"
+                  value={`R$ ${analytics.promoStats.promoItemsSaved.toFixed(2)}`}
+                  color="text-orange-500"
+                  sub="desconto total dado"
+                />
+                <StatCard
+                  label="Itens em Promo Vendidos"
+                  value={String(analytics.promoStats.promoItemsQty)}
+                  color="text-purple-600"
+                />
+                <StatCard
+                  label="Receita Preco Normal"
+                  value={`R$ ${analytics.promoStats.regularItemsRevenue.toFixed(2)}`}
+                  color="text-gray-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Promo vs Regular pie */}
+                <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border-color)] p-6">
+                  <h3 className="font-semibold text-[var(--text-primary)] mb-4">Receita: Promocional vs Normal</h3>
+                  <ResponsiveContainer width="100%" height={260}>
+                    <PieChart>
+                      <Pie
+                        data={[
+                          { name: "Preco promocional", value: analytics.promoStats.promoItemsRevenue },
+                          { name: "Preco normal", value: analytics.promoStats.regularItemsRevenue },
+                        ]}
+                        cx="50%" cy="50%"
+                        innerRadius={55} outerRadius={90}
+                        paddingAngle={3} dataKey="value" nameKey="name"
+                      >
+                        <Cell fill="#f97316" />
+                        <Cell fill="#6b7280" />
+                      </Pie>
+                      <Tooltip
+                        formatter={(value: any, name: any) => [`R$ ${Number(value).toFixed(2)}`, name]}
+                        contentStyle={{ borderRadius: 12, border: "1px solid var(--border-color)", background: "var(--bg-card)", color: "var(--text-primary)" }}
+                      />
+                      <Legend
+                        verticalAlign="bottom" iconType="circle" iconSize={8}
+                        formatter={(value) => <span className="text-xs text-[var(--text-secondary)]">{value}</span>}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+
+                {/* Top promo products */}
+                {analytics.promoStats.promoProducts.length > 0 && (
+                  <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border-color)] p-6">
+                    <h3 className="font-semibold text-[var(--text-primary)] mb-4">Produtos em Promocao</h3>
+                    <div className="space-y-3">
+                      {analytics.promoStats.promoProducts.map((p: any, i: number) => (
+                        <div key={i} className="flex items-center gap-3">
+                          <span className="text-sm font-bold text-orange-500 w-6 text-center">{i + 1}</span>
+                          {p.imageUrl ? (
+                            <img src={p.imageUrl} alt={p.name} className="w-8 h-8 rounded-lg object-cover" />
+                          ) : (
+                            <div className="w-8 h-8 rounded-lg bg-[var(--bg-hover)] flex items-center justify-center">
+                              <span className="text-xs font-bold text-[var(--text-secondary)]">{p.name.charAt(0)}</span>
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm text-[var(--text-primary)] truncate">{p.name}</p>
+                            <p className="text-xs text-[var(--text-secondary)]">
+                              {p.weightKg > 0 ? `${p.weightKg.toFixed(1)}kg` : `${p.qty} un.`} vendida{p.qty !== 1 && p.weightKg === 0 ? "s" : ""}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm font-semibold text-green-500">R$ {p.revenue.toFixed(2)}</p>
+                            <p className="text-[10px] text-orange-400">-R$ {p.saved.toFixed(2)} desc.</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* --- Plan visibility info --- */}
+          {vendorPlan !== "FREE" && (
+            <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border-color)] p-6 mb-6">
+              <h3 className="font-semibold text-[var(--text-primary)] mb-3">Visibilidade do Plano {vendorPlan}</h3>
+              <p className="text-sm text-[var(--text-secondary)] mb-4">
+                Seu plano atual da prioridade na listagem de lojas e produtos para os clientes.
+                Quanto maior o plano, mais destaque voce recebe nas buscas e na tela inicial do app.
+              </p>
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+                {currentPlanConfig && (
+                  <>
+                    <div className="bg-[var(--bg-hover)] rounded-xl p-3">
+                      <p className="text-xs text-[var(--text-secondary)]">Prioridade de Listagem</p>
+                      <p className="text-lg font-bold text-[var(--text-primary)]">{currentPlanConfig.listingPriority || 1}x</p>
+                    </div>
+                    <div className="bg-[var(--bg-hover)] rounded-xl p-3">
+                      <p className="text-xs text-[var(--text-secondary)]">Destaque Mensal</p>
+                      <p className="text-lg font-bold text-[var(--text-primary)]">{currentPlanConfig.highlightDaysPerMonth || 0} dias</p>
+                    </div>
+                    <div className="bg-[var(--bg-hover)] rounded-xl p-3">
+                      <p className="text-xs text-[var(--text-secondary)]">Promos Gratis/Semana</p>
+                      <p className="text-lg font-bold text-[var(--text-primary)]">{currentPlanConfig.freePromosPerWeek || 0}</p>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Full product revenue chart */}
           {analytics.topProducts.length > 0 && (
             <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border-color)] p-6 mb-6">
-              <h3 className="font-semibold text-[var(--text-primary)] mb-4">Top Produtos</h3>
+              <h3 className="font-semibold text-[var(--text-primary)] mb-4">Produtos por Receita</h3>
               <ResponsiveContainer width="100%" height={Math.max(analytics.topProducts.length * 45, 200)}>
                 <BarChart data={analytics.topProducts} layout="vertical" margin={{ left: 10 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" horizontal={false} />
@@ -375,6 +863,52 @@ export default function AnalyticsPage() {
                   <Bar dataKey="revenue" fill="#f97316" radius={[0, 6, 6, 0]} name="revenue" />
                 </BarChart>
               </ResponsiveContainer>
+            </div>
+          )}
+
+          {/* Nos carrinhos — por ultimo, com toggle */}
+          {cartSummary.length > 0 && (
+            <div className="mb-6">
+              <button
+                onClick={() => setShowCart(!showCart)}
+                className="flex items-center gap-2 text-lg font-bold text-[var(--text-primary)] mb-3 cursor-pointer hover:text-orange-500 transition"
+              >
+                <span className={`transition-transform ${showCart ? "rotate-90" : ""}`}>&#9654;</span>
+                Nos Carrinhos Agora
+                <span className="text-sm font-normal text-[var(--text-secondary)]">({cartSummary.length} produto{cartSummary.length !== 1 ? "s" : ""})</span>
+              </button>
+              {showCart && (
+              <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border-color)] p-6">
+                <input
+                  type="text"
+                  placeholder="Buscar produto..."
+                  value={cartSearch}
+                  onChange={(e) => setCartSearch(e.target.value)}
+                  className="w-full bg-[var(--bg-hover)] border border-[var(--border-color)] rounded-xl px-4 py-2 text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] mb-4 focus:outline-none focus:border-orange-400"
+                />
+                <div className="space-y-3">
+                  {cartSummary.filter((item: any) => item.productName.toLowerCase().includes(cartSearch.toLowerCase())).map((item: any, i: number) => (
+                    <div key={item.productId} className="flex items-center gap-3">
+                      <span className="text-sm font-bold text-orange-500 w-6 text-center">{i + 1}</span>
+                      {item.productImageUrl ? (
+                        <img src={item.productImageUrl} alt={item.productName} className="w-9 h-9 rounded-lg object-cover" />
+                      ) : (
+                        <div className="w-9 h-9 rounded-lg bg-[var(--bg-hover)] flex items-center justify-center">
+                          <span className="text-xs font-bold text-[var(--text-secondary)]">{item.productName.charAt(0)}</span>
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-[var(--text-primary)] truncate">{item.productName}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-semibold text-orange-500">{item.totalPeople} pessoa{item.totalPeople !== 1 ? "s" : ""}</p>
+                        <p className="text-[10px] text-[var(--text-secondary)]">{item.totalQuantity} un. total</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              )}
             </div>
           )}
         </>
