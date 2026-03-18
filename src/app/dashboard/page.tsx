@@ -130,9 +130,9 @@ function DashboardContent() {
       )}
 
       {!paymentConnected && (
-        <div className="bg-green-50 border border-green-200 rounded-2xl p-4 mb-6">
+        <div className="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-2xl p-4 mb-6">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center flex-shrink-0">
+            <div className="w-10 h-10 bg-green-100 dark:bg-green-800/50 rounded-xl flex items-center justify-center flex-shrink-0">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="#65A300" className="w-5 h-5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Z" />
               </svg>
@@ -159,8 +159,8 @@ function DashboardContent() {
       </div>
 
       {paymentToast && (
-        <div className="bg-green-50 border border-green-200 rounded-2xl p-4 mb-6 flex items-center justify-between">
-          <p className="text-green-700 font-medium text-sm">Pagamento conectado com sucesso!</p>
+        <div className="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-2xl p-4 mb-6 flex items-center justify-between">
+          <p className="text-green-700 dark:text-green-300 font-medium text-sm">Pagamento conectado com sucesso!</p>
           <button onClick={() => setPaymentToast(false)} className="text-green-400 hover:text-green-600 text-lg cursor-pointer">✕</button>
         </div>
       )}

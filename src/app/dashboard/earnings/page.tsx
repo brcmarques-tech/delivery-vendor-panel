@@ -341,9 +341,9 @@ function EarningsDashboard() {
     <div className="space-y-6">
       {/* Balance Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <BalanceCard label="Disponivel para saque" value={balance?.availableAmount || 0} color="border-green-200 bg-green-50" />
-        <BalanceCard label="A receber" value={balance?.waitingFundsAmount || 0} color="border-orange-200 bg-orange-50" />
-        <BalanceCard label="Ja transferido" value={balance?.transferredAmount || 0} color="border-blue-200 bg-blue-50" />
+        <BalanceCard label="Disponivel para saque" value={balance?.availableAmount || 0} color="border-green-200 bg-green-50 dark:bg-green-900/30 dark:border-green-800" />
+        <BalanceCard label="A receber" value={balance?.waitingFundsAmount || 0} color="border-orange-200 bg-orange-50 dark:bg-orange-900/30 dark:border-orange-800" />
+        <BalanceCard label="Ja transferido" value={balance?.transferredAmount || 0} color="border-blue-200 bg-blue-50 dark:bg-blue-900/30 dark:border-blue-800" />
       </div>
 
       {/* Anticipation Section */}

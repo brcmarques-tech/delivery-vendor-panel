@@ -125,7 +125,7 @@ export default function DashboardLayout({
                   href={item.href}
                   className={`flex items-center gap-3 px-4 py-2.5 rounded-xl transition ${
                     pathname === item.href
-                      ? "bg-orange-50 text-orange-600 font-semibold"
+                      ? "bg-orange-50 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 font-semibold"
                       : "text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
                   }`}
                 >
