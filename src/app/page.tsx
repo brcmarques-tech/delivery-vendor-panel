@@ -66,17 +66,24 @@ export default function LoginPage() {
     }
   }, [handleGoogleResponse]);
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent, forceLogin: boolean = false) {
     e.preventDefault();
     setError("");
     try {
-      const { data } = await login({ variables: { input: { email, password } } });
+      const { data } = await login({ variables: { input: { email, password }, forceLogin } });
       localStorage.setItem("token", data.loginVendor.accessToken);
       localStorage.setItem("user", JSON.stringify(data.loginVendor.user));
       await apolloClient.resetStore();
       router.push("/dashboard");
-    } catch {
-      setError("Email ou senha inválidos");
+    } catch (err: any) {
+      const msg = err?.message || "";
+      if (msg.includes("ACTIVE_SESSION")) {
+        if (confirm("Esta conta já está logada em outro lugar. Deseja desconectar o outro e entrar aqui?")) {
+          handleSubmit(e, true);
+        }
+      } else {
+        setError("Email ou senha inválidos");
+      }
     }
   }
 

@@ -1,8 +1,8 @@
 import { gql } from '@apollo/client';
 
 export const LOGIN = gql`
-  mutation LoginVendor($input: LoginInput!) {
-    loginVendor(input: $input) {
+  mutation LoginVendor($input: LoginInput!, $forceLogin: Boolean) {
+    loginVendor(input: $input, forceLogin: $forceLogin) {
       accessToken
       user { id name email role emailVerified phoneVerified }
     }
