@@ -168,7 +168,7 @@ function DashboardContent() {
       {/* Delete store modal */}
       {deletingStoreId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={closeDeleteModal}>
-          <div className="bg-[var(--bg-card)] rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-[var(--bg-card)] rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6 max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             {deleteSuccess ? (
               <>
                 <h3 className="text-lg font-bold text-green-600 mb-2">Email enviado!</h3>
