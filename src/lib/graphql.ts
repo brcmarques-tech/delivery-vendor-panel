@@ -539,3 +539,12 @@ export const RESET_PASSWORD = gql`
     resetPassword(token: $token, newPassword: $newPassword, type: "vendor")
   }
 `;
+
+export const SESSION_KICKED_SUB = gql`
+  subscription SessionKicked($userId: String!, $userType: String) {
+    sessionKicked(userId: $userId, userType: $userType) {
+      userId
+      userType
+    }
+  }
+`;
