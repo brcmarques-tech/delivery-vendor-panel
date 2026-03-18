@@ -29,6 +29,8 @@ export default function LoginPage() {
   const handleGoogleResponse = useCallback(async (response: any) => {
     setError("");
     setGoogleLoading(true);
+    (window as any).__justLoggedIn = true;
+    setTimeout(() => { (window as any).__justLoggedIn = false; }, 3000);
     try {
       const { data } = await googleAuth({ variables: { idToken: response.credential } });
       const user = data.googleAuthVendor.user;
@@ -70,6 +72,10 @@ export default function LoginPage() {
     e.preventDefault();
     setError("");
     try {
+      if (forceLogin) {
+        (window as any).__justLoggedIn = true;
+        setTimeout(() => { (window as any).__justLoggedIn = false; }, 3000);
+      }
       const { data } = await login({ variables: { input: { email, password }, forceLogin } });
       localStorage.setItem("token", data.loginVendor.accessToken);
       localStorage.setItem("user", JSON.stringify(data.loginVendor.user));

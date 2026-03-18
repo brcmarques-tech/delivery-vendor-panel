@@ -85,6 +85,8 @@ export default function DashboardLayout({
     variables: { userId: user?.id, userType: 'vendor' },
     skip: !user?.id,
     onData: () => {
+      // Ignore kick events right after forceLogin (same userId gets kicked then logged in)
+      if (typeof window !== 'undefined' && (window as any).__justLoggedIn) return;
       localStorage.removeItem("token");
       localStorage.removeItem("user");
       apolloClient.clearStore();
