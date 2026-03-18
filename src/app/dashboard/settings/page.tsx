@@ -282,7 +282,7 @@ function StoresSection() {
 
   function startEdit(store: any) {
     setEditingStore(store.id);
-    setShowCreate(false);
+    setShowCreateModal(false);
     setForm({
       name: store.name || "", description: store.description || "", phone: store.phone || "",
       street: store.street || "", number: store.number || "", complement: store.complement || "",
