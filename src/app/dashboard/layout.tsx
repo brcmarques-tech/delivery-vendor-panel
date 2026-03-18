@@ -28,6 +28,7 @@ const navGroups = [
     label: "Gestão",
     items: [
       { href: "/dashboard/analytics", label: "Analytics", icon: "📈" },
+      { href: "/dashboard/earnings", label: "Recebimentos", icon: "💰" },
       { href: "/dashboard/plan", label: "Meu Plano", icon: "💎" },
       { href: "/dashboard/support", label: "Suporte", icon: "🆘" },
     ],

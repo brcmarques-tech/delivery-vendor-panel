@@ -480,6 +480,54 @@ export const PRODUCT_UPDATED_SUB = gql`
   }
 `;
 
+// ─── Recipient / Earnings ───
+
+export const REGISTER_RECIPIENT = gql`
+  mutation RegisterRecipient($recipientData: String!) {
+    registerRecipient(recipientData: $recipientData)
+  }
+`;
+
+export const MY_BALANCE = gql`
+  query MyBalance {
+    myBalance {
+      availableAmount
+      waitingFundsAmount
+      transferredAmount
+    }
+  }
+`;
+
+export const SIMULATE_ANTICIPATION = gql`
+  query SimulateAnticipation {
+    simulateAnticipation {
+      originalAmount
+      anticipatedAmount
+      fee
+      feePercentage
+    }
+  }
+`;
+
+export const REQUEST_ANTICIPATION = gql`
+  mutation RequestAnticipation {
+    requestAnticipation {
+      id
+      status
+      requestedAmount
+      approvedAmount
+      fee
+      createdAt
+    }
+  }
+`;
+
+export const TOGGLE_AUTO_ANTICIPATION = gql`
+  mutation ToggleAutoAnticipation($enabled: Boolean!) {
+    toggleAutoAnticipation(enabled: $enabled)
+  }
+`;
+
 export const REQUEST_PASSWORD_RESET = gql`
   mutation RequestPasswordResetVendor($email: String!) {
     requestPasswordResetVendor(email: $email)
