@@ -1087,7 +1087,7 @@ function PaymentSection() {
 
 export default function SettingsPage() {
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="max-w-4xl mx-auto pb-20">
       <h1 className="text-2xl font-bold text-[var(--text-primary)] mb-6">Configuracoes</h1>
       <ProfileSection />
       <StoresSection />

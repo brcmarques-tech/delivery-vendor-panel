@@ -167,7 +167,7 @@ export default function CouponsPage() {
 
       {/* Create form */}
       {showForm && (
-        <form onSubmit={handleCreate} className="bg-[var(--bg-card)] rounded-2xl p-6 shadow-sm mb-6 space-y-4">
+        <form onSubmit={handleCreate} className="bg-[var(--bg-card)] rounded-2xl p-6 shadow-sm mb-6 space-y-4 pb-20">
           <h2 className="font-semibold text-lg text-[var(--text-primary)]">Criar Cupom</h2>
 
           {error && <p className="text-red-500 text-sm bg-red-50 p-3 rounded-lg">{error}</p>}

@@ -706,7 +706,7 @@ export default function RegisterPage() {
   // Step 3: Contract
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-8">
-      <div className="bg-white rounded-2xl shadow-lg w-full max-w-2xl flex flex-col" style={{ maxHeight: "90vh" }}>
+      <div className="bg-white rounded-2xl shadow-lg w-full max-w-2xl flex flex-col overflow-y-auto" style={{ maxHeight: "85vh" }}>
         {/* Header */}
         <div className="p-6 border-b border-gray-100 text-center relative">
           <StepIndicator current={3} />
