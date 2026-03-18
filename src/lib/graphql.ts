@@ -59,7 +59,7 @@ export const GET_MY_STORES = gql`
       id name description isOpen hasOwnDelivery freeDelivery deliveryFee
       estimatedDeliveryMinutes minimumOrder deliveryStartTime deliveryEndTime freeDeliveryAbove
       phone street number complement neighborhood city state zipCode
-      logoUrl bannerUrl
+      logoUrl bannerUrl latitude longitude
       verificationLevel verificationScore totalSales totalProducts createdAt
       badgeClaimCount lastClaimedScore freePromoDaysCredit
       commissionReductionPercent commissionReductionExpiresAt
@@ -74,7 +74,7 @@ export const UPDATE_STORE = gql`
     updateStore(input: $input) {
       id name description phone street number complement neighborhood city state zipCode
       hasOwnDelivery freeDelivery deliveryFee estimatedDeliveryMinutes minimumOrder
-      deliveryStartTime deliveryEndTime freeDeliveryAbove logoUrl bannerUrl
+      deliveryStartTime deliveryEndTime freeDeliveryAbove logoUrl bannerUrl latitude longitude
     }
   }
 `;
@@ -82,9 +82,9 @@ export const UPDATE_STORE = gql`
 export const GET_STORE_ORDERS = gql`
   query StoreOrders($storeId: String!) {
     storeOrders(storeId: $storeId) {
-      id orderNumber status total createdAt
-      customer { name phone }
-      items { id quantity weightGrams unitPrice totalPrice product { name isVariableWeight } }
+      id orderNumber status total subtotal discount couponCode createdAt
+      customer { id name phone avatarUrl }
+      items { id quantity weightGrams unitPrice totalPrice product { name price promotionalPrice isVariableWeight imageUrl } }
       delivery { id deliverer { name phone } }
     }
   }
@@ -210,7 +210,7 @@ export const REQUEST_VENDOR_STORE_DELETE = gql`
 export const GET_MY_PLAN = gql`
   query MeVendor {
     meVendor {
-      id name cpf vendorPlan planExpiresAt mpConnected
+      id name cpf vendorPlan planExpiresAt paymentConnected
       acceptedTermsAt acceptedSubscriptionTermsAt
       emailVerified phoneVerified
       stores { id }
@@ -270,15 +270,9 @@ export const ACCEPT_SUBSCRIPTION_TERMS = gql`
   }
 `;
 
-export const GET_MP_CONNECT_URL = gql`
-  query MpConnectUrl {
-    mpConnectUrl
-  }
-`;
-
-export const DISCONNECT_MP = gql`
-  mutation DisconnectMercadoPago {
-    disconnectMercadoPago
+export const DISCONNECT_PAYMENT = gql`
+  mutation DisconnectPayment {
+    disconnectPayment
   }
 `;
 
@@ -420,6 +414,20 @@ export const CLAIM_BADGE_REWARD = gql`
       id verificationLevel verificationScore
       badgeClaimCount lastClaimedScore freePromoDaysCredit
       commissionReductionPercent commissionReductionExpiresAt
+    }
+  }
+`;
+
+// ─── Cart Summary ───
+
+export const GET_STORE_CART_SUMMARY = gql`
+  query StoreCartSummary($storeId: String!) {
+    storeCartSummary(storeId: $storeId) {
+      productId
+      productName
+      productImageUrl
+      totalPeople
+      totalQuantity
     }
   }
 `;

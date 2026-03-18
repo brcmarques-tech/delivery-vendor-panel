@@ -29,7 +29,7 @@ Operada por BCM TECH, inscrita no CNPJ sob o n. 59.858.037/0001-06, com sede na 
 
 3. PAGAMENTOS E COMISSOES
 3.1. A Empresa cobra comissao conforme o plano contratado.
-3.2. Pagamentos processados pelo Mercado Pago, intermediador autorizado pelo Banco Central do Brasil.
+3.2. Pagamentos processados pelo Pagar.me, intermediador autorizado pelo Banco Central do Brasil.
 
 4. PROTECAO DE DADOS (LGPD)
 4.1. Os dados pessoais sao tratados conforme a Lei 13.709/2018 (LGPD).
@@ -426,7 +426,7 @@ export default function RegisterPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
                   </svg>
                 </div>
-                <span>Pagamentos via Mercado Pago</span>
+                <span>Pagamentos via Pagar.me</span>
               </div>
               <div className="flex items-center gap-3 text-white/90">
                 <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center flex-shrink-0">

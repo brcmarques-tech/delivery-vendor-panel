@@ -132,7 +132,7 @@ function PlatformTerms() {
       <p className="font-bold text-gray-900">TERMOS DE USO DA PLATAFORMA BCM TECH DELIVERY</p>
       <p className="text-xs text-gray-500">&Uacute;ltima atualiza&ccedil;&atilde;o: Mar&ccedil;o de 2026</p>
 
-      <p>Estes Termos de Uso, doravante denominados &quot;Termos&quot;, regulam o acesso e o uso da plataforma bcmTech Delivery, doravante denominada &quot;Plataforma&quot;, operada por BCM Tech, doravante denominada &quot;Empresa&quot;, inscrita no CNPJ sob o n&ordm; 59.858.037/0001-06, com sede na Avenida Nossa Senhora da Gra&ccedil;a, 19, Centro, CEP 96330-000, S&atilde;o Gabriel &ndash; RS.</p>
+      <p>Estes Termos de Uso, doravante denominados &quot;Termos&quot;, regulam o acesso e o uso da plataforma bcmTech Delivery, doravante denominada &quot;Plataforma&quot;, operada por BCM TECH, inscrita no CNPJ sob o n&ordm; 59.858.037/0001-06, com sede na Avenida Nossa Senhora da Gra&ccedil;a, 19, Centro, CEP 96330-000, Arroio Grande &ndash; RS, doravante denominada &quot;Empresa&quot;.</p>
 
       <p>Ao criar uma conta e utilizar a Plataforma, voc&ecirc;, doravante denominado &quot;Usu&aacute;rio&quot; ou &quot;Vendedor&quot;, declara ter lido, compreendido e concordado integralmente com estes Termos.</p>
 
@@ -164,7 +164,7 @@ function PlatformTerms() {
       <p className="font-bold text-gray-900">4. RESPONSABILIDADES DA EMPRESA</p>
       <p>4.1. A Empresa se compromete a:</p>
       <p className="pl-4">a) Manter a Plataforma dispon&iacute;vel e funcional, ressalvados per&iacute;odos de manuten&ccedil;&atilde;o programada ou eventos de for&ccedil;a maior;</p>
-      <p className="pl-4">b) Processar os pagamentos de forma segura atrav&eacute;s de intermediadores autorizados (Mercado Pago);</p>
+      <p className="pl-4">b) Processar os pagamentos de forma segura atrav&eacute;s de intermediadores autorizados (Pagar.me);</p>
       <p className="pl-4">c) Repassar os valores devidos ao Vendedor conforme as regras do plano contratado.</p>
       <p>4.2. A Empresa n&atilde;o se responsabiliza por interrup&ccedil;&otilde;es decorrentes de falhas de terceiros, provedores de internet ou eventos de for&ccedil;a maior (art. 393 do C&oacute;digo Civil).</p>
 
@@ -174,7 +174,7 @@ function PlatformTerms() {
 
       <p className="font-bold text-gray-900">6. PAGAMENTOS E COMISS&Otilde;ES</p>
       <p>6.1. A Empresa cobra comiss&atilde;o sobre o valor dos pedidos conforme o plano contratado pelo Vendedor.</p>
-      <p>6.2. Os pagamentos dos clientes s&atilde;o processados pelo Mercado Pago, que atua como intermediador de pagamentos nos termos da legisla&ccedil;&atilde;o vigente.</p>
+      <p>6.2. Os pagamentos dos clientes s&atilde;o processados pelo Pagar.me, que atua como intermediador de pagamentos nos termos da legisla&ccedil;&atilde;o vigente.</p>
       <p>6.3. A Empresa n&atilde;o se responsabiliza por estornos (chargebacks) decorrentes de fraudes ou disputas entre o Vendedor e o cliente.</p>
 
       <p className="font-bold text-gray-900">7. PROPRIEDADE INTELECTUAL</p>
@@ -201,7 +201,7 @@ function PlatformTerms() {
 
       <p className="font-bold text-gray-900">11. DISPOSI&Ccedil;&Otilde;ES GERAIS</p>
       <p>11.1. Estes Termos s&atilde;o regidos pela legisla&ccedil;&atilde;o da Rep&uacute;blica Federativa do Brasil.</p>
-      <p>11.2. Fica eleito o foro da comarca de S&atilde;o Gabriel, Estado do Rio Grande do Sul, para dirimir quaisquer controv&eacute;rsias, com ren&uacute;ncia a qualquer outro, por mais privilegiado que seja.</p>
+      <p>11.2. Fica eleito o foro da comarca de Arroio Grande, Estado do Rio Grande do Sul, para dirimir quaisquer controv&eacute;rsias, com ren&uacute;ncia a qualquer outro, por mais privilegiado que seja.</p>
       <p>11.3. A Empresa reserva-se o direito de alterar estes Termos a qualquer tempo, notificando o Usu&aacute;rio por meio da Plataforma. O uso continuado ap&oacute;s a altera&ccedil;&atilde;o implica aceita&ccedil;&atilde;o dos novos Termos.</p>
       <p>11.4. A invalidade ou nulidade de qualquer cl&aacute;usula n&atilde;o prejudica as demais disposi&ccedil;&otilde;es destes Termos.</p>
 
@@ -222,7 +222,9 @@ function SubscriptionTerms() {
       <p className="font-bold text-gray-900">CONTRATO DE ASSINATURA DE PLANO &mdash; BCM TECH DELIVERY</p>
       <p className="text-xs text-gray-500">&Uacute;ltima atualiza&ccedil;&atilde;o: Mar&ccedil;o de 2026</p>
 
-      <p>Este Contrato de Assinatura, doravante denominado &quot;Contrato&quot;, regula a contrata&ccedil;&atilde;o de planos pagos na plataforma bcmTech Delivery, doravante denominada &quot;Plataforma&quot;, operada por BCM Tech, doravante denominada &quot;Empresa&quot;.</p>
+      <p>Este Contrato de Assinatura, doravante denominado &quot;Contrato&quot;, regula a contrata&ccedil;&atilde;o de planos pagos na plataforma bcmTech Delivery, doravante denominada &quot;Plataforma&quot;, operada por BCM TECH, inscrita no CNPJ sob o n&ordm; 59.858.037/0001-06, com sede na Avenida Nossa Senhora da Gra&ccedil;a, 19, Centro, CEP 96330-000, Arroio Grande &ndash; RS, doravante denominada &quot;Empresa&quot;.</p>
+
+      <p>Este Contrato &eacute; complementar e n&atilde;o substitui os Termos de Uso da Plataforma para Vendedor, que permanecem integralmente vigentes.</p>
 
       <p className="font-bold text-gray-900">1. OBJETO</p>
       <p>1.1. O presente Contrato tem por objeto a contrata&ccedil;&atilde;o de plano de assinatura que confere ao Vendedor funcionalidades e benef&iacute;cios adicionais na Plataforma, conforme descri&ccedil;&atilde;o de cada plano.</p>
@@ -237,7 +239,7 @@ function SubscriptionTerms() {
       <p>2.2. Para per&iacute;odos trimestrais, semestrais e anuais, o Vendedor poder&aacute; parcelar o valor total no cart&atilde;o de cr&eacute;dito em at&eacute; o n&uacute;mero de meses correspondente ao per&iacute;odo (3x, 6x ou 12x, respectivamente), conforme disponibilidade do meio de pagamento.</p>
 
       <p className="font-bold text-gray-900">3. FORMA DE PAGAMENTO</p>
-      <p>3.1. Os pagamentos s&atilde;o processados pelo Mercado Pago, intermediador de pagamentos autorizado pelo Banco Central do Brasil.</p>
+      <p>3.1. Os pagamentos s&atilde;o processados pelo Pagar.me, intermediador de pagamentos autorizado pelo Banco Central do Brasil.</p>
       <p>3.2. S&atilde;o aceitos: cart&atilde;o de cr&eacute;dito (&agrave; vista ou parcelado), PIX e boleto banc&aacute;rio, conforme disponibilidade.</p>
       <p>3.3. O Vendedor &eacute; respons&aacute;vel por manter seus dados de pagamento atualizados.</p>
 
@@ -265,11 +267,14 @@ function SubscriptionTerms() {
       <p>8.2. O Vendedor &eacute; respons&aacute;vel por suas pr&oacute;prias obriga&ccedil;&otilde;es fiscais decorrentes de sua atividade comercial.</p>
 
       <p className="font-bold text-gray-900">9. PROTE&Ccedil;&Atilde;O DE DADOS</p>
-      <p>9.1. Os dados de pagamento s&atilde;o processados exclusivamente pelo Mercado Pago e n&atilde;o s&atilde;o armazenados pela Empresa.</p>
+      <p>9.1. Os dados de pagamento s&atilde;o processados exclusivamente pelo Pagar.me e n&atilde;o s&atilde;o armazenados pela Empresa.</p>
       <p>9.2. O tratamento de dados pessoais segue a Pol&iacute;tica de Privacidade e a LGPD (Lei n&ordm; 13.709/2018).</p>
 
-      <p className="font-bold text-gray-900">10. FORO</p>
-      <p>10.1. Este Contrato &eacute; regido pela legisla&ccedil;&atilde;o brasileira. Fica eleito o foro da comarca de S&atilde;o Gabriel &ndash; RS para dirimir quaisquer controv&eacute;rsias.</p>
+      <p className="font-bold text-gray-900">10. RELA&Ccedil;&Atilde;O COM OUTROS TERMOS</p>
+      <p>10.1. Este Contrato de Assinatura &eacute; complementar aos Termos de Uso da Plataforma para Vendedor. Em caso de conflito entre disposi&ccedil;&otilde;es, prevalecer&atilde;o os Termos de Uso no que diz respeito &agrave; rela&ccedil;&atilde;o geral com a Plataforma, e este Contrato no que diz respeito especificamente &agrave; assinatura e pagamento de planos.</p>
+
+      <p className="font-bold text-gray-900">11. FORO</p>
+      <p>11.1. Este Contrato &eacute; regido pela legisla&ccedil;&atilde;o brasileira. Fica eleito o foro da comarca de Arroio Grande &ndash; RS para dirimir quaisquer controv&eacute;rsias.</p>
 
       <p className="mt-6 text-xs text-gray-400 text-center">Ao clicar em &quot;Aceitar e Continuar&quot;, voc&ecirc; manifesta seu consentimento livre, informado e inequ&iacute;voco com todos os termos acima, nos termos do art. 8&ordm; da LGPD e do art. 49 do CDC.</p>
     </div>

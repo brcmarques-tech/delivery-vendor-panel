@@ -467,7 +467,7 @@ function PlanContent() {
         <h3 className="font-semibold text-[var(--text-primary)]">Como funciona?</h3>
         <ul className="mt-2 text-sm text-[var(--text-secondary)] space-y-1">
           <li>&bull; Escolha o periodo: mensal, trimestral (-10%), semestral (-20%) ou anual (-30%)</li>
-          <li>&bull; Ao clicar em &quot;Fazer Upgrade&quot;, voce sera redirecionado para o Mercado Pago</li>
+          <li>&bull; Ao clicar em &quot;Fazer Upgrade&quot;, voce sera redirecionado para a pagina de pagamento</li>
           <li>&bull; Aceita PIX, cartao de credito (com parcelamento) e boleto</li>
           <li>&bull; Apos o pagamento, seu plano e ativado automaticamente</li>
           <li>&bull; Planos superiores permitem mais lojas e funcionalidades</li>
