@@ -139,10 +139,10 @@ function DashboardContent() {
             </div>
             <div className="flex-1">
               <p className="text-sm font-semibold text-green-800">Configure seu Pagamento</p>
-              <p className="text-xs text-green-600">Cadastre-se como recebedor nas configuracoes para aceitar pagamentos online.</p>
+              <p className="text-xs text-green-600">Cadastre seus dados bancarios para aceitar pagamentos online.</p>
             </div>
             <a
-              href="/dashboard/settings"
+              href="/dashboard/earnings"
               className="px-4 py-2 bg-[#65A300] text-white rounded-xl text-sm font-bold cursor-pointer hover:bg-[#568a00] active:scale-95 transition flex-shrink-0"
             >
               Configurar

@@ -1051,7 +1051,7 @@ function PaymentSection() {
       {!paymentConnected ? (
         <div className="space-y-3">
           <p className="text-sm text-[var(--text-secondary)]">
-            Configure sua conta de pagamento para aceitar pagamentos via PIX, cartao de credito e debito.
+            Configure seus dados bancarios para aceitar pagamentos via PIX, cartao de credito e debito.
             Sem conexao, sua loja so aceita pagamento na entrega.
           </p>
           <ul className="space-y-1 text-sm text-[var(--text-muted)]">
@@ -1059,9 +1059,12 @@ function PaymentSection() {
             <li>• Aceite PIX, cartao de credito e debito</li>
             <li>• Habilite entregadores autonomos do app</li>
           </ul>
-          <p className="text-sm text-[var(--text-muted)]">
-            Entre em contato com o suporte para configurar sua conta de pagamento.
-          </p>
+          <a
+            href="/dashboard/earnings"
+            className="inline-block px-5 py-2.5 bg-orange-500 text-white rounded-xl text-sm font-bold cursor-pointer hover:bg-orange-600 active:scale-95 transition"
+          >
+            Cadastrar Dados Bancarios
+          </a>
         </div>
       ) : (
         <div className="flex items-center justify-between">
@@ -1072,13 +1075,12 @@ function PaymentSection() {
               <p className="text-green-600 text-xs">Voce recebe pagamentos diretamente na sua conta.</p>
             </div>
           </div>
-          <button
-            onClick={handleDisconnect}
-            disabled={disconnecting}
-            className="px-4 py-2 border border-red-300 text-red-600 rounded-xl text-sm font-semibold cursor-pointer hover:bg-red-50 disabled:opacity-50 transition"
+          <a
+            href="/dashboard/earnings"
+            className="px-4 py-2 bg-orange-500 text-white rounded-xl text-sm font-semibold cursor-pointer hover:bg-orange-600 transition"
           >
-            {disconnecting ? "..." : "Desconectar"}
-          </button>
+            Ver Recebimentos
+          </a>
         </div>
       )}
     </Section>
