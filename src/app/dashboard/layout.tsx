@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useQuery, useMutation } from "@apollo/client";
+import { useQuery, useMutation, useSubscription } from "@apollo/client";
 import { apolloClient } from "@/lib/apollo";
-import { GET_MY_PLAN, ACCEPT_TERMS } from "@/lib/graphql";
+import { GET_MY_PLAN, ACCEPT_TERMS, SESSION_KICKED_SUB } from "@/lib/graphql";
 import TermsModal from "@/components/TermsModal";
 
 const navGroups = [
@@ -35,6 +35,7 @@ const navGroups = [
   {
     label: "Sistema",
     items: [
+      { href: "/dashboard/earnings", label: "Recebimentos", icon: "💰" },
       { href: "/dashboard/settings", label: "Configurações", icon: "⚙️" },
     ],
   },
@@ -47,7 +48,7 @@ export default function DashboardLayout({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [user, setUser] = useState<{ name: string } | null>(null);
+  const [user, setUser] = useState<{ id?: string; name: string } | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
 
@@ -78,6 +79,21 @@ export default function DashboardLayout({
       setShowTerms(true);
     }
   }, [meData]);
+
+  // Listen for session kicked via WebSocket
+  useSubscription(SESSION_KICKED_SUB, {
+    variables: { userId: user?.id, userType: 'vendor' },
+    skip: !user?.id,
+    onData: () => {
+      // Ignore kick events right after forceLogin (same userId gets kicked then logged in)
+      if (typeof window !== 'undefined' && (window as any).__justLoggedIn) return;
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      apolloClient.clearStore();
+      alert("Sua conta foi conectada em outro dispositivo. Voce foi desconectado.");
+      router.push("/");
+    },
+  });
 
   // Auto-close sidebar on navigation (mobile)
   useEffect(() => {

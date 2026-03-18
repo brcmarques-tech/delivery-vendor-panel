@@ -81,9 +81,9 @@ function ProfileSection() {
       return;
     }
     try {
-      await updateProfile({
-        variables: { currentPassword: passForm.current, newPassword: passForm.new },
-      });
+      const vars: any = { newPassword: passForm.new };
+      if (!isGoogleAccount) vars.currentPassword = passForm.current;
+      await updateProfile({ variables: vars });
       setMsg("Senha alterada com sucesso!");
       setPassForm({ current: "", new: "", confirm: "" });
       setTimeout(() => setMsg(""), 3000);
@@ -222,29 +222,34 @@ function ProfileSection() {
         {saving ? "Salvando..." : "Salvar perfil"}
       </button>
 
-      {!isGoogleAccount && (
-        <>
-          <hr className="my-6 border-[var(--border-light)]" />
-          <h3 className="font-semibold text-[var(--text-primary)] mb-3">Alterar senha</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-            <div>
-              <label className="text-sm text-[var(--text-secondary)]">Senha atual</label>
-              <input type="password" value={passForm.current} onChange={(e) => setPassForm({ ...passForm, current: e.target.value })} className="w-full mt-1 px-4 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-orange-400" />
-            </div>
-            <div>
-              <label className="text-sm text-[var(--text-secondary)]">Nova senha</label>
-              <input type="password" value={passForm.new} onChange={(e) => setPassForm({ ...passForm, new: e.target.value })} className="w-full mt-1 px-4 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-orange-400" />
-            </div>
-            <div>
-              <label className="text-sm text-[var(--text-secondary)]">Confirmar nova senha</label>
-              <input type="password" value={passForm.confirm} onChange={(e) => setPassForm({ ...passForm, confirm: e.target.value })} className="w-full mt-1 px-4 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-orange-400" />
-            </div>
-          </div>
-          <button onClick={handleChangePassword} disabled={saving} className="px-6 py-2 bg-[var(--text-secondary)] text-white rounded-xl font-semibold hover:opacity-80 transition cursor-pointer disabled:opacity-50">
-            Alterar senha
-          </button>
-        </>
+      <hr className="my-6 border-[var(--border-light)]" />
+      <h3 className="font-semibold text-[var(--text-primary)] mb-3">
+        {isGoogleAccount ? "Definir senha" : "Alterar senha"}
+      </h3>
+      {isGoogleAccount && (
+        <p className="text-sm text-[var(--text-secondary)] mb-3">
+          Sua conta foi criada com Google. Defina uma senha para tambem poder entrar com email e senha.
+        </p>
       )}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+        {!isGoogleAccount && (
+          <div>
+            <label className="text-sm text-[var(--text-secondary)]">Senha atual</label>
+            <input type="password" value={passForm.current} onChange={(e) => setPassForm({ ...passForm, current: e.target.value })} className="w-full mt-1 px-4 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-orange-400" />
+          </div>
+        )}
+        <div>
+          <label className="text-sm text-[var(--text-secondary)]">Nova senha</label>
+          <input type="password" value={passForm.new} onChange={(e) => setPassForm({ ...passForm, new: e.target.value })} className="w-full mt-1 px-4 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-orange-400" />
+        </div>
+        <div>
+          <label className="text-sm text-[var(--text-secondary)]">Confirmar nova senha</label>
+          <input type="password" value={passForm.confirm} onChange={(e) => setPassForm({ ...passForm, confirm: e.target.value })} className="w-full mt-1 px-4 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-orange-400" />
+        </div>
+      </div>
+      <button onClick={handleChangePassword} disabled={saving} className="px-6 py-2 bg-[var(--text-secondary)] text-white rounded-xl font-semibold hover:opacity-80 transition cursor-pointer disabled:opacity-50">
+        {isGoogleAccount ? "Definir senha" : "Alterar senha"}
+      </button>
     </Section>
   );
 }
@@ -1051,7 +1056,7 @@ function PaymentSection() {
       {!paymentConnected ? (
         <div className="space-y-3">
           <p className="text-sm text-[var(--text-secondary)]">
-            Configure sua conta de pagamento para aceitar pagamentos via PIX, cartao de credito e debito.
+            Configure seus dados bancarios para aceitar pagamentos via PIX, cartao de credito e debito.
             Sem conexao, sua loja so aceita pagamento na entrega.
           </p>
           <ul className="space-y-1 text-sm text-[var(--text-muted)]">
@@ -1059,9 +1064,12 @@ function PaymentSection() {
             <li>• Aceite PIX, cartao de credito e debito</li>
             <li>• Habilite entregadores autonomos do app</li>
           </ul>
-          <p className="text-sm text-[var(--text-muted)]">
-            Entre em contato com o suporte para configurar sua conta de pagamento.
-          </p>
+          <a
+            href="/dashboard/earnings"
+            className="inline-block px-5 py-2.5 bg-orange-500 text-white rounded-xl text-sm font-bold cursor-pointer hover:bg-orange-600 active:scale-95 transition"
+          >
+            Cadastrar Dados Bancarios
+          </a>
         </div>
       ) : (
         <div className="flex items-center justify-between">
@@ -1072,13 +1080,12 @@ function PaymentSection() {
               <p className="text-green-600 text-xs">Voce recebe pagamentos diretamente na sua conta.</p>
             </div>
           </div>
-          <button
-            onClick={handleDisconnect}
-            disabled={disconnecting}
-            className="px-4 py-2 border border-red-300 text-red-600 rounded-xl text-sm font-semibold cursor-pointer hover:bg-red-50 disabled:opacity-50 transition"
+          <a
+            href="/dashboard/earnings"
+            className="px-4 py-2 bg-orange-500 text-white rounded-xl text-sm font-semibold cursor-pointer hover:bg-orange-600 transition"
           >
-            {disconnecting ? "..." : "Desconectar"}
-          </button>
+            Ver Recebimentos
+          </a>
         </div>
       )}
     </Section>

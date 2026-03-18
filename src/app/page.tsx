@@ -26,11 +26,15 @@ export default function LoginPage() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const router = useRouter();
 
-  const handleGoogleResponse = useCallback(async (response: any) => {
+  async function doGoogleAuth(idToken: string, forceLogin: boolean = false) {
     setError("");
     setGoogleLoading(true);
+    if (forceLogin) {
+      (window as any).__justLoggedIn = true;
+      setTimeout(() => { (window as any).__justLoggedIn = false; }, 3000);
+    }
     try {
-      const { data } = await googleAuth({ variables: { idToken: response.credential } });
+      const { data } = await googleAuth({ variables: { idToken, forceLogin } });
       const user = data.googleAuthVendor.user;
       if (user.role !== "VENDOR") {
         setError("Sua conta esta aguardando aprovacao do administrador.");
@@ -43,7 +47,11 @@ export default function LoginPage() {
       router.push("/dashboard");
     } catch (err: any) {
       const msg = err?.message || "";
-      if (msg.includes("GOOGLE_NO_ACCOUNT")) {
+      if (msg.includes("ACTIVE_SESSION")) {
+        if (confirm("Esta conta já está logada em outro lugar. Deseja desconectar o outro e entrar aqui?")) {
+          doGoogleAuth(idToken, true);
+        }
+      } else if (msg.includes("GOOGLE_NO_ACCOUNT")) {
         setError("Nenhuma conta encontrada com este email. Cadastre-se primeiro.");
       } else {
         setError("Erro ao entrar com Google. Tente novamente.");
@@ -51,6 +59,10 @@ export default function LoginPage() {
     } finally {
       setGoogleLoading(false);
     }
+  }
+
+  const handleGoogleResponse = useCallback(async (response: any) => {
+    doGoogleAuth(response.credential);
   }, [googleAuth, router]);
 
   useEffect(() => {
@@ -66,17 +78,28 @@ export default function LoginPage() {
     }
   }, [handleGoogleResponse]);
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent, forceLogin: boolean = false) {
     e.preventDefault();
     setError("");
     try {
-      const { data } = await login({ variables: { input: { email, password } } });
+      if (forceLogin) {
+        (window as any).__justLoggedIn = true;
+        setTimeout(() => { (window as any).__justLoggedIn = false; }, 3000);
+      }
+      const { data } = await login({ variables: { input: { email, password }, forceLogin } });
       localStorage.setItem("token", data.loginVendor.accessToken);
       localStorage.setItem("user", JSON.stringify(data.loginVendor.user));
       await apolloClient.resetStore();
       router.push("/dashboard");
-    } catch {
-      setError("Email ou senha inválidos");
+    } catch (err: any) {
+      const msg = err?.message || "";
+      if (msg.includes("ACTIVE_SESSION")) {
+        if (confirm("Esta conta já está logada em outro lugar. Deseja desconectar o outro e entrar aqui?")) {
+          handleSubmit(e, true);
+        }
+      } else {
+        setError("Email ou senha inválidos");
+      }
     }
   }
 
