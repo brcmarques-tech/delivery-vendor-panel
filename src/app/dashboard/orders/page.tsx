@@ -27,9 +27,6 @@ const nextStatus: Record<string, string> = {
   PENDING: "ACCEPTED",
   ACCEPTED: "PREPARING",
   PREPARING: "READY",
-  READY: "PICKED_UP",
-  PICKED_UP: "DELIVERING",
-  DELIVERING: "DELIVERED",
 };
 
 // Active = in progress orders, Completed = delivered/completed, Incomplete = cancelled/expired/awaiting_payment/rejected
@@ -492,9 +489,6 @@ export default function OrdersPage() {
                         {order.status === "PENDING" && "Aceitar pedido"}
                         {order.status === "ACCEPTED" && "Iniciar preparo"}
                         {order.status === "PREPARING" && "Marcar como pronto"}
-                        {order.status === "READY" && "Saiu para entrega"}
-                        {order.status === "PICKED_UP" && "A caminho"}
-                        {order.status === "DELIVERING" && "Entregue"}
                       </button>
                     )}
                   </div>
