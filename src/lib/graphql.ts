@@ -195,6 +195,18 @@ export const UPDATE_ORDER_STATUS = gql`
   }
 `;
 
+export const REJECT_ORDER = gql`
+  mutation RejectOrder($orderId: String!, $reason: String!) {
+    rejectOrder(orderId: $orderId, reason: $reason) { id status }
+  }
+`;
+
+export const VENDOR_CONFIRM_PICKUP = gql`
+  mutation VendorConfirmPickup($orderId: String!) {
+    vendorConfirmPickup(orderId: $orderId) { id status }
+  }
+`;
+
 export const TOGGLE_STORE_OPEN = gql`
   mutation ToggleStoreOpen($id: String!) {
     toggleStoreOpen(id: $id) { id isOpen }
