@@ -1,21 +1,26 @@
 "use client";
 
 import { useQuery, useMutation, useSubscription } from "@apollo/client";
-import { GET_MY_STORES, GET_STORE_ORDERS, UPDATE_ORDER_STATUS, ORDER_CREATED_SUB, ORDER_UPDATED_SUB, ADJUST_ORDER_ITEM_WEIGHT } from "@/lib/graphql";
-import { useState, useEffect, useMemo } from "react";
+import { GET_MY_STORES, GET_STORE_ORDERS, UPDATE_ORDER_STATUS, ORDER_CREATED_SUB, ORDER_UPDATED_SUB, ADJUST_ORDER_ITEM_WEIGHT, REJECT_ORDER, VENDOR_CONFIRM_PICKUP } from "@/lib/graphql";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import CreateStoreModal from "@/components/CreateStoreModal";
 
 const statusLabels: Record<string, { label: string; color: string }> = {
-  AWAITING_PAYMENT: { label: "Aguardando pagamento", color: "bg-orange-100 text-orange-700" },
-  PENDING: { label: "Pendente", color: "bg-yellow-100 text-yellow-700" },
-  ACCEPTED: { label: "Aceito", color: "bg-blue-100 text-blue-700" },
-  PREPARING: { label: "Preparando", color: "bg-indigo-100 text-indigo-700" },
-  READY: { label: "Pronto", color: "bg-green-100 text-green-700" },
-  PICKED_UP: { label: "Coletado", color: "bg-teal-100 text-teal-700" },
-  DELIVERING: { label: "A caminho", color: "bg-cyan-100 text-cyan-700" },
-  DELIVERED: { label: "Entregue", color: "bg-gray-100 text-gray-700" },
-  CANCELLED: { label: "Cancelado", color: "bg-red-100 text-red-700" },
-  EXPIRED: { label: "Expirado", color: "bg-red-100 text-red-400" },
+  AWAITING_PAYMENT: { label: "Aguardando pagamento", color: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300" },
+  PENDING: { label: "Pendente", color: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300" },
+  ACCEPTED: { label: "Aceito", color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" },
+  PREPARING: { label: "Preparando", color: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300" },
+  READY: { label: "Pronto", color: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300" },
+  PICKED_UP: { label: "Coletado", color: "bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300" },
+  DELIVERING: { label: "A caminho", color: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300" },
+  DELIVERED: { label: "Entregue", color: "bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-300" },
+  CANCELLED: { label: "Cancelado", color: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300" },
+  EXPIRED: { label: "Expirado", color: "bg-red-100 text-red-400 dark:bg-red-900/30 dark:text-red-400" },
+  VENDOR_CONFIRMED_PICKUP: { label: "Aguardando entregador confirmar", color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" },
+  DELIVERER_CONFIRMED_DELIVERY: { label: "Aguardando cliente confirmar", color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" },
+  COMPLETED: { label: "Finalizado", color: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300" },
+  REJECTED: { label: "Rejeitado", color: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300" },
+  DISPUTED: { label: "Em disputa", color: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300" },
 };
 
 const nextStatus: Record<string, string> = {
@@ -27,10 +32,10 @@ const nextStatus: Record<string, string> = {
   DELIVERING: "DELIVERED",
 };
 
-// Active = in progress orders, Completed = delivered, Incomplete = cancelled/expired/awaiting_payment
-const ACTIVE_STATUSES = ["PENDING", "ACCEPTED", "PREPARING", "READY", "PICKED_UP", "DELIVERING"];
-const COMPLETED_STATUSES = ["DELIVERED"];
-const INCOMPLETE_STATUSES = ["CANCELLED", "EXPIRED", "AWAITING_PAYMENT"];
+// Active = in progress orders, Completed = delivered/completed, Incomplete = cancelled/expired/awaiting_payment/rejected
+const ACTIVE_STATUSES = ["PENDING", "ACCEPTED", "PREPARING", "READY", "PICKED_UP", "DELIVERING", "VENDOR_CONFIRMED_PICKUP", "DELIVERER_CONFIRMED_DELIVERY"];
+const COMPLETED_STATUSES = ["DELIVERED", "COMPLETED"];
+const INCOMPLETE_STATUSES = ["CANCELLED", "EXPIRED", "AWAITING_PAYMENT", "REJECTED", "DISPUTED"];
 
 type TabKey = "active" | "completed" | "incomplete";
 type DateFilter = "today" | "week" | "month" | "year" | "all";
@@ -87,6 +92,39 @@ function formatDate(dateStr: string) {
   return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" });
 }
 
+const PENDING_EXPIRY_MINUTES = 10;
+
+function PendingTimer({ createdAt }: { createdAt: string }) {
+  const [remaining, setRemaining] = useState<number>(() => {
+    const expiresAt = new Date(createdAt).getTime() + PENDING_EXPIRY_MINUTES * 60 * 1000;
+    return Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
+  });
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const expiresAt = new Date(createdAt).getTime() + PENDING_EXPIRY_MINUTES * 60 * 1000;
+      const secs = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
+      setRemaining(secs);
+      if (secs <= 0) clearInterval(interval);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [createdAt]);
+
+  const minutes = Math.floor(remaining / 60);
+  const seconds = remaining % 60;
+  const isUrgent = remaining < 120;
+
+  if (remaining <= 0) {
+    return <span className="text-xs font-semibold text-red-500 dark:text-red-400">Expirado</span>;
+  }
+
+  return (
+    <span className={`text-xs font-semibold ${isUrgent ? "text-red-500 dark:text-red-400" : "text-[var(--text-secondary)]"}`}>
+      Expira em {minutes}:{seconds.toString().padStart(2, "0")}
+    </span>
+  );
+}
+
 export default function OrdersPage() {
   const { data: storesData } = useQuery(GET_MY_STORES);
   const stores = storesData?.myStores || [];
@@ -129,7 +167,10 @@ export default function OrdersPage() {
 
   const [updateStatus] = useMutation(UPDATE_ORDER_STATUS);
   const [adjustWeight] = useMutation(ADJUST_ORDER_ITEM_WEIGHT);
+  const [rejectOrderMut] = useMutation(REJECT_ORDER);
+  const [vendorConfirmPickupMut] = useMutation(VENDOR_CONFIRM_PICKUP);
   const [weightEdit, setWeightEdit] = useState<{ itemId: string; value: string } | null>(null);
+  const [rejectState, setRejectState] = useState<{ orderId: string; reason: string } | null>(null);
   const allOrders = ordersData?.storeOrders || [];
 
   // Filter orders by tab and date
@@ -166,6 +207,26 @@ export default function OrdersPage() {
     if (!next) return;
     await updateStatus({ variables: { id: orderId, status: next } });
     refetch();
+  }
+
+  async function handleRejectOrder(orderId: string, reason: string) {
+    if (!reason.trim()) return;
+    try {
+      await rejectOrderMut({ variables: { orderId, reason: reason.trim() } });
+      setRejectState(null);
+      refetch();
+    } catch (err: any) {
+      console.error("Erro ao rejeitar pedido:", err);
+    }
+  }
+
+  async function handleVendorConfirmPickup(orderId: string) {
+    try {
+      await vendorConfirmPickupMut({ variables: { orderId } });
+      refetch();
+    } catch (err: any) {
+      console.error("Erro ao confirmar entrega:", err);
+    }
   }
 
   async function handleAdjustWeight(itemId: string, grams: string) {
@@ -367,22 +428,76 @@ export default function OrdersPage() {
                 </div>
 
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <span className="font-bold text-lg text-[var(--text-primary)]">
-                    R$ {Number(order.total).toFixed(2)}
-                  </span>
-                  {canAdvance && (
-                    <button
-                      onClick={() => handleAdvanceStatus(order.id, order.status)}
-                      className="bg-orange-500 text-white px-4 py-2 rounded-xl text-sm font-bold cursor-pointer hover:bg-orange-600 active:scale-95 transition"
-                    >
-                      {order.status === "PENDING" && "Aceitar pedido"}
-                      {order.status === "ACCEPTED" && "Iniciar preparo"}
-                      {order.status === "PREPARING" && "Marcar como pronto"}
-                      {order.status === "READY" && "Saiu para entrega"}
-                      {order.status === "PICKED_UP" && "A caminho"}
-                      {order.status === "DELIVERING" && "Entregue"}
-                    </button>
-                  )}
+                  <div className="flex items-center gap-3">
+                    <span className="font-bold text-lg text-[var(--text-primary)]">
+                      R$ {Number(order.total).toFixed(2)}
+                    </span>
+                    {order.status === "PENDING" && (
+                      <PendingTimer createdAt={order.createdAt} />
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {/* Reject button for PENDING orders */}
+                    {order.status === "PENDING" && (
+                      rejectState?.orderId === order.id ? (
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            autoFocus
+                            value={rejectState!.reason}
+                            onChange={(e) => setRejectState({ orderId: order.id, reason: e.target.value })}
+                            onKeyDown={(e) => { if (e.key === "Enter") handleRejectOrder(order.id, rejectState!.reason); if (e.key === "Escape") setRejectState(null); }}
+                            placeholder="Motivo da rejeição"
+                            className="px-3 py-2 border border-red-300 dark:border-red-700 rounded-xl text-sm text-[var(--text-primary)] bg-[var(--bg-input)] focus:ring-1 focus:ring-red-300 outline-none w-44"
+                          />
+                          <button
+                            onClick={() => handleRejectOrder(order.id, rejectState!.reason)}
+                            className="bg-red-500 text-white px-3 py-2 rounded-xl text-sm font-bold cursor-pointer hover:bg-red-600 active:scale-95 transition"
+                          >
+                            Confirmar
+                          </button>
+                          <button
+                            onClick={() => setRejectState(null)}
+                            className="px-2 py-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer text-sm"
+                          >
+                            &#10005;
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setRejectState({ orderId: order.id, reason: "" })}
+                          className="bg-red-500 text-white px-4 py-2 rounded-xl text-sm font-bold cursor-pointer hover:bg-red-600 active:scale-95 transition"
+                        >
+                          Rejeitar
+                        </button>
+                      )
+                    )}
+
+                    {/* Confirm pickup button for READY orders */}
+                    {order.status === "READY" && (
+                      <button
+                        onClick={() => handleVendorConfirmPickup(order.id)}
+                        className="bg-blue-500 text-white px-4 py-2 rounded-xl text-sm font-bold cursor-pointer hover:bg-blue-600 active:scale-95 transition"
+                      >
+                        Confirmar Entrega ao Entregador
+                      </button>
+                    )}
+
+                    {/* Advance status button */}
+                    {canAdvance && (
+                      <button
+                        onClick={() => handleAdvanceStatus(order.id, order.status)}
+                        className="bg-orange-500 text-white px-4 py-2 rounded-xl text-sm font-bold cursor-pointer hover:bg-orange-600 active:scale-95 transition"
+                      >
+                        {order.status === "PENDING" && "Aceitar pedido"}
+                        {order.status === "ACCEPTED" && "Iniciar preparo"}
+                        {order.status === "PREPARING" && "Marcar como pronto"}
+                        {order.status === "READY" && "Saiu para entrega"}
+                        {order.status === "PICKED_UP" && "A caminho"}
+                        {order.status === "DELIVERING" && "Entregue"}
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             );
