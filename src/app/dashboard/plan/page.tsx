@@ -9,8 +9,8 @@ import {
   CREATE_PLAN_UPGRADE,
   ACCEPT_SUBSCRIPTION_TERMS,
 } from "@/lib/graphql";
-import { useSearchParams } from "next/navigation";
-import { useState, useRef, Suspense } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+import { useState, useRef, useEffect, Suspense } from "react";
 import TermsModal from "@/components/TermsModal";
 
 const planLabels: Record<string, string> = {
@@ -75,11 +75,15 @@ export default function PlanPage() {
 }
 
 function PlanContent() {
-  const { data: userData, loading: loadingUser } = useQuery(GET_MY_PLAN);
+  const { data: userData, loading: loadingUser, refetch: refetchPlan } = useQuery(GET_MY_PLAN, {
+    fetchPolicy: "network-only", // M2: always fetch fresh plan data
+  });
   const { data: plansData, loading: loadingPlans } = useQuery(GET_AVAILABLE_PLANS);
   const { data: storesData } = useQuery(GET_MY_STORES);
   const { data: badgeData } = useQuery(GET_BADGE_CONFIG);
-  const [createUpgrade] = useMutation(CREATE_PLAN_UPGRADE);
+  const [createUpgrade] = useMutation(CREATE_PLAN_UPGRADE, {
+    refetchQueries: [{ query: GET_MY_PLAN }], // M2: refetch plan after upgrade mutation
+  });
   const [acceptSubTerms, { loading: acceptingSub }] = useMutation(ACCEPT_SUBSCRIPTION_TERMS);
   const [upgrading, setUpgrading] = useState<string | null>(null);
   const [billing, setBilling] = useState("monthly");
@@ -87,8 +91,49 @@ function PlanContent() {
   const [pendingPlan, setPendingPlan] = useState<string | null>(null);
   const [planError, setPlanError] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
+  const processingRef = useRef(false); // H1: double-click prevention guard
   const searchParams = useSearchParams();
+  const router = useRouter();
   const paymentStatus = searchParams.get("status");
+
+  // M1: confirmation modal state
+  const [confirmModal, setConfirmModal] = useState<{ plan: string; price: number; billingLabel: string } | null>(null);
+
+  // H4: Track plan at mount to verify payment status
+  const [planAtMount, setPlanAtMount] = useState<string | null>(null);
+  const [paymentVerified, setPaymentVerified] = useState(false);
+
+  // H4: When status=success, refetch plan and verify it actually changed
+  useEffect(() => {
+    if (paymentStatus === "success") {
+      const currentPlanAtMount = userData?.meVendor?.vendorPlan || "FREE";
+      if (!planAtMount) {
+        setPlanAtMount(currentPlanAtMount);
+      }
+      refetchPlan().then(({ data }) => {
+        const newPlan = data?.meVendor?.vendorPlan || "FREE";
+        // Only show success if plan actually changed or is not FREE
+        if (newPlan !== "FREE" && newPlan !== planAtMount) {
+          setPaymentVerified(true);
+        } else if (planAtMount && newPlan === planAtMount) {
+          // Plan didn't change — payment may not have been processed yet or URL was spoofed
+          setPaymentVerified(false);
+        } else {
+          setPaymentVerified(true);
+        }
+      });
+    }
+  }, [paymentStatus]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Clear URL params after 10 seconds to prevent stale banners
+  useEffect(() => {
+    if (paymentStatus) {
+      const timer = setTimeout(() => {
+        router.replace("/dashboard/plan", { scroll: false });
+      }, 10000);
+      return () => clearTimeout(timer);
+    }
+  }, [paymentStatus, router]);
 
   if (loadingUser || loadingPlans) {
     return <p className="text-gray-500">Carregando...</p>;
@@ -99,11 +144,17 @@ function PlanContent() {
   const currentPlan = user?.vendorPlan || "FREE";
   const storeCount = user?.stores?.length || 0;
 
-  // Calculate badge subscription discount (from stores with badgeClaimCount >= 2)
+  // L5: Calculate badge subscription discount with try/catch for JSON.parse
   let badgeDiscount = 0;
   let badgeLevel = "";
   const stores = storesData?.myStores || [];
-  const badgeConfig = badgeData?.badgeConfig ? JSON.parse(badgeData.badgeConfig) : null;
+  let badgeConfig: any = null;
+  try {
+    badgeConfig = badgeData?.badgeConfig ? JSON.parse(badgeData.badgeConfig) : null;
+  } catch {
+    // L5: Malformed badgeConfig JSON — ignore gracefully
+    badgeConfig = null;
+  }
   if (badgeConfig) {
     for (const store of stores) {
       if (store.badgeClaimCount >= 2 && store.verificationLevel && store.verificationLevel !== "NONE") {
@@ -119,12 +170,20 @@ function PlanContent() {
   const hasAcceptedSubTerms = !!user?.acceptedSubscriptionTermsAt;
 
   function handleUpgrade(plan: string) {
+    // H1: double-click prevention
+    if (processingRef.current) return;
+
     if (!hasAcceptedSubTerms) {
       setPendingPlan(plan);
       setShowSubTerms(true);
       return;
     }
-    proceedUpgrade(plan);
+
+    // M1: Show confirmation modal instead of proceeding directly
+    const planData = plans.find((p: any) => p.plan === plan);
+    const price = planData ? getPrice(planData, billing) : 0;
+    const billingLabel = billingOptions.find((b) => b.key === billing)?.label || "Mensal";
+    setConfirmModal({ plan, price, billingLabel });
   }
 
   async function handleAcceptSubTerms() {
@@ -132,7 +191,11 @@ function PlanContent() {
       await acceptSubTerms();
       setShowSubTerms(false);
       if (pendingPlan) {
-        proceedUpgrade(pendingPlan);
+        // M1: Show confirmation modal after accepting terms
+        const planData = plans.find((p: any) => p.plan === pendingPlan);
+        const price = planData ? getPrice(planData, billing) : 0;
+        const billingLabel = billingOptions.find((b) => b.key === billing)?.label || "Mensal";
+        setConfirmModal({ plan: pendingPlan, price, billingLabel });
         setPendingPlan(null);
       }
     } catch (err: any) {
@@ -141,8 +204,13 @@ function PlanContent() {
   }
 
   async function proceedUpgrade(plan: string) {
+    // H1: double-click prevention
+    if (processingRef.current) return;
+    processingRef.current = true;
+
     setUpgrading(plan);
     setPlanError("");
+    setConfirmModal(null);
     try {
       const { data } = await createUpgrade({
         variables: { plan, billingPeriod: billing },
@@ -154,6 +222,8 @@ function PlanContent() {
     } catch (err: any) {
       setPlanError(err.message || "Erro ao criar upgrade.");
       setUpgrading(null);
+    } finally {
+      processingRef.current = false; // H1: reset guard
     }
   }
 
@@ -238,6 +308,50 @@ function PlanContent() {
         />
       )}
 
+      {/* M1: Confirmation modal */}
+      {confirmModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-[var(--bg-card)] rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
+            <h3 className="text-lg font-bold text-[var(--text-primary)] mb-4">Confirmar Upgrade</h3>
+            <div className="space-y-2 mb-6">
+              <p className="text-[var(--text-secondary)]">
+                Plano: <span className="font-semibold text-orange-600">{planLabels[confirmModal.plan]}</span>
+              </p>
+              <p className="text-[var(--text-secondary)]">
+                Periodo: <span className="font-semibold">{confirmModal.billingLabel}</span>
+              </p>
+              <p className="text-[var(--text-secondary)]">
+                Preco base: <span className="font-semibold">R$ {confirmModal.price.toFixed(2)}</span>
+              </p>
+              {/* H2: Badge discount note */}
+              {badgeDiscount > 0 && (
+                <p className="text-sm text-purple-600 dark:text-purple-400">
+                  O desconto de {badgeDiscount}% do selo sera aplicado automaticamente no checkout (sujeito a confirmacao).
+                </p>
+              )}
+            </div>
+            <p className="text-sm text-[var(--text-muted)] mb-4">
+              Voce sera redirecionado para a pagina de pagamento seguro.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => proceedUpgrade(confirmModal.plan)}
+                disabled={upgrading !== null}
+                className="flex-1 py-3 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition cursor-pointer disabled:opacity-50"
+              >
+                {upgrading === confirmModal.plan ? "Redirecionando..." : "Confirmar e Pagar"}
+              </button>
+              <button
+                onClick={() => setConfirmModal(null)}
+                className="px-4 py-3 bg-[var(--bg-muted)] text-[var(--text-secondary)] rounded-xl font-semibold hover:bg-[var(--bg-hover)] transition cursor-pointer"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <h1 className="text-2xl font-bold text-[var(--text-primary)] mb-2">Meu Plano</h1>
 
       {planError && (
@@ -254,16 +368,25 @@ function PlanContent() {
               Desconto de {badgeDiscount}% na assinatura (Selo {badgeLevel})
             </p>
             <p className="text-purple-600 dark:text-purple-400 text-sm">
-              Premio do selo aplicado automaticamente em todos os planos.
+              {/* H2: Clarify that badge discount is applied by the backend at checkout */}
+              O desconto do selo sera aplicado automaticamente no checkout (preco base exibido abaixo).
             </p>
           </div>
         </div>
       )}
 
-      {paymentStatus === "success" && (
+      {/* H4: Only show success banner if payment was verified */}
+      {paymentStatus === "success" && paymentVerified && (
         <div className="bg-green-50 border border-green-200 rounded-2xl p-4 mb-6">
           <p className="text-green-800 font-semibold">
             Pagamento aprovado! Seu plano foi atualizado com sucesso.
+          </p>
+        </div>
+      )}
+      {paymentStatus === "success" && !paymentVerified && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-4 mb-6">
+          <p className="text-yellow-800 font-semibold">
+            Pagamento pendente de confirmacao. Aguarde a verificacao do seu plano.
           </p>
         </div>
       )}
@@ -408,7 +531,8 @@ function PlanContent() {
                         </p>
                         {badgeDiscount > 0 && (
                           <p className="text-xs text-purple-600 font-semibold mt-1 flex items-center gap-1">
-                            <span>🏅</span> -{badgeDiscount}% selo {badgeLevel}
+                            {/* H2: clarify that the discounted price is subject to backend confirmation */}
+                            <span>🏅</span> -{badgeDiscount}% selo {badgeLevel} (sujeito a confirmacao)
                           </p>
                         )}
                         {billing !== "monthly" && (

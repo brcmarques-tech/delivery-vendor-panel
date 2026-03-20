@@ -5,7 +5,7 @@ import {
   MY_BALANCE, SIMULATE_ANTICIPATION, REQUEST_ANTICIPATION,
   TOGGLE_AUTO_ANTICIPATION, REGISTER_RECIPIENT, DISCONNECT_PAYMENT, GET_MY_PLAN,
 } from "@/lib/graphql";
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 
 const BANKS = [
   { code: "001", name: "Banco do Brasil" },
@@ -237,9 +237,25 @@ function RecipientForm({ onSuccess }: { onSuccess: () => void }) {
       recipientData.managingPartners = [{ name: form.name.trim(), email: form.email.trim().toLowerCase(), document: form.document.replace(/\D/g, "") }];
     }
 
+    // M4: Validate required fields before sending
+    if (!recipientData.document || !recipientData.type || !recipientData.name || !recipientData.bankAccount) {
+      setGlobalError("Dados obrigatorios ausentes: documento, tipo, nome e conta bancaria.");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+
+    let recipientDataStr: string;
+    try {
+      recipientDataStr = JSON.stringify(recipientData);
+    } catch (jsonErr: any) {
+      setGlobalError("Erro ao serializar dados. Verifique os campos e tente novamente.");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+
     try {
       await registerRecipient({
-        variables: { recipientData: JSON.stringify(recipientData) },
+        variables: { recipientData: recipientDataStr },
       });
       setSuccess(true);
       setTimeout(() => onSuccess(), 1500);
@@ -489,7 +505,7 @@ function RecipientForm({ onSuccess }: { onSuccess: () => void }) {
 // ===== EARNINGS DASHBOARD =====
 function EarningsDashboard() {
   const { data: balanceData, loading: loadingBalance, error: balanceError, refetch: refetchBalance } = useQuery(MY_BALANCE, { fetchPolicy: "network-only" });
-  const { data: simData, loading: loadingSim } = useQuery(SIMULATE_ANTICIPATION, { fetchPolicy: "network-only" });
+  const { data: simData, loading: loadingSim, refetch: refetchSim } = useQuery(SIMULATE_ANTICIPATION, { fetchPolicy: "network-only" });
   const [requestAnticipation, { loading: requesting }] = useMutation(REQUEST_ANTICIPATION);
   const [toggleAutoAnticipation] = useMutation(TOGGLE_AUTO_ANTICIPATION);
   const [disconnectPayment] = useMutation(DISCONNECT_PAYMENT);
@@ -500,6 +516,8 @@ function EarningsDashboard() {
   const [autoAnticipation, setAutoAnticipation] = useState(false);
   const [autoInitialized, setAutoInitialized] = useState(false);
   const [togglingAuto, setTogglingAuto] = useState(false);
+  const anticipatingRef = useRef(false); // H3: double-click prevention guard
+  const [showDisconnectModal, setShowDisconnectModal] = useState(false); // L1: styled modal instead of confirm()
 
   const balance = balanceData?.myBalance;
   const simulation = simData?.simulateAnticipation;
@@ -512,20 +530,29 @@ function EarningsDashboard() {
   }, [balance, autoInitialized]);
 
   async function handleAnticipate() {
+    // H3: double-click prevention
+    if (anticipatingRef.current) return;
+    anticipatingRef.current = true;
+
     setError("");
     try {
       const { data } = await requestAnticipation();
       setResult(data.requestAnticipation);
       setShowConfirm(false);
+      // M3: refetch both balance and simulation after anticipation
       refetchBalance();
+      refetchSim();
     } catch (err: any) {
       const msg = err.message?.includes("network") ? "Sem conexao com a internet." : err.message || "Erro ao solicitar antecipacao.";
       setError(msg);
+    } finally {
+      anticipatingRef.current = false; // H3: reset guard
     }
   }
 
   async function handleDisconnect() {
-    if (!confirm("Ao desconectar, voce deixara de receber pagamentos automaticamente.\n\nTem certeza?")) return;
+    // L1: Uses styled modal instead of confirm() — triggered via showDisconnectModal
+    setShowDisconnectModal(false);
     try {
       await disconnectPayment();
       refetchPlan();
@@ -658,6 +685,8 @@ function EarningsDashboard() {
                 const next = !autoAnticipation;
                 await toggleAutoAnticipation({ variables: { enabled: next } });
                 setAutoAnticipation(next);
+                // M3: refetch balance after toggling auto anticipation
+                refetchBalance();
               } catch (err: any) {
                 setError(err.message || "Erro ao alterar antecipacao automatica.");
               }
@@ -704,10 +733,36 @@ function EarningsDashboard() {
         </div>
       </Section>
 
+      {/* L1: Disconnect confirmation modal */}
+      {showDisconnectModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-[var(--bg-card)] rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
+            <h3 className="text-lg font-bold text-[var(--text-primary)] mb-3">Desconectar Dados Bancarios</h3>
+            <p className="text-sm text-[var(--text-secondary)] mb-6">
+              Ao desconectar, voce deixara de receber pagamentos automaticamente. Tem certeza?
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={handleDisconnect}
+                className="flex-1 py-3 bg-red-500 text-white rounded-xl font-semibold hover:bg-red-600 transition cursor-pointer"
+              >
+                Desconectar
+              </button>
+              <button
+                onClick={() => setShowDisconnectModal(false)}
+                className="px-4 py-3 bg-[var(--bg-muted)] text-[var(--text-secondary)] rounded-xl font-semibold hover:bg-[var(--bg-hover)] transition cursor-pointer"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Disconnect */}
       <div className="text-center pb-4">
         <button
-          onClick={handleDisconnect}
+          onClick={() => setShowDisconnectModal(true)}
           className="text-sm text-red-500 hover:text-red-600 cursor-pointer transition inline-flex items-center gap-1.5"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>

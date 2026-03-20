@@ -11,7 +11,7 @@ import {
   GET_PROMO_PRICE_PER_DAY,
   SWAP_PROMOTION_PRODUCT,
 } from "@/lib/graphql";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 
 export default function PromotionsPage() {
   const { data: userData } = useQuery(GET_MY_PLAN);
@@ -36,6 +36,7 @@ export default function PromotionsPage() {
   const [duration, setDuration] = useState({ days: 1, weeks: 0, months: 0, years: 0 });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const submittingRef = useRef(false); // M8: double-click prevention guard
 
   const currentPlan = userData?.meVendor?.vendorPlan || "FREE";
   const stores = storesData?.myStores || [];
@@ -66,11 +67,7 @@ export default function PromotionsPage() {
     return { totalDays: d, discount: disc, discountLabel: label, finalCost: final_, originalCost: original, freeDaysUsed: free, paidDays: paid };
   }, [duration, pricePerDay, selectedStoreCredit]);
 
-  // Calculate dates from duration (1 day = 24h from now)
-  const startDate = useMemo(() => {
-    return new Date().toISOString();
-  }, []);
-
+  // L2: endDate for display only — actual dates computed at submission time
   const endDate = useMemo(() => {
     const d = new Date();
     d.setDate(d.getDate() + totalDays);
@@ -99,6 +96,9 @@ export default function PromotionsPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    // M8: double-click prevention
+    if (submittingRef.current) return;
+
     setError("");
 
     if (!form.storeId) { setError("Selecione uma loja"); return; }
@@ -111,7 +111,14 @@ export default function PromotionsPage() {
     }
     if (totalDays <= 0) { setError("Defina o período de exibição"); return; }
 
+    submittingRef.current = true; // M8: lock
     try {
+      // L2: Compute startDate and endDate at submission time to avoid stale values
+      const freshStartDate = new Date().toISOString();
+      const freshEnd = new Date();
+      freshEnd.setDate(freshEnd.getDate() + totalDays);
+      const freshEndDate = freshEnd.toISOString();
+
       const { data } = await createPromotion({
         variables: {
           input: {
@@ -120,8 +127,8 @@ export default function PromotionsPage() {
             storeId: form.storeId,
             productId: form.productId,
             promotionalPrice: parseFloat(form.promotionalPrice),
-            startDate,
-            endDate,
+            startDate: freshStartDate,
+            endDate: freshEndDate,
           },
         },
       });
@@ -139,6 +146,8 @@ export default function PromotionsPage() {
       refetch();
     } catch (err: any) {
       setError(err.message);
+    } finally {
+      submittingRef.current = false; // M8: unlock
     }
   }
 
@@ -154,6 +163,13 @@ export default function PromotionsPage() {
 
   async function handleSwap() {
     if (!swapId || !swapForm.productId || !swapForm.promotionalPrice) return;
+    const promo = promotions.find((p: any) => p.id === swapId);
+    const promoStore = stores.find((s: any) => s.id === promo?.store?.id);
+    const product = promoStore?.products?.find((p: any) => p.id === swapForm.productId);
+    if (product && parseFloat(swapForm.promotionalPrice) >= Number(product.price)) {
+      setError("O preço promocional deve ser menor que o preço original do produto.");
+      return;
+    }
     try {
       await swapProduct({
         variables: {

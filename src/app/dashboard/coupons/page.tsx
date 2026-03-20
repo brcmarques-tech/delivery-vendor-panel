@@ -40,7 +40,10 @@ export default function CouponsPage() {
   });
   const coupons: Coupon[] = couponsData?.storeCoupons || [];
 
-  const [createCoupon, { loading: creating }] = useMutation(CREATE_COUPON);
+  const [createCoupon, { loading: creating }] = useMutation(CREATE_COUPON, {
+    // L6: refetch coupons after creation
+    refetchQueries: storeId ? [{ query: GET_STORE_COUPONS, variables: { storeId } }] : [],
+  });
   const [toggleActive] = useMutation(TOGGLE_COUPON_ACTIVE);
   const [deleteCoupon] = useMutation(DELETE_COUPON);
 
