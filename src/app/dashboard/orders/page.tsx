@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useSubscription } from "@apollo/client";
 import { GET_MY_STORES, GET_STORE_ORDERS, UPDATE_ORDER_STATUS, ORDER_CREATED_SUB, ORDER_UPDATED_SUB, ADJUST_ORDER_ITEM_WEIGHT, REJECT_ORDER, VENDOR_CONFIRM_PICKUP } from "@/lib/graphql";
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import CreateStoreModal from "@/components/CreateStoreModal";
 
 const statusLabels: Record<string, { label: string; color: string }> = {
@@ -162,13 +162,21 @@ export default function OrdersPage() {
     onData: () => { refetch(); },
   });
 
-  const [updateStatus, { loading: advancingStatus }] = useMutation(UPDATE_ORDER_STATUS);
+  const [updateStatus] = useMutation(UPDATE_ORDER_STATUS);
   const [adjustWeight] = useMutation(ADJUST_ORDER_ITEM_WEIGHT);
   const [rejectOrderMut] = useMutation(REJECT_ORDER);
   const [vendorConfirmPickupMut] = useMutation(VENDOR_CONFIRM_PICKUP);
   const [statusError, setStatusError] = useState<string | null>(null);
   const [weightEdit, setWeightEdit] = useState<{ itemId: string; value: string } | null>(null);
   const [rejectState, setRejectState] = useState<{ orderId: string; reason: string } | null>(null);
+  // M6: per-order advancing state instead of single boolean
+  const [advancingOrders, setAdvancingOrders] = useState<Set<string>>(new Set());
+  // L7: per-operation loading tracking for reject/pickup/weight
+  const [rejectingOrders, setRejectingOrders] = useState<Set<string>>(new Set());
+  const [pickupOrders, setPickupOrders] = useState<Set<string>>(new Set());
+  const [weightAdjusting, setWeightAdjusting] = useState<Set<string>>(new Set());
+  // M5: confirmation dialog state
+  const [confirmAction, setConfirmAction] = useState<{ orderId: string; action: string; label: string } | null>(null);
   const allOrders = ordersData?.storeOrders || [];
 
   // Filter orders by tab and date
@@ -203,45 +211,87 @@ export default function OrdersPage() {
   async function handleAdvanceStatus(orderId: string, currentStatus: string) {
     const next = nextStatus[currentStatus];
     if (!next) return;
+
+    // M5: For PENDING->ACCEPTED (payment capture) and READY->vendor confirm, require confirmation
+    if (currentStatus === "PENDING") {
+      setConfirmAction({ orderId, action: "advance", label: "Aceitar este pedido? Isso ira capturar o pagamento do cliente." });
+      return;
+    }
+
+    await doAdvanceStatus(orderId, currentStatus);
+  }
+
+  async function doAdvanceStatus(orderId: string, currentStatus: string) {
+    const next = nextStatus[currentStatus];
+    if (!next) return;
+    // M6: per-order advancing
+    setAdvancingOrders((prev) => new Set(prev).add(orderId));
     setStatusError(null);
+    setConfirmAction(null);
     try {
       await updateStatus({ variables: { id: orderId, status: next } });
       refetch();
     } catch (err: any) {
       setStatusError(err.message || "Erro ao atualizar status do pedido.");
       setTimeout(() => setStatusError(null), 5000);
+    } finally {
+      setAdvancingOrders((prev) => { const s = new Set(prev); s.delete(orderId); return s; });
     }
   }
 
   async function handleRejectOrder(orderId: string, reason: string) {
     if (!reason.trim()) return;
+    // L7: per-operation loading
+    setRejectingOrders((prev) => new Set(prev).add(orderId));
     try {
       await rejectOrderMut({ variables: { orderId, reason: reason.trim() } });
       setRejectState(null);
       refetch();
     } catch (err: any) {
-      console.error("Erro ao rejeitar pedido:", err);
+      // M7: show error to user instead of silent console.error
+      setStatusError(err.message || "Erro ao rejeitar pedido.");
+      setTimeout(() => setStatusError(null), 5000);
+    } finally {
+      setRejectingOrders((prev) => { const s = new Set(prev); s.delete(orderId); return s; });
     }
   }
 
   async function handleVendorConfirmPickup(orderId: string) {
+    // M5: confirmation dialog for pickup
+    setConfirmAction({ orderId, action: "pickup", label: "Confirmar entrega ao entregador?" });
+  }
+
+  async function doVendorConfirmPickup(orderId: string) {
+    // L7: per-operation loading
+    setPickupOrders((prev) => new Set(prev).add(orderId));
+    setConfirmAction(null);
     try {
       await vendorConfirmPickupMut({ variables: { orderId } });
       refetch();
     } catch (err: any) {
-      console.error("Erro ao confirmar entrega:", err);
+      // M7: show error to user instead of silent console.error
+      setStatusError(err.message || "Erro ao confirmar entrega.");
+      setTimeout(() => setStatusError(null), 5000);
+    } finally {
+      setPickupOrders((prev) => { const s = new Set(prev); s.delete(orderId); return s; });
     }
   }
 
   async function handleAdjustWeight(itemId: string, grams: string) {
     const parsed = parseInt(grams);
     if (!parsed || parsed <= 0) return;
+    // L7: per-operation loading
+    setWeightAdjusting((prev) => new Set(prev).add(itemId));
     try {
       await adjustWeight({ variables: { orderItemId: itemId, actualWeightGrams: parsed } });
       setWeightEdit(null);
       refetch();
     } catch (err: any) {
-      console.error("Erro ao ajustar peso:", err);
+      // M7: show error to user instead of silent console.error
+      setStatusError(err.message || "Erro ao ajustar peso.");
+      setTimeout(() => setStatusError(null), 5000);
+    } finally {
+      setWeightAdjusting((prev) => { const s = new Set(prev); s.delete(itemId); return s; });
     }
   }
 
@@ -284,6 +334,36 @@ export default function OrdersPage() {
 
   return (
     <div>
+      {/* M5: Confirmation dialog */}
+      {confirmAction && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-[var(--bg-card)] rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
+            <h3 className="text-lg font-bold text-[var(--text-primary)] mb-3">Confirmar Acao</h3>
+            <p className="text-sm text-[var(--text-secondary)] mb-6">{confirmAction.label}</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  if (confirmAction.action === "advance") {
+                    doAdvanceStatus(confirmAction.orderId, "PENDING");
+                  } else if (confirmAction.action === "pickup") {
+                    doVendorConfirmPickup(confirmAction.orderId);
+                  }
+                }}
+                className="flex-1 py-3 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition cursor-pointer"
+              >
+                Confirmar
+              </button>
+              <button
+                onClick={() => setConfirmAction(null)}
+                className="px-4 py-3 bg-[var(--bg-muted)] text-[var(--text-secondary)] rounded-xl font-semibold hover:bg-[var(--bg-hover)] transition cursor-pointer"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {notification && (
         <div className="fixed top-4 right-4 left-4 sm:left-auto bg-orange-500 text-white px-6 py-4 rounded-2xl shadow-lg z-50 animate-bounce">
           <p className="font-bold">{notification}</p>
@@ -461,9 +541,10 @@ export default function OrdersPage() {
                           />
                           <button
                             onClick={() => handleRejectOrder(order.id, rejectState!.reason)}
-                            className="bg-red-500 text-white px-3 py-2 rounded-xl text-sm font-bold cursor-pointer hover:bg-red-600 active:scale-95 transition"
+                            disabled={rejectingOrders.has(order.id)}
+                            className="bg-red-500 text-white px-3 py-2 rounded-xl text-sm font-bold cursor-pointer hover:bg-red-600 active:scale-95 transition disabled:opacity-50"
                           >
-                            Confirmar
+                            {rejectingOrders.has(order.id) ? "Rejeitando..." : "Confirmar"}
                           </button>
                           <button
                             onClick={() => setRejectState(null)}
@@ -486,22 +567,24 @@ export default function OrdersPage() {
                     {order.status === "READY" && (
                       <button
                         onClick={() => handleVendorConfirmPickup(order.id)}
-                        className="bg-blue-500 text-white px-4 py-2 rounded-xl text-sm font-bold cursor-pointer hover:bg-blue-600 active:scale-95 transition"
+                        disabled={pickupOrders.has(order.id)}
+                        className="bg-blue-500 text-white px-4 py-2 rounded-xl text-sm font-bold cursor-pointer hover:bg-blue-600 active:scale-95 transition disabled:opacity-50"
                       >
-                        Confirmar Entrega ao Entregador
+                        {pickupOrders.has(order.id) ? "Confirmando..." : "Confirmar Entrega ao Entregador"}
                       </button>
                     )}
 
-                    {/* Advance status button */}
+                    {/* Advance status button - M6: per-order disabled */}
                     {canAdvance && (
                       <button
                         onClick={() => handleAdvanceStatus(order.id, order.status)}
-                        disabled={advancingStatus}
+                        disabled={advancingOrders.has(order.id)}
                         className="bg-orange-500 text-white px-4 py-2 rounded-xl text-sm font-bold cursor-pointer hover:bg-orange-600 active:scale-95 transition disabled:opacity-50"
                       >
-                        {order.status === "PENDING" && "Aceitar pedido"}
-                        {order.status === "ACCEPTED" && "Iniciar preparo"}
-                        {order.status === "PREPARING" && "Marcar como pronto"}
+                        {advancingOrders.has(order.id) ? "Processando..." :
+                          order.status === "PENDING" ? "Aceitar pedido" :
+                          order.status === "ACCEPTED" ? "Iniciar preparo" :
+                          order.status === "PREPARING" ? "Marcar como pronto" : ""}
                       </button>
                     )}
                   </div>
