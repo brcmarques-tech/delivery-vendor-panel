@@ -1,9 +1,8 @@
 "use client";
 
 import { useQuery, useMutation } from "@apollo/client";
-import { GET_MY_STORES, TOGGLE_STORE_OPEN, GET_MY_PLAN, DISCONNECT_PAYMENT, REQUEST_VENDOR_STORE_DELETE } from "@/lib/graphql";
-import { useState, useEffect, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { GET_MY_STORES, TOGGLE_STORE_OPEN, GET_MY_PLAN, REQUEST_VENDOR_STORE_DELETE } from "@/lib/graphql";
+import { useState, Suspense } from "react";
 import CreateStoreModal from "@/components/CreateStoreModal";
 
 export default function DashboardPage() {
@@ -18,27 +17,9 @@ function DashboardContent() {
   const { data, loading, refetch } = useQuery(GET_MY_STORES);
   const { data: planData, refetch: refetchPlan } = useQuery(GET_MY_PLAN);
   const [toggleOpen] = useMutation(TOGGLE_STORE_OPEN);
-  const [disconnectPaymentMut, { loading: disconnecting }] = useMutation(DISCONNECT_PAYMENT);
   const [requestStoreDelete] = useMutation(REQUEST_VENDOR_STORE_DELETE);
 
-  const searchParams = useSearchParams();
-  const [paymentToast, setPaymentToast] = useState(false);
-
   const paymentConnected = planData?.meVendor?.paymentConnected ?? false;
-
-  useEffect(() => {
-    if (searchParams.get("mp") === "connected") {
-      setPaymentToast(true);
-      refetchPlan();
-      const timer = setTimeout(() => setPaymentToast(false), 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [searchParams, refetchPlan]);
-
-  async function handleDisconnectPayment() {
-    await disconnectPaymentMut();
-    refetchPlan();
-  }
 
   const stores = data?.myStores || [];
   const [showCreateStore, setShowCreateStore] = useState(false);
@@ -157,13 +138,6 @@ function DashboardContent() {
           <span className="text-lg leading-none">+</span> Nova loja
         </button>
       </div>
-
-      {paymentToast && (
-        <div className="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-2xl p-4 mb-6 flex items-center justify-between">
-          <p className="text-green-700 dark:text-green-300 font-medium text-sm">Pagamento conectado com sucesso!</p>
-          <button onClick={() => setPaymentToast(false)} className="text-green-400 hover:text-green-600 text-lg cursor-pointer">✕</button>
-        </div>
-      )}
 
       {/* Delete store modal */}
       {deletingStoreId && (

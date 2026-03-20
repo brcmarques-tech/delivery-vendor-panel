@@ -5,7 +5,7 @@ import {
   MY_BALANCE, SIMULATE_ANTICIPATION, REQUEST_ANTICIPATION,
   TOGGLE_AUTO_ANTICIPATION, REGISTER_RECIPIENT, DISCONNECT_PAYMENT, GET_MY_PLAN,
 } from "@/lib/graphql";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 
 const BANKS = [
   { code: "001", name: "Banco do Brasil" },
@@ -130,7 +130,7 @@ function RecipientForm({ onSuccess }: { onSuccess: () => void }) {
     street: "", streetNumber: "", neighborhood: "", city: "", state: "", zipCode: "",
     bank: "", branchNumber: "", branchCheckDigit: "", accountNumber: "", accountCheckDigit: "",
     accountType: "checking" as "checking" | "savings",
-    companyName: "", tradingName: "",
+    companyName: "", tradingName: "", foundingDate: "",
   });
 
   function set(field: string, value: string) {
@@ -173,6 +173,7 @@ function RecipientForm({ onSuccess }: { onSuccess: () => void }) {
     const phoneDigits = form.phone.replace(/\D/g, "");
     if (phoneDigits.length < 10) e.phone = "Informe DDD + numero";
     if (type === "corporation" && !form.companyName.trim()) e.companyName = "Informe a razao social";
+    if (type === "corporation" && !form.foundingDate) e.foundingDate = "Informe a data de fundacao";
 
     if (form.zipCode.replace(/\D/g, "").length !== 8) e.zipCode = "CEP invalido";
     if (!form.street.trim()) e.street = "Informe a rua";
@@ -232,6 +233,8 @@ function RecipientForm({ onSuccess }: { onSuccess: () => void }) {
     if (type === "corporation") {
       recipientData.companyName = form.companyName.trim();
       recipientData.tradingName = form.tradingName.trim();
+      recipientData.foundingDate = form.foundingDate;
+      recipientData.managingPartners = [{ name: form.name.trim(), email: form.email.trim().toLowerCase(), document: form.document.replace(/\D/g, "") }];
     }
 
     try {
@@ -339,6 +342,11 @@ function RecipientForm({ onSuccess }: { onSuccess: () => void }) {
               <label className={labelClass}>Nome Fantasia</label>
               <input className={inputClass()} value={form.tradingName} onChange={(e) => set("tradingName", e.target.value)} placeholder="Nome comercial" />
             </div>
+            <div>
+              <label className={labelClass}>Data de Fundacao</label>
+              <input type="date" className={inputClass("foundingDate")} value={form.foundingDate} onChange={(e) => set("foundingDate", e.target.value)} />
+              <FieldError error={errors.foundingDate} />
+            </div>
           </div>
         </div>
       )}
@@ -442,7 +450,7 @@ function RecipientForm({ onSuccess }: { onSuccess: () => void }) {
             <div>
               <label className={labelClass}>Digito</label>
               <input className={inputClass()} placeholder="0" maxLength={1} value={form.branchCheckDigit}
-                onChange={(e) => set("branchCheckDigit", e.target.value.replace(/\D/g, ""))} />
+                onChange={(e) => set("branchCheckDigit", e.target.value.replace(/[^0-9Xx]/g, "").toUpperCase())} />
             </div>
           </div>
           <div>
@@ -454,7 +462,7 @@ function RecipientForm({ onSuccess }: { onSuccess: () => void }) {
           <div>
             <label className={labelClass}>Digito da Conta</label>
             <input className={inputClass("accountCheckDigit")} placeholder="0" maxLength={1} value={form.accountCheckDigit}
-              onChange={(e) => set("accountCheckDigit", e.target.value.replace(/\D/g, ""))} />
+              onChange={(e) => set("accountCheckDigit", e.target.value.replace(/[^0-9Xx]/g, "").toUpperCase())} />
             <FieldError error={errors.accountCheckDigit} />
           </div>
         </div>
@@ -483,11 +491,14 @@ function EarningsDashboard() {
   const { data: balanceData, loading: loadingBalance, error: balanceError, refetch: refetchBalance } = useQuery(MY_BALANCE, { fetchPolicy: "network-only" });
   const { data: simData, loading: loadingSim } = useQuery(SIMULATE_ANTICIPATION, { fetchPolicy: "network-only" });
   const [requestAnticipation, { loading: requesting }] = useMutation(REQUEST_ANTICIPATION);
+  const [toggleAutoAnticipation] = useMutation(TOGGLE_AUTO_ANTICIPATION);
   const [disconnectPayment] = useMutation(DISCONNECT_PAYMENT);
   const { refetch: refetchPlan } = useQuery(GET_MY_PLAN);
   const [showConfirm, setShowConfirm] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState("");
+  const [autoAnticipation, setAutoAnticipation] = useState(false);
+  const [togglingAuto, setTogglingAuto] = useState(false);
 
   const balance = balanceData?.myBalance;
   const simulation = simData?.simulateAnticipation;
@@ -624,6 +635,33 @@ function EarningsDashboard() {
           )}
         </Section>
       )}
+
+      {/* Auto Anticipation Toggle */}
+      <Section title="Antecipacao Automatica">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm text-[var(--text-primary)] font-medium">Antecipar automaticamente</p>
+            <p className="text-xs text-[var(--text-secondary)]">Quando ativado, seus recebiveis sao antecipados automaticamente.</p>
+          </div>
+          <button
+            onClick={async () => {
+              setTogglingAuto(true);
+              try {
+                const next = !autoAnticipation;
+                await toggleAutoAnticipation({ variables: { enabled: next } });
+                setAutoAnticipation(next);
+              } catch (err: any) {
+                setError(err.message || "Erro ao alterar antecipacao automatica.");
+              }
+              setTogglingAuto(false);
+            }}
+            disabled={togglingAuto}
+            className={`relative w-12 h-6 rounded-full transition-colors cursor-pointer disabled:opacity-50 ${autoAnticipation ? "bg-orange-500" : "bg-gray-300 dark:bg-gray-600"}`}
+          >
+            <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${autoAnticipation ? "translate-x-6" : ""}`} />
+          </button>
+        </div>
+      </Section>
 
       {/* Info Section */}
       <Section title="Como funciona?">

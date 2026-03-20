@@ -4,7 +4,7 @@ import { useMutation, useQuery } from "@apollo/client";
 import {
   UPDATE_STORE, UPLOAD_IMAGE, GET_MY_STORES,
   GET_MY_PROFILE, UPDATE_PROFILE, GET_MY_PLAN, GET_BADGE_CONFIG,
-  CLAIM_BADGE_REWARD, DISCONNECT_PAYMENT,
+  CLAIM_BADGE_REWARD,
   SEND_EMAIL_VERIFICATION, CONFIRM_EMAIL_VERIFICATION,
 } from "@/lib/graphql";
 import { useState, useRef, useEffect } from "react";
@@ -1039,17 +1039,10 @@ function ContractsSection() {
 function PaymentSection() {
   const { data: planData, refetch: refetchPlan } = useQuery(GET_MY_PLAN);
   const { data: storesData } = useQuery(GET_MY_STORES);
-  const [disconnectPayment, { loading: disconnecting }] = useMutation(DISCONNECT_PAYMENT);
-
   const paymentConnected = planData?.meVendor?.paymentConnected ?? false;
   const stores = storesData?.myStores || [];
 
   if (stores.length === 0) return null;
-
-  async function handleDisconnect() {
-    await disconnectPayment();
-    refetchPlan();
-  }
 
   return (
     <Section title="Pagamento">
