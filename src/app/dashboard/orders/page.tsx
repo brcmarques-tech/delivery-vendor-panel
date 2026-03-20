@@ -147,8 +147,9 @@ export default function OrdersPage() {
     skip: !selectedStore,
     onData: ({ data: subData }) => {
       if (subData?.data?.orderCreated) {
-        playNotificationSound();
         const o = subData.data.orderCreated;
+        console.log(`[VENDOR-SUB] orderCreated: #${o.orderNumber}, status=${o.status}, id=${o.id}`);
+        playNotificationSound();
         setNotification(`Novo pedido #${o.orderNumber}!`);
         setTimeout(() => setNotification(null), 5000);
         refetch();
@@ -159,7 +160,11 @@ export default function OrdersPage() {
   useSubscription(ORDER_UPDATED_SUB, {
     variables: { storeId: selectedStore },
     skip: !selectedStore,
-    onData: () => { refetch(); },
+    onData: ({ data: subData }) => {
+      const o = subData?.data?.orderUpdated;
+      console.log(`[VENDOR-SUB] orderUpdated: #${o?.orderNumber || '?'}, status=${o?.status || '?'}, id=${o?.id || '?'}`);
+      refetch();
+    },
   });
 
   const [updateStatus] = useMutation(UPDATE_ORDER_STATUS);
@@ -211,9 +216,11 @@ export default function OrdersPage() {
   async function handleAdvanceStatus(orderId: string, currentStatus: string) {
     const next = nextStatus[currentStatus];
     if (!next) return;
+    console.log(`[VENDOR-ADVANCE] orderId=${orderId}, ${currentStatus} -> ${next}`);
 
     // M5: For PENDING->ACCEPTED (payment capture) and READY->vendor confirm, require confirmation
     if (currentStatus === "PENDING") {
+      console.log(`[VENDOR-ADVANCE] Showing confirm dialog for PENDING->ACCEPTED`);
       setConfirmAction({ orderId, action: "advance", label: "Aceitar este pedido? Isso ira capturar o pagamento do cliente." });
       return;
     }
@@ -224,14 +231,17 @@ export default function OrdersPage() {
   async function doAdvanceStatus(orderId: string, currentStatus: string) {
     const next = nextStatus[currentStatus];
     if (!next) return;
+    console.log(`[VENDOR-ADVANCE] Executing: orderId=${orderId}, ${currentStatus} -> ${next}`);
     // M6: per-order advancing
     setAdvancingOrders((prev) => new Set(prev).add(orderId));
     setStatusError(null);
     setConfirmAction(null);
     try {
       await updateStatus({ variables: { id: orderId, status: next } });
+      console.log(`[VENDOR-ADVANCE] SUCCESS: orderId=${orderId}, now ${next}`);
       refetch();
     } catch (err: any) {
+      console.error(`[VENDOR-ADVANCE] FAILED: orderId=${orderId}, ${currentStatus} -> ${next}:`, err.message);
       setStatusError(err.message || "Erro ao atualizar status do pedido.");
       setTimeout(() => setStatusError(null), 5000);
     } finally {
@@ -241,13 +251,16 @@ export default function OrdersPage() {
 
   async function handleRejectOrder(orderId: string, reason: string) {
     if (!reason.trim()) return;
+    console.log(`[VENDOR-REJECT] orderId=${orderId}, reason="${reason.trim()}"`);
     // L7: per-operation loading
     setRejectingOrders((prev) => new Set(prev).add(orderId));
     try {
       await rejectOrderMut({ variables: { orderId, reason: reason.trim() } });
+      console.log(`[VENDOR-REJECT] SUCCESS: orderId=${orderId}`);
       setRejectState(null);
       refetch();
     } catch (err: any) {
+      console.error(`[VENDOR-REJECT] FAILED: orderId=${orderId}:`, err.message);
       // M7: show error to user instead of silent console.error
       setStatusError(err.message || "Erro ao rejeitar pedido.");
       setTimeout(() => setStatusError(null), 5000);
@@ -257,18 +270,22 @@ export default function OrdersPage() {
   }
 
   async function handleVendorConfirmPickup(orderId: string) {
+    console.log(`[VENDOR-PICKUP] Showing confirm dialog: orderId=${orderId}`);
     // M5: confirmation dialog for pickup
     setConfirmAction({ orderId, action: "pickup", label: "Confirmar entrega ao entregador?" });
   }
 
   async function doVendorConfirmPickup(orderId: string) {
+    console.log(`[VENDOR-PICKUP] Executing: orderId=${orderId}`);
     // L7: per-operation loading
     setPickupOrders((prev) => new Set(prev).add(orderId));
     setConfirmAction(null);
     try {
       await vendorConfirmPickupMut({ variables: { orderId } });
+      console.log(`[VENDOR-PICKUP] SUCCESS: orderId=${orderId}`);
       refetch();
     } catch (err: any) {
+      console.error(`[VENDOR-PICKUP] FAILED: orderId=${orderId}:`, err.message);
       // M7: show error to user instead of silent console.error
       setStatusError(err.message || "Erro ao confirmar entrega.");
       setTimeout(() => setStatusError(null), 5000);
@@ -280,13 +297,16 @@ export default function OrdersPage() {
   async function handleAdjustWeight(itemId: string, grams: string) {
     const parsed = parseInt(grams);
     if (!parsed || parsed <= 0) return;
+    console.log(`[VENDOR-WEIGHT] itemId=${itemId}, grams=${parsed}`);
     // L7: per-operation loading
     setWeightAdjusting((prev) => new Set(prev).add(itemId));
     try {
       await adjustWeight({ variables: { orderItemId: itemId, actualWeightGrams: parsed } });
+      console.log(`[VENDOR-WEIGHT] SUCCESS: itemId=${itemId}`);
       setWeightEdit(null);
       refetch();
     } catch (err: any) {
+      console.error(`[VENDOR-WEIGHT] FAILED: itemId=${itemId}:`, err.message);
       // M7: show error to user instead of silent console.error
       setStatusError(err.message || "Erro ao ajustar peso.");
       setTimeout(() => setStatusError(null), 5000);
