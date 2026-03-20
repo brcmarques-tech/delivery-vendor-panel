@@ -91,7 +91,7 @@ export const GET_STORE_ORDERS = gql`
 `;
 
 export const ADJUST_ORDER_ITEM_WEIGHT = gql`
-  mutation AdjustOrderItemWeight($orderItemId: ID!, $actualWeightGrams: Int!) {
+  mutation AdjustOrderItemWeight($orderItemId: String!, $actualWeightGrams: Int!) {
     adjustOrderItemWeight(orderItemId: $orderItemId, actualWeightGrams: $actualWeightGrams) {
       id
       subtotal
