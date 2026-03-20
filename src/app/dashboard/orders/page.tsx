@@ -583,8 +583,8 @@ export default function OrdersPage() {
                       )
                     )}
 
-                    {/* Confirm pickup button - appears after deliverer confirms pickup (DELIVERING) */}
-                    {order.status === "DELIVERING" && (
+                    {/* Confirm pickup button - appears after deliverer confirms pickup (DELIVERING) and vendor hasn't confirmed yet */}
+                    {order.status === "DELIVERING" && !order.vendorConfirmedPickupAt && (
                       <button
                         onClick={() => handleVendorConfirmPickup(order.id)}
                         disabled={pickupOrders.has(order.id)}
@@ -592,6 +592,11 @@ export default function OrdersPage() {
                       >
                         {pickupOrders.has(order.id) ? "Confirmando..." : "Confirmar coleta"}
                       </button>
+                    )}
+                    {order.status === "DELIVERING" && order.vendorConfirmedPickupAt && (
+                      <span className="text-green-500 text-sm font-bold flex items-center gap-1">
+                        ✓ Coleta confirmada
+                      </span>
                     )}
 
                     {/* Advance status button - M6: per-order disabled */}
