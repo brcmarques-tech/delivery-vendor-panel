@@ -85,6 +85,7 @@ function PlanContent() {
   const [billing, setBilling] = useState("monthly");
   const [showSubTerms, setShowSubTerms] = useState(false);
   const [pendingPlan, setPendingPlan] = useState<string | null>(null);
+  const [planError, setPlanError] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const searchParams = useSearchParams();
   const paymentStatus = searchParams.get("status");
@@ -135,12 +136,13 @@ function PlanContent() {
         setPendingPlan(null);
       }
     } catch (err: any) {
-      alert(err.message);
+      setPlanError(err.message || "Erro ao aceitar termos.");
     }
   }
 
   async function proceedUpgrade(plan: string) {
     setUpgrading(plan);
+    setPlanError("");
     try {
       const { data } = await createUpgrade({
         variables: { plan, billingPeriod: billing },
@@ -150,7 +152,7 @@ function PlanContent() {
         window.location.href = checkoutUrl;
       }
     } catch (err: any) {
-      alert(err.message);
+      setPlanError(err.message || "Erro ao criar upgrade.");
       setUpgrading(null);
     }
   }
@@ -238,14 +240,20 @@ function PlanContent() {
 
       <h1 className="text-2xl font-bold text-[var(--text-primary)] mb-2">Meu Plano</h1>
 
+      {planError && (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-xl text-sm mb-4">
+          {planError}
+        </div>
+      )}
+
       {badgeDiscount > 0 && (
-        <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4 mb-6 flex items-center gap-3">
+        <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-2xl p-4 mb-6 flex items-center gap-3">
           <span className="text-2xl">🏅</span>
           <div>
-            <p className="text-purple-800 font-semibold">
+            <p className="text-purple-800 dark:text-purple-300 font-semibold">
               Desconto de {badgeDiscount}% na assinatura (Selo {badgeLevel})
             </p>
-            <p className="text-purple-600 text-sm">
+            <p className="text-purple-600 dark:text-purple-400 text-sm">
               Premio do selo aplicado automaticamente em todos os planos.
             </p>
           </div>
@@ -440,7 +448,7 @@ function PlanContent() {
                 {!isCurrent && (
                   isContactSales ? (
                     <a
-                      href="https://wa.me/5500000000000"
+                      href="https://wa.me/5553984424244?text=Ol%C3%A1%2C%20tenho%20interesse%20no%20plano%20personalizado."
                       target="_blank"
                       rel="noopener noreferrer"
                       className="mt-6 w-full py-3 bg-emerald-500 text-white rounded-xl font-semibold hover:bg-emerald-600 transition cursor-pointer block text-center"

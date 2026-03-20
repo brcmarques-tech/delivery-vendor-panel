@@ -104,6 +104,11 @@ export default function PromotionsPage() {
     if (!form.storeId) { setError("Selecione uma loja"); return; }
     if (!form.productId) { setError("Selecione um produto"); return; }
     if (!form.promotionalPrice) { setError("Defina o preço promocional"); return; }
+    const selectedProduct = products.find((p: any) => p.id === form.productId);
+    if (selectedProduct && parseFloat(form.promotionalPrice) >= selectedProduct.price) {
+      setError("Preço promocional deve ser menor que o preço original (R$ " + Number(selectedProduct.price).toFixed(2) + ").");
+      return;
+    }
     if (totalDays <= 0) { setError("Defina o período de exibição"); return; }
 
     try {
@@ -161,14 +166,18 @@ export default function PromotionsPage() {
       setSwapId(null);
       refetch();
     } catch (err: any) {
-      alert(err.message);
+      setError(err.message || "Erro ao trocar produto da promoção.");
     }
   }
 
   async function handleDelete(id: string) {
     if (!confirm("Excluir esta promoção?")) return;
-    await deletePromotion({ variables: { id } });
-    refetch();
+    try {
+      await deletePromotion({ variables: { id } });
+      refetch();
+    } catch (err: any) {
+      setError(err.message || "Erro ao excluir promoção.");
+    }
   }
 
   function getStatus(promo: any) {

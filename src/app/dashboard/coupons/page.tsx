@@ -83,13 +83,22 @@ export default function CouponsPage() {
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    const discountVal = parseFloat(form.discountValue);
+    if (form.discountType === "PERCENT" && (discountVal <= 0 || discountVal > 100)) {
+      setError("Desconto percentual deve ser entre 1% e 100%.");
+      return;
+    }
+    if (discountVal <= 0) {
+      setError("Valor do desconto deve ser maior que zero.");
+      return;
+    }
     try {
       await createCoupon({
         variables: {
           input: {
             code: form.code,
             discountType: form.discountType,
-            discountValue: parseFloat(form.discountValue),
+            discountValue: discountVal,
             minimumOrder: form.minimumOrder ? parseFloat(form.minimumOrder) : null,
             maxDiscount: form.maxDiscount ? parseFloat(form.maxDiscount) : null,
             maxUses: form.maxUses ? parseInt(form.maxUses) : 0,
@@ -107,14 +116,22 @@ export default function CouponsPage() {
   }
 
   async function handleToggle(id: string) {
-    await toggleActive({ variables: { id } });
-    refetch();
+    try {
+      await toggleActive({ variables: { id } });
+      refetch();
+    } catch (err: any) {
+      setError(err.message || "Erro ao alterar cupom.");
+    }
   }
 
   async function handleDelete(id: string) {
     if (!confirm("Tem certeza que deseja excluir este cupom?")) return;
-    await deleteCoupon({ variables: { id } });
-    refetch();
+    try {
+      await deleteCoupon({ variables: { id } });
+      refetch();
+    } catch (err: any) {
+      setError(err.message || "Erro ao excluir cupom.");
+    }
   }
 
   if (!storesData) {

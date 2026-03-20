@@ -162,10 +162,11 @@ export default function OrdersPage() {
     onData: () => { refetch(); },
   });
 
-  const [updateStatus] = useMutation(UPDATE_ORDER_STATUS);
+  const [updateStatus, { loading: advancingStatus }] = useMutation(UPDATE_ORDER_STATUS);
   const [adjustWeight] = useMutation(ADJUST_ORDER_ITEM_WEIGHT);
   const [rejectOrderMut] = useMutation(REJECT_ORDER);
   const [vendorConfirmPickupMut] = useMutation(VENDOR_CONFIRM_PICKUP);
+  const [statusError, setStatusError] = useState<string | null>(null);
   const [weightEdit, setWeightEdit] = useState<{ itemId: string; value: string } | null>(null);
   const [rejectState, setRejectState] = useState<{ orderId: string; reason: string } | null>(null);
   const allOrders = ordersData?.storeOrders || [];
@@ -202,8 +203,14 @@ export default function OrdersPage() {
   async function handleAdvanceStatus(orderId: string, currentStatus: string) {
     const next = nextStatus[currentStatus];
     if (!next) return;
-    await updateStatus({ variables: { id: orderId, status: next } });
-    refetch();
+    setStatusError(null);
+    try {
+      await updateStatus({ variables: { id: orderId, status: next } });
+      refetch();
+    } catch (err: any) {
+      setStatusError(err.message || "Erro ao atualizar status do pedido.");
+      setTimeout(() => setStatusError(null), 5000);
+    }
   }
 
   async function handleRejectOrder(orderId: string, reason: string) {
@@ -280,6 +287,11 @@ export default function OrdersPage() {
       {notification && (
         <div className="fixed top-4 right-4 left-4 sm:left-auto bg-orange-500 text-white px-6 py-4 rounded-2xl shadow-lg z-50 animate-bounce">
           <p className="font-bold">{notification}</p>
+        </div>
+      )}
+      {statusError && (
+        <div className="fixed top-4 right-4 left-4 sm:left-auto bg-red-500 text-white px-6 py-4 rounded-2xl shadow-lg z-50">
+          <p className="font-semibold text-sm">{statusError}</p>
         </div>
       )}
 
@@ -484,7 +496,8 @@ export default function OrdersPage() {
                     {canAdvance && (
                       <button
                         onClick={() => handleAdvanceStatus(order.id, order.status)}
-                        className="bg-orange-500 text-white px-4 py-2 rounded-xl text-sm font-bold cursor-pointer hover:bg-orange-600 active:scale-95 transition"
+                        disabled={advancingStatus}
+                        className="bg-orange-500 text-white px-4 py-2 rounded-xl text-sm font-bold cursor-pointer hover:bg-orange-600 active:scale-95 transition disabled:opacity-50"
                       >
                         {order.status === "PENDING" && "Aceitar pedido"}
                         {order.status === "ACCEPTED" && "Iniciar preparo"}

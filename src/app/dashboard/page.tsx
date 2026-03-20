@@ -32,9 +32,16 @@ function DashboardContent() {
   const [deleteSuccess, setDeleteSuccess] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
+  const [toggleError, setToggleError] = useState("");
+
   async function handleToggle(storeId: string) {
-    await toggleOpen({ variables: { id: storeId } });
-    refetch();
+    try {
+      await toggleOpen({ variables: { id: storeId } });
+      refetch();
+    } catch (err: any) {
+      setToggleError(err.message || "Erro ao alterar status da loja.");
+      setTimeout(() => setToggleError(""), 5000);
+    }
   }
 
   async function handleRequestDelete() {
@@ -90,6 +97,12 @@ function DashboardContent() {
         onCreated={() => refetch()}
         store={editingStore}
       />
+
+      {toggleError && (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-xl text-sm mb-4">
+          {toggleError}
+        </div>
+      )}
 
       {!emailVerified && (
         <a href="/dashboard/settings" className="block bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-6 hover:bg-amber-100 transition">

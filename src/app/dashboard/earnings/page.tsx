@@ -498,10 +498,18 @@ function EarningsDashboard() {
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState("");
   const [autoAnticipation, setAutoAnticipation] = useState(false);
+  const [autoInitialized, setAutoInitialized] = useState(false);
   const [togglingAuto, setTogglingAuto] = useState(false);
 
   const balance = balanceData?.myBalance;
   const simulation = simData?.simulateAnticipation;
+
+  useEffect(() => {
+    if (balance && !autoInitialized) {
+      setAutoAnticipation(balance.autoAnticipationEnabled ?? false);
+      setAutoInitialized(true);
+    }
+  }, [balance, autoInitialized]);
 
   async function handleAnticipate() {
     setError("");

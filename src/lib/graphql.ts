@@ -345,15 +345,6 @@ export const CREATE_PLAN_UPGRADE = gql`
   }
 `;
 
-export const GET_ACTIVE_PROMOTIONS = gql`
-  query ActivePromotions {
-    activePromotions {
-      id title description imageUrl startDate endDate isActive isPaid price
-      store { id name }
-    }
-  }
-`;
-
 // ─── Coupons ───
 
 export const GET_STORE_COUPONS = gql`
@@ -506,6 +497,7 @@ export const MY_BALANCE = gql`
       availableAmount
       waitingFundsAmount
       transferredAmount
+      autoAnticipationEnabled
     }
   }
 `;
