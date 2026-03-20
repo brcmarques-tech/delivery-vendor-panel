@@ -82,7 +82,7 @@ export const UPDATE_STORE = gql`
 export const GET_STORE_ORDERS = gql`
   query StoreOrders($storeId: String!) {
     storeOrders(storeId: $storeId) {
-      id orderNumber status total subtotal discount couponCode createdAt
+      id orderNumber status total subtotal discount couponCode createdAt vendorConfirmedPickupAt
       customer { id name phone avatarUrl }
       items { id quantity weightGrams unitPrice totalPrice product { name price promotionalPrice isVariableWeight imageUrl } }
       delivery { id deliverer { name phone } }
