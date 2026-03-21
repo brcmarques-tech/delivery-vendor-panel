@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useSubscription } from "@apollo/client";
-import { GET_MY_STORES, GET_STORE_ORDERS, UPDATE_ORDER_STATUS, ORDER_CREATED_SUB, ORDER_UPDATED_SUB, ADJUST_ORDER_ITEM_WEIGHT, REJECT_ORDER, VENDOR_CONFIRM_PICKUP } from "@/lib/graphql";
+import { GET_MY_STORES, GET_STORE_ORDERS, UPDATE_ORDER_STATUS, ORDER_CREATED_SUB, ORDER_UPDATED_SUB, ADJUST_ORDER_ITEM_WEIGHT, REJECT_ORDER, VENDOR_CANCEL_ORDER, VENDOR_CONFIRM_PICKUP } from "@/lib/graphql";
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import CreateStoreModal from "@/components/CreateStoreModal";
 
@@ -170,6 +170,7 @@ export default function OrdersPage() {
   const [updateStatus] = useMutation(UPDATE_ORDER_STATUS);
   const [adjustWeight] = useMutation(ADJUST_ORDER_ITEM_WEIGHT);
   const [rejectOrderMut] = useMutation(REJECT_ORDER);
+  const [vendorCancelOrderMut] = useMutation(VENDOR_CANCEL_ORDER);
   const [vendorConfirmPickupMut] = useMutation(VENDOR_CONFIRM_PICKUP);
   const [statusError, setStatusError] = useState<string | null>(null);
   const [weightEdit, setWeightEdit] = useState<{ itemId: string; value: string } | null>(null);
@@ -178,6 +179,8 @@ export default function OrdersPage() {
   const [advancingOrders, setAdvancingOrders] = useState<Set<string>>(new Set());
   // L7: per-operation loading tracking for reject/pickup/weight
   const [rejectingOrders, setRejectingOrders] = useState<Set<string>>(new Set());
+  const [cancelState, setCancelState] = useState<{ orderId: string; reason: string } | null>(null);
+  const [cancellingOrders, setCancellingOrders] = useState<Set<string>>(new Set());
   const [pickupOrders, setPickupOrders] = useState<Set<string>>(new Set());
   const [weightAdjusting, setWeightAdjusting] = useState<Set<string>>(new Set());
   // M5: confirmation dialog state
@@ -266,6 +269,24 @@ export default function OrdersPage() {
       setTimeout(() => setStatusError(null), 5000);
     } finally {
       setRejectingOrders((prev) => { const s = new Set(prev); s.delete(orderId); return s; });
+    }
+  }
+
+  async function handleVendorCancelOrder(orderId: string, reason: string) {
+    if (!reason.trim()) return;
+    console.log(`[VENDOR-CANCEL] orderId=${orderId}, reason="${reason.trim()}"`);
+    setCancellingOrders((prev) => new Set(prev).add(orderId));
+    try {
+      await vendorCancelOrderMut({ variables: { orderId, reason: reason.trim() } });
+      console.log(`[VENDOR-CANCEL] SUCCESS: orderId=${orderId}`);
+      setCancelState(null);
+      refetch();
+    } catch (err: any) {
+      console.error(`[VENDOR-CANCEL] FAILED: orderId=${orderId}:`, err.message);
+      setStatusError(err.message || "Erro ao cancelar pedido.");
+      setTimeout(() => setStatusError(null), 5000);
+    } finally {
+      setCancellingOrders((prev) => { const s = new Set(prev); s.delete(orderId); return s; });
     }
   }
 
@@ -579,6 +600,43 @@ export default function OrdersPage() {
                           className="bg-red-500 text-white px-4 py-2 rounded-xl text-sm font-bold cursor-pointer hover:bg-red-600 active:scale-95 transition"
                         >
                           Rejeitar
+                        </button>
+                      )
+                    )}
+
+                    {/* Cancel button for ACCEPTED/PREPARING/READY orders */}
+                    {["ACCEPTED", "PREPARING", "READY"].includes(order.status) && (
+                      cancelState?.orderId === order.id ? (
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            autoFocus
+                            value={cancelState!.reason}
+                            onChange={(e) => setCancelState({ orderId: order.id, reason: e.target.value })}
+                            onKeyDown={(e) => { if (e.key === "Enter") handleVendorCancelOrder(order.id, cancelState!.reason); if (e.key === "Escape") setCancelState(null); }}
+                            placeholder="Motivo do cancelamento"
+                            className="px-3 py-2 border border-red-300 dark:border-red-700 rounded-xl text-sm text-[var(--text-primary)] bg-[var(--bg-input)] focus:ring-1 focus:ring-red-300 outline-none w-44"
+                          />
+                          <button
+                            onClick={() => handleVendorCancelOrder(order.id, cancelState!.reason)}
+                            disabled={cancellingOrders.has(order.id)}
+                            className="bg-red-500 text-white px-3 py-2 rounded-xl text-sm font-bold cursor-pointer hover:bg-red-600 active:scale-95 transition disabled:opacity-50"
+                          >
+                            {cancellingOrders.has(order.id) ? "Cancelando..." : "Confirmar"}
+                          </button>
+                          <button
+                            onClick={() => setCancelState(null)}
+                            className="px-2 py-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer text-sm"
+                          >
+                            &#10005;
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setCancelState({ orderId: order.id, reason: "" })}
+                          className="bg-red-500 text-white px-4 py-2 rounded-xl text-sm font-bold cursor-pointer hover:bg-red-600 active:scale-95 transition"
+                        >
+                          Cancelar pedido
                         </button>
                       )
                     )}
