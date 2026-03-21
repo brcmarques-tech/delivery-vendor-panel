@@ -530,6 +530,19 @@ export default function OrdersPage() {
                             </svg>
                           </button>
                         )}
+                        {order.delivery.currentLatitude && order.deliveryLatitude && (
+                          <a
+                            href={`https://www.google.com/maps/dir/${order.delivery.currentLatitude},${order.delivery.currentLongitude}/${order.deliveryLatitude},${order.deliveryLongitude}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-purple-500 hover:text-purple-700 dark:hover:text-purple-300 transition"
+                            title="Ver no mapa"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                              <path fillRule="evenodd" d="M9.69 18.933l.003.001C9.89 19.02 10 19 10 19s.11.02.308-.066l.002-.001.006-.003.018-.008a5.741 5.741 0 00.281-.14c.186-.096.446-.24.757-.433a19.695 19.695 0 002.683-2.006c1.9-1.7 3.945-4.283 3.945-7.343a8 8 0 00-16 0c0 3.06 2.046 5.643 3.945 7.343a19.695 19.695 0 002.683 2.006 12.3 12.3 0 00.757.433l.281.14.018.008.006.003zM10 11.25a2.25 2.25 0 100-4.5 2.25 2.25 0 000 4.5z" clipRule="evenodd" />
+                            </svg>
+                          </a>
+                        )}
                       </div>
                       <p className="text-xs text-purple-600 dark:text-purple-400 font-medium">
                         {order.status === "DELIVERING" ? "Saiu para entrega" : order.status === "DELIVERER_CONFIRMED_DELIVERY" ? "Entrega confirmada" : "Entregador a caminho"}
