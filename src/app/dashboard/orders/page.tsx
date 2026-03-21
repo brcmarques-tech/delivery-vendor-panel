@@ -518,7 +518,9 @@ export default function OrdersPage() {
                         </div>
                       )}
                       <p className="text-sm font-semibold text-[var(--text-primary)]">{order.delivery.deliverer.name}</p>
-                      <p className="text-xs text-purple-600 dark:text-purple-400 font-medium">Entregador a caminho</p>
+                      <p className="text-xs text-purple-600 dark:text-purple-400 font-medium">
+                        {order.status === "DELIVERING" ? "Saiu para entrega" : order.status === "DELIVERER_CONFIRMED_DELIVERY" ? "Entrega confirmada" : "Entregador a caminho"}
+                      </p>
                     </div>
                   ) : (
                     <span className={`px-3 py-1 rounded-full text-xs font-semibold ${status.color} shrink-0`}>
