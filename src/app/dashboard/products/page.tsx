@@ -21,6 +21,7 @@ import {
   RESTORE_PRODUCT,
 } from "@/lib/graphql";
 import { useState, useRef, useCallback, useEffect } from "react";
+import { compressImage } from "@/lib/compressImage";
 import Papa from "papaparse";
 
 // Map PT product names to EN search terms for Open Food Facts
@@ -434,9 +435,10 @@ export default function ProductsPage() {
   function handleCsvImageSelect(file: File, index: number) {
     const reader = new FileReader();
     reader.onloadend = async () => {
-      const base64 = reader.result as string;
+      const raw = reader.result as string;
       try {
-        const { data: uploadData } = await uploadImage({ variables: { base64, folder: "products" } });
+        const compressed = await compressImage(raw, 800, 0.8);
+        const { data: uploadData } = await uploadImage({ variables: { base64: compressed, folder: "products" } });
         updateCsvProduct(index, "imageUrl", uploadData.uploadImage);
       } catch {
         setError("Erro ao enviar imagem");
@@ -482,10 +484,11 @@ export default function ProductsPage() {
 
   function handleImageSelect(file: File, mode: "create" | "edit") {
     const reader = new FileReader();
-    reader.onloadend = () => {
-      const result = reader.result as string;
-      if (mode === "create") { setImagePreview(result); setImageBase64(result); }
-      else { setEditImagePreview(result); setEditImageBase64(result); }
+    reader.onloadend = async () => {
+      const raw = reader.result as string;
+      const compressed = await compressImage(raw, 800, 0.8);
+      if (mode === "create") { setImagePreview(compressed); setImageBase64(compressed); }
+      else { setEditImagePreview(compressed); setEditImageBase64(compressed); }
     };
     reader.readAsDataURL(file);
   }

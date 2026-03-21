@@ -8,6 +8,7 @@ import {
   SEND_EMAIL_VERIFICATION, CONFIRM_EMAIL_VERIFICATION,
 } from "@/lib/graphql";
 import { useState, useRef, useEffect } from "react";
+import { compressImage } from "@/lib/compressImage";
 import TermsModal from "@/components/TermsModal";
 import CreateStoreModal from "@/components/CreateStoreModal";
 import { useTheme } from "@/lib/ThemeProvider";
@@ -313,10 +314,12 @@ function StoresSection() {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
-      if (type === "logo") { setLogoPreview(result); setLogoBase64(result); }
-      else { setBannerPreview(result); setBannerBase64(result); }
+    reader.onload = async () => {
+      const raw = reader.result as string;
+      const maxW = type === "logo" ? 400 : 1200;
+      const compressed = await compressImage(raw, maxW, 0.8);
+      if (type === "logo") { setLogoPreview(compressed); setLogoBase64(compressed); }
+      else { setBannerPreview(compressed); setBannerBase64(compressed); }
     };
     reader.readAsDataURL(file);
   }
