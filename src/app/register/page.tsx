@@ -181,7 +181,7 @@ export default function RegisterPage() {
       localStorage.setItem("token", data.googleAuthVendor.accessToken);
       localStorage.setItem("user", JSON.stringify(user));
       await apolloClient.resetStore();
-      router.push("/dashboard");
+      router.replace("/dashboard");
     } catch (err: any) {
       const msg = err?.message || "";
       // Extract name/email from Google JWT to pre-fill the form

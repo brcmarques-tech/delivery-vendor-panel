@@ -44,7 +44,7 @@ export default function LoginPage() {
       localStorage.setItem("token", data.googleAuthVendor.accessToken);
       localStorage.setItem("user", JSON.stringify(user));
       await apolloClient.resetStore();
-      router.push("/dashboard");
+      router.replace("/dashboard");
     } catch (err: any) {
       const msg = err?.message || "";
       if (msg.includes("ACTIVE_SESSION")) {
@@ -90,7 +90,7 @@ export default function LoginPage() {
       localStorage.setItem("token", data.loginVendor.accessToken);
       localStorage.setItem("user", JSON.stringify(data.loginVendor.user));
       await apolloClient.resetStore();
-      router.push("/dashboard");
+      router.replace("/dashboard");
     } catch (err: any) {
       const msg = err?.message || "";
       if (msg.includes("ACTIVE_SESSION")) {

@@ -60,14 +60,14 @@ export default function DashboardLayout({
   useEffect(() => {
     const stored = localStorage.getItem("user");
     if (!stored || !localStorage.getItem("token")) {
-      router.push("/");
+      router.replace("/");
       return;
     }
     const parsed = JSON.parse(stored);
     if (parsed.role !== "VENDOR") {
       localStorage.removeItem("token");
       localStorage.removeItem("user");
-      router.push("/");
+      router.replace("/");
       return;
     }
     setUser(parsed);
@@ -91,7 +91,7 @@ export default function DashboardLayout({
       localStorage.removeItem("user");
       apolloClient.clearStore();
       alert("Sua conta foi conectada em outro dispositivo. Voce foi desconectado.");
-      router.push("/");
+      router.replace("/");
     },
   });
 
@@ -104,7 +104,7 @@ export default function DashboardLayout({
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     apolloClient.clearStore();
-    router.push("/");
+    router.replace("/");
   }
 
   const sidebarContent = (
