@@ -85,7 +85,8 @@ export const GET_STORE_ORDERS = gql`
       id orderNumber status total subtotal discount couponCode createdAt vendorConfirmedPickupAt
       customer { id name phone avatarUrl }
       items { id quantity weightGrams unitPrice totalPrice product { name price promotionalPrice isVariableWeight imageUrl } }
-      delivery { id deliverer { name phone profilePhotoUrl } }
+      deliveryAddress deliveryLatitude deliveryLongitude
+      delivery { id currentLatitude currentLongitude deliverer { name phone profilePhotoUrl } }
     }
   }
 `;
@@ -467,7 +468,8 @@ export const ORDER_UPDATED_SUB = gql`
       id orderNumber status total createdAt
       customer { name phone }
       items { id quantity totalPrice product { name } }
-      delivery { id deliverer { name phone profilePhotoUrl } }
+      deliveryAddress deliveryLatitude deliveryLongitude
+      delivery { id currentLatitude currentLongitude deliverer { name phone profilePhotoUrl } }
     }
   }
 `;
