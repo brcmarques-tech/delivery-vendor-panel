@@ -495,11 +495,33 @@ export default function OrdersPage() {
             return (
               <div key={order.id} className="bg-[var(--bg-card)] rounded-2xl p-4 sm:p-6 shadow-sm">
                 <div className="flex flex-wrap items-center justify-between mb-3 gap-2">
-                  <div>
-                    <span className="font-bold text-[var(--text-primary)]">#{order.orderNumber}</span>
-                    <span className="text-sm text-[var(--text-secondary)] sm:ml-3">
-                      {order.customer.name} - {order.customer.phone}
-                    </span>
+                  <div className="flex items-center gap-3">
+                    <div>
+                      <span className="font-bold text-[var(--text-primary)]">#{order.orderNumber}</span>
+                      <span className="text-sm text-[var(--text-secondary)] sm:ml-3">
+                        {order.customer.name} - {order.customer.phone}
+                      </span>
+                    </div>
+                    {order.delivery?.deliverer && (
+                      <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-purple-50 dark:bg-purple-900/20">
+                        {order.delivery.deliverer.profilePhotoUrl ? (
+                          <img
+                            src={order.delivery.deliverer.profilePhotoUrl}
+                            alt=""
+                            className="w-8 h-8 rounded-full object-cover cursor-pointer hover:ring-2 hover:ring-purple-400 transition"
+                            onClick={() => setZoomedAvatar(order.delivery.deliverer.profilePhotoUrl)}
+                          />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-purple-200 dark:bg-purple-800 flex items-center justify-center text-purple-700 dark:text-purple-300 font-bold text-xs">
+                            {order.delivery.deliverer.name?.charAt(0)?.toUpperCase()}
+                          </div>
+                        )}
+                        <div>
+                          <p className="text-xs font-semibold text-[var(--text-primary)]">{order.delivery.deliverer.name}</p>
+                          <p className="text-[10px] text-[var(--text-muted)]">{order.delivery.deliverer.phone}</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-[var(--text-muted)]">{formatDate(order.createdAt)}</span>
@@ -508,27 +530,6 @@ export default function OrdersPage() {
                     </span>
                   </div>
                 </div>
-
-                {order.delivery?.deliverer && (
-                  <div className="flex items-center gap-3 mb-3 p-3 rounded-xl bg-purple-50 dark:bg-purple-900/20">
-                    {order.delivery.deliverer.avatarUrl ? (
-                      <img
-                        src={order.delivery.deliverer.avatarUrl}
-                        alt=""
-                        className="w-10 h-10 rounded-full object-cover cursor-pointer hover:ring-2 hover:ring-purple-400 transition"
-                        onClick={() => setZoomedAvatar(order.delivery.deliverer.avatarUrl)}
-                      />
-                    ) : (
-                      <div className="w-10 h-10 rounded-full bg-purple-200 dark:bg-purple-800 flex items-center justify-center text-purple-700 dark:text-purple-300 font-bold text-sm">
-                        {order.delivery.deliverer.name?.charAt(0)?.toUpperCase()}
-                      </div>
-                    )}
-                    <div>
-                      <p className="text-sm font-semibold text-[var(--text-primary)]">{order.delivery.deliverer.name}</p>
-                      <p className="text-xs text-[var(--text-muted)]">{order.delivery.deliverer.phone}</p>
-                    </div>
-                  </div>
-                )}
 
                 <div className="border-t border-[var(--border-light)] pt-3 mb-3">
                   {order.items.map((item: any) => (
