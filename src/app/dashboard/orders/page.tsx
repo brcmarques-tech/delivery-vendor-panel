@@ -488,7 +488,7 @@ export default function OrdersPage() {
           {filteredOrders.map((order: any) => {
             let status = statusLabels[order.status] || { label: order.status, color: "bg-gray-100" };
             if (order.status === "READY" && order.delivery?.deliverer) {
-              status = { label: `Entregador a caminho (${order.delivery.deliverer.name})`, color: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300" };
+              status = { label: "Entregador a caminho", color: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300" };
             }
             const canAdvance = !!nextStatus[order.status];
 
@@ -503,23 +503,21 @@ export default function OrdersPage() {
                       </span>
                     </div>
                     {order.delivery?.deliverer && (
-                      <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-purple-50 dark:bg-purple-900/20">
+                      <div className="flex flex-col items-center gap-1 px-4 py-2 rounded-xl bg-purple-50 dark:bg-purple-900/20">
                         {order.delivery.deliverer.profilePhotoUrl ? (
                           <img
                             src={order.delivery.deliverer.profilePhotoUrl}
                             alt=""
-                            className="w-8 h-8 rounded-full object-cover cursor-pointer hover:ring-2 hover:ring-purple-400 transition"
+                            className="w-14 h-14 rounded-full object-cover cursor-pointer hover:ring-2 hover:ring-purple-400 transition"
                             onClick={() => setZoomedAvatar(order.delivery.deliverer.profilePhotoUrl)}
                           />
                         ) : (
-                          <div className="w-8 h-8 rounded-full bg-purple-200 dark:bg-purple-800 flex items-center justify-center text-purple-700 dark:text-purple-300 font-bold text-xs">
+                          <div className="w-14 h-14 rounded-full bg-purple-200 dark:bg-purple-800 flex items-center justify-center text-purple-700 dark:text-purple-300 font-bold text-lg">
                             {order.delivery.deliverer.name?.charAt(0)?.toUpperCase()}
                           </div>
                         )}
-                        <div>
-                          <p className="text-xs font-semibold text-[var(--text-primary)]">{order.delivery.deliverer.name}</p>
-                          <p className="text-[10px] text-[var(--text-muted)]">{order.delivery.deliverer.phone}</p>
-                        </div>
+                        <p className="text-sm font-semibold text-[var(--text-primary)]">{order.delivery.deliverer.name}</p>
+                        <p className="text-xs text-purple-600 dark:text-purple-400 font-medium">Entregador a caminho</p>
                       </div>
                     )}
                   </div>
