@@ -201,6 +201,12 @@ export const REJECT_ORDER = gql`
   }
 `;
 
+export const VENDOR_CANCEL_ORDER = gql`
+  mutation VendorCancelOrder($orderId: String!, $reason: String!) {
+    vendorCancelOrder(orderId: $orderId, reason: $reason) { id status }
+  }
+`;
+
 export const VENDOR_CONFIRM_PICKUP = gql`
   mutation VendorConfirmPickup($orderId: String!) {
     vendorConfirmPickup(orderId: $orderId) { id status }
