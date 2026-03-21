@@ -486,10 +486,7 @@ export default function OrdersPage() {
       ) : (
         <div className="space-y-4">
           {filteredOrders.map((order: any) => {
-            let status = statusLabels[order.status] || { label: order.status, color: "bg-gray-100" };
-            if (order.status === "READY" && order.delivery?.deliverer) {
-              status = { label: "Entregador a caminho", color: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300" };
-            }
+            const status = statusLabels[order.status] || { label: order.status, color: "bg-gray-100" };
             const canAdvance = !!nextStatus[order.status];
 
             return (
