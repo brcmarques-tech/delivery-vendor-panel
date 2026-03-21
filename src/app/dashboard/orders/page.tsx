@@ -130,6 +130,7 @@ export default function OrdersPage() {
   const [notification, setNotification] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabKey>("active");
   const [dateFilter, setDateFilter] = useState<DateFilter>("today");
+  const [zoomedAvatar, setZoomedAvatar] = useState<string | null>(null);
 
   useEffect(() => {
     if (stores.length > 0 && !selectedStore) {
@@ -511,7 +512,12 @@ export default function OrdersPage() {
                 {order.delivery?.deliverer && (
                   <div className="flex items-center gap-3 mb-3 p-3 rounded-xl bg-purple-50 dark:bg-purple-900/20">
                     {order.delivery.deliverer.avatarUrl ? (
-                      <img src={order.delivery.deliverer.avatarUrl} alt="" className="w-10 h-10 rounded-full object-cover" />
+                      <img
+                        src={order.delivery.deliverer.avatarUrl}
+                        alt=""
+                        className="w-10 h-10 rounded-full object-cover cursor-pointer hover:ring-2 hover:ring-purple-400 transition"
+                        onClick={() => setZoomedAvatar(order.delivery.deliverer.avatarUrl)}
+                      />
                     ) : (
                       <div className="w-10 h-10 rounded-full bg-purple-200 dark:bg-purple-800 flex items-center justify-center text-purple-700 dark:text-purple-300 font-bold text-sm">
                         {order.delivery.deliverer.name?.charAt(0)?.toUpperCase()}
@@ -694,6 +700,19 @@ export default function OrdersPage() {
               </div>
             );
           })}
+        </div>
+      )}
+      {zoomedAvatar && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 cursor-pointer"
+          onClick={() => setZoomedAvatar(null)}
+        >
+          <img
+            src={zoomedAvatar}
+            alt=""
+            className="max-w-[90vw] max-h-[90vh] rounded-2xl object-contain shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          />
         </div>
       )}
     </div>
