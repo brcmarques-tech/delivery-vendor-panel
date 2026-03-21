@@ -545,7 +545,7 @@ export default function OrdersPage() {
                         )}
                       </div>
                       <p className="text-xs text-purple-600 dark:text-purple-400 font-medium">
-                        {order.status === "DELIVERING" ? "Saiu para entrega" : order.status === "DELIVERER_CONFIRMED_DELIVERY" ? "Entrega confirmada" : "Entregador a caminho"}
+                        {order.status === "COMPLETED" || order.status === "DELIVERED" ? "Entrega concluída" : order.status === "DELIVERING" ? "Saiu para entrega" : order.status === "DELIVERER_CONFIRMED_DELIVERY" ? "Entrega confirmada" : "Entregador a caminho"}
                       </p>
                     </div>
                   ) : (
