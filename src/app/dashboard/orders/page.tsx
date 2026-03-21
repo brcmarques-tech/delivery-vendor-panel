@@ -491,39 +491,40 @@ export default function OrdersPage() {
 
             return (
               <div key={order.id} className="bg-[var(--bg-card)] rounded-2xl p-4 sm:p-6 shadow-sm">
-                <div className="flex flex-wrap items-center justify-between mb-3 gap-2">
-                  <div className="flex items-center gap-3">
-                    <div>
+                <div className="flex items-start justify-between mb-3 gap-4">
+                  <div>
+                    <span className="text-xs text-[var(--text-muted)]">{formatDate(order.createdAt)}</span>
+                    <div className="mt-1">
                       <span className="font-bold text-[var(--text-primary)]">#{order.orderNumber}</span>
-                      <span className="text-sm text-[var(--text-secondary)] sm:ml-3">
+                    </div>
+                    <div className="mt-1">
+                      <span className="text-sm text-[var(--text-secondary)]">
                         {order.customer.name} - {order.customer.phone}
                       </span>
                     </div>
-                    {order.delivery?.deliverer && (
-                      <div className="flex flex-col items-center gap-1 px-4 py-2 rounded-xl bg-purple-50 dark:bg-purple-900/20">
-                        {order.delivery.deliverer.profilePhotoUrl ? (
-                          <img
-                            src={order.delivery.deliverer.profilePhotoUrl}
-                            alt=""
-                            className="w-14 h-14 rounded-full object-cover cursor-pointer hover:ring-2 hover:ring-purple-400 transition"
-                            onClick={() => setZoomedAvatar(order.delivery.deliverer.profilePhotoUrl)}
-                          />
-                        ) : (
-                          <div className="w-14 h-14 rounded-full bg-purple-200 dark:bg-purple-800 flex items-center justify-center text-purple-700 dark:text-purple-300 font-bold text-lg">
-                            {order.delivery.deliverer.name?.charAt(0)?.toUpperCase()}
-                          </div>
-                        )}
-                        <p className="text-sm font-semibold text-[var(--text-primary)]">{order.delivery.deliverer.name}</p>
-                        <p className="text-xs text-purple-600 dark:text-purple-400 font-medium">Entregador a caminho</p>
-                      </div>
-                    )}
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-[var(--text-muted)]">{formatDate(order.createdAt)}</span>
-                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${status.color}`}>
+                  {order.delivery?.deliverer ? (
+                    <div className="flex flex-col items-center gap-1 px-4 py-2 rounded-xl bg-purple-50 dark:bg-purple-900/20 shrink-0">
+                      {order.delivery.deliverer.profilePhotoUrl ? (
+                        <img
+                          src={order.delivery.deliverer.profilePhotoUrl}
+                          alt=""
+                          className="w-14 h-14 rounded-full object-cover cursor-pointer hover:ring-2 hover:ring-purple-400 transition"
+                          onClick={() => setZoomedAvatar(order.delivery.deliverer.profilePhotoUrl)}
+                        />
+                      ) : (
+                        <div className="w-14 h-14 rounded-full bg-purple-200 dark:bg-purple-800 flex items-center justify-center text-purple-700 dark:text-purple-300 font-bold text-lg">
+                          {order.delivery.deliverer.name?.charAt(0)?.toUpperCase()}
+                        </div>
+                      )}
+                      <p className="text-sm font-semibold text-[var(--text-primary)]">{order.delivery.deliverer.name}</p>
+                      <p className="text-xs text-purple-600 dark:text-purple-400 font-medium">Entregador a caminho</p>
+                    </div>
+                  ) : (
+                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${status.color} shrink-0`}>
                       {status.label}
                     </span>
-                  </div>
+                  )}
                 </div>
 
                 <div className="border-t border-[var(--border-light)] pt-3 mb-3">
