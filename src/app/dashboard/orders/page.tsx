@@ -505,26 +505,13 @@ export default function OrdersPage() {
                   </div>
                   {order.delivery?.deliverer ? (
                     <div className="flex flex-col items-center gap-1 px-4 py-2 rounded-xl bg-purple-50 dark:bg-purple-900/20 shrink-0">
-                      {order.delivery.deliverer.profilePhotoUrl ? (
-                        <img
-                          src={order.delivery.deliverer.profilePhotoUrl}
-                          alt=""
-                          className="w-14 h-14 rounded-full object-cover cursor-pointer hover:ring-2 hover:ring-purple-400 transition"
-                          onClick={() => setZoomedAvatar(order.delivery.deliverer.profilePhotoUrl)}
-                        />
-                      ) : (
-                        <div className="w-14 h-14 rounded-full bg-purple-200 dark:bg-purple-800 flex items-center justify-center text-purple-700 dark:text-purple-300 font-bold text-lg">
-                          {order.delivery.deliverer.name?.charAt(0)?.toUpperCase()}
-                        </div>
-                      )}
-                      <div className="flex items-center gap-1.5">
-                        <p className="text-sm font-semibold text-[var(--text-primary)]">{order.delivery.deliverer.name}</p>
+                      <div className="flex items-center gap-3">
                         {order.delivery.deliverer.phone && (
                           <a
                             href={`https://wa.me/55${order.delivery.deliverer.phone.replace(/\D/g, '')}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-green-500 hover:text-green-700 dark:hover:text-green-300 transition"
+                            className="w-8 h-8 flex items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/50 transition"
                             title="WhatsApp do entregador"
                           >
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
@@ -532,20 +519,35 @@ export default function OrdersPage() {
                             </svg>
                           </a>
                         )}
-                        {order.delivery.currentLatitude && order.deliveryLatitude && (
+                        {order.delivery.deliverer.profilePhotoUrl ? (
+                          <img
+                            src={order.delivery.deliverer.profilePhotoUrl}
+                            alt=""
+                            className="w-14 h-14 rounded-full object-cover cursor-pointer hover:ring-2 hover:ring-purple-400 transition"
+                            onClick={() => setZoomedAvatar(order.delivery.deliverer.profilePhotoUrl)}
+                          />
+                        ) : (
+                          <div className="w-14 h-14 rounded-full bg-purple-200 dark:bg-purple-800 flex items-center justify-center text-purple-700 dark:text-purple-300 font-bold text-lg">
+                            {order.delivery.deliverer.name?.charAt(0)?.toUpperCase()}
+                          </div>
+                        )}
+                        {order.delivery.currentLatitude && order.deliveryLatitude ? (
                           <a
                             href={`https://www.google.com/maps/dir/${order.delivery.currentLatitude},${order.delivery.currentLongitude}/${order.deliveryLatitude},${order.deliveryLongitude}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-purple-500 hover:text-purple-700 dark:hover:text-purple-300 transition"
+                            className="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/50 transition"
                             title="Ver no mapa"
                           >
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
                               <path fillRule="evenodd" d="M9.69 18.933l.003.001C9.89 19.02 10 19 10 19s.11.02.308-.066l.002-.001.006-.003.018-.008a5.741 5.741 0 00.281-.14c.186-.096.446-.24.757-.433a19.695 19.695 0 002.683-2.006c1.9-1.7 3.945-4.283 3.945-7.343a8 8 0 00-16 0c0 3.06 2.046 5.643 3.945 7.343a19.695 19.695 0 002.683 2.006 12.3 12.3 0 00.757.433l.281.14.018.008.006.003zM10 11.25a2.25 2.25 0 100-4.5 2.25 2.25 0 000 4.5z" clipRule="evenodd" />
                             </svg>
                           </a>
+                        ) : (
+                          <div className="w-8 h-8" />
                         )}
                       </div>
+                      <p className="text-sm font-semibold text-[var(--text-primary)]">{order.delivery.deliverer.name}</p>
                       <p className="text-xs text-purple-600 dark:text-purple-400 font-medium">
                         {order.status === "COMPLETED" || order.status === "DELIVERED" ? "Entrega concluída" : order.status === "DELIVERING" ? "Saiu para entrega" : order.status === "DELIVERER_CONFIRMED_DELIVERY" ? "Entrega confirmada" : "Entregador a caminho"}
                       </p>
