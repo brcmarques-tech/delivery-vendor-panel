@@ -485,7 +485,10 @@ export default function OrdersPage() {
       ) : (
         <div className="space-y-4">
           {filteredOrders.map((order: any) => {
-            const status = statusLabels[order.status] || { label: order.status, color: "bg-gray-100" };
+            let status = statusLabels[order.status] || { label: order.status, color: "bg-gray-100" };
+            if (order.status === "READY" && order.delivery?.deliverer) {
+              status = { label: `Entregador a caminho (${order.delivery.deliverer.name})`, color: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300" };
+            }
             const canAdvance = !!nextStatus[order.status];
 
             return (
@@ -604,8 +607,8 @@ export default function OrdersPage() {
                       )
                     )}
 
-                    {/* Cancel button for ACCEPTED/PREPARING/READY orders */}
-                    {["ACCEPTED", "PREPARING", "READY"].includes(order.status) && (
+                    {/* Cancel button for ACCEPTED/PREPARING/READY orders (only if no deliverer assigned) */}
+                    {["ACCEPTED", "PREPARING", "READY"].includes(order.status) && !order.delivery?.deliverer && (
                       cancelState?.orderId === order.id ? (
                         <div className="flex items-center gap-2">
                           <input
