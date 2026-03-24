@@ -92,7 +92,7 @@ function formatDate(dateStr: string) {
 
 const PENDING_EXPIRY_MINUTES = 10;
 
-function PendingTimer({ createdAt }: { createdAt: string | number }) {
+function PendingTimer({ createdAt, onExpired }: { createdAt: string | number; onExpired?: () => void }) {
   // Parse timestamp — server runs in BRT (UTC-3) but saves timestamps
   // with "Z" suffix as if UTC, so they're 3 hours ahead of real UTC.
   const SERVER_OFFSET_MS = 3 * 60 * 60 * 1000;
@@ -119,7 +119,10 @@ function PendingTimer({ createdAt }: { createdAt: string | number }) {
     const interval = setInterval(() => {
       const r = getRemaining();
       setRemaining(r);
-      if (r <= 0) clearInterval(interval);
+      if (r <= 0) {
+        clearInterval(interval);
+        onExpired?.();
+      }
     }, 1000);
     return () => clearInterval(interval);
   }, [createdAt]);
@@ -643,7 +646,7 @@ export default function OrdersPage() {
                       R$ {Number(order.subtotal).toFixed(2)}
                     </span>
                     {(order.status === "PENDING" || order.status === "AWAITING_PAYMENT" || order.status === "PAYMENT_REVIEW") && (
-                      <PendingTimer createdAt={order.createdAt} />
+                      <PendingTimer createdAt={order.createdAt} onExpired={() => refetch()} />
                     )}
                   </div>
                   <div className="flex items-center gap-2 flex-wrap">
