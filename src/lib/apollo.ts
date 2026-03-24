@@ -40,8 +40,10 @@ const errorLink = onError(({ graphQLErrors, networkError }) => {
   const sessionExpired = graphQLErrors?.some(
     (e) => e.message?.includes('SESSION_EXPIRED') || e.extensions?.code === 'UNAUTHENTICATED'
   );
-  if (sessionExpired && localStorage.getItem('token')) {
-    // Silent logout — the subscription handles the user-facing alert
+  const activeSession = graphQLErrors?.some(
+    (e) => e.message?.includes('ACTIVE_SESSION')
+  );
+  if ((sessionExpired || activeSession) && localStorage.getItem('token')) {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     window.location.href = '/';

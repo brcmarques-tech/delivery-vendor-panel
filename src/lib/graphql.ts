@@ -82,7 +82,7 @@ export const UPDATE_STORE = gql`
 export const GET_STORE_ORDERS = gql`
   query StoreOrders($storeId: String!) {
     storeOrders(storeId: $storeId) {
-      id orderNumber status total subtotal discount couponCode createdAt vendorConfirmedPickupAt
+      id orderNumber status total subtotal discount couponCode createdAt updatedAt vendorConfirmedPickupAt
       customer { id name phone avatarUrl }
       items { id quantity weightGrams unitPrice totalPrice product { name price promotionalPrice isVariableWeight imageUrl } }
       deliveryAddress deliveryLatitude deliveryLongitude
@@ -205,6 +205,15 @@ export const REJECT_ORDER = gql`
 export const VENDOR_CANCEL_ORDER = gql`
   mutation VendorCancelOrder($orderId: String!, $reason: String!) {
     vendorCancelOrder(orderId: $orderId, reason: $reason) { id status }
+  }
+`;
+
+export const REQUEST_CANCEL_DISPUTE = gql`
+  mutation RequestCancelDispute($orderId: String!) {
+    requestCancelDispute(orderId: $orderId) {
+      id
+      status
+    }
   }
 `;
 

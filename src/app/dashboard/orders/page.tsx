@@ -1,12 +1,13 @@
 "use client";
 
 import { useQuery, useMutation, useSubscription } from "@apollo/client";
-import { GET_MY_STORES, GET_STORE_ORDERS, UPDATE_ORDER_STATUS, ORDER_CREATED_SUB, ORDER_UPDATED_SUB, ADJUST_ORDER_ITEM_WEIGHT, REJECT_ORDER, VENDOR_CANCEL_ORDER, VENDOR_CONFIRM_PICKUP } from "@/lib/graphql";
+import { GET_MY_STORES, GET_STORE_ORDERS, UPDATE_ORDER_STATUS, ORDER_CREATED_SUB, ORDER_UPDATED_SUB, ADJUST_ORDER_ITEM_WEIGHT, REJECT_ORDER, VENDOR_CANCEL_ORDER, VENDOR_CONFIRM_PICKUP, REQUEST_CANCEL_DISPUTE } from "@/lib/graphql";
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import CreateStoreModal from "@/components/CreateStoreModal";
 
 const statusLabels: Record<string, { label: string; color: string }> = {
   AWAITING_PAYMENT: { label: "Aguardando pagamento", color: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300" },
+  PAYMENT_REVIEW: { label: "Análise de pagamento", color: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300" },
   PENDING: { label: "Pendente", color: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300" },
   ACCEPTED: { label: "Aceito", color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" },
   PREPARING: { label: "Preparando", color: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300" },
@@ -15,12 +16,12 @@ const statusLabels: Record<string, { label: string; color: string }> = {
   DELIVERING: { label: "A caminho", color: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300" },
   DELIVERED: { label: "Entregue", color: "bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-300" },
   CANCELLED: { label: "Cancelado", color: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300" },
-  EXPIRED: { label: "Expirado", color: "bg-red-100 text-red-400 dark:bg-red-900/30 dark:text-red-400" },
+  EXPIRED: { label: "Não aceito (expirado)", color: "bg-red-100 text-red-400 dark:bg-red-900/30 dark:text-red-400" },
   VENDOR_CONFIRMED_PICKUP: { label: "Aguardando entregador confirmar", color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" },
   DELIVERER_CONFIRMED_DELIVERY: { label: "Aguardando cliente confirmar", color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" },
   COMPLETED: { label: "Finalizado", color: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300" },
   REJECTED: { label: "Rejeitado", color: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300" },
-  DISPUTED: { label: "Em disputa", color: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300" },
+  DISPUTED: { label: "Em reclamação", color: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300" },
 };
 
 const nextStatus: Record<string, string> = {
@@ -30,9 +31,9 @@ const nextStatus: Record<string, string> = {
 };
 
 // Active = in progress orders, Completed = delivered/completed, Incomplete = cancelled/expired/awaiting_payment/rejected
-const ACTIVE_STATUSES = ["PENDING", "ACCEPTED", "PREPARING", "READY", "PICKED_UP", "DELIVERING", "VENDOR_CONFIRMED_PICKUP", "DELIVERER_CONFIRMED_DELIVERY"];
+const ACTIVE_STATUSES = ["AWAITING_PAYMENT", "PAYMENT_REVIEW", "PENDING", "ACCEPTED", "PREPARING", "READY", "PICKED_UP", "DELIVERING", "VENDOR_CONFIRMED_PICKUP", "DELIVERER_CONFIRMED_DELIVERY"];
 const COMPLETED_STATUSES = ["DELIVERED", "COMPLETED"];
-const INCOMPLETE_STATUSES = ["CANCELLED", "EXPIRED", "AWAITING_PAYMENT", "REJECTED", "DISPUTED"];
+const INCOMPLETE_STATUSES = ["CANCELLED", "EXPIRED", "REJECTED", "DISPUTED"];
 
 type TabKey = "active" | "completed" | "incomplete";
 type DateFilter = "today" | "week" | "month" | "year" | "all";
@@ -91,29 +92,45 @@ function formatDate(dateStr: string) {
 
 const PENDING_EXPIRY_MINUTES = 10;
 
-function PendingTimer({ createdAt }: { createdAt: string }) {
-  const [remaining, setRemaining] = useState<number>(() => {
-    const expiresAt = new Date(createdAt).getTime() + PENDING_EXPIRY_MINUTES * 60 * 1000;
-    return Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
-  });
+function PendingTimer({ createdAt }: { createdAt: string | number }) {
+  // Parse timestamp — server runs in BRT (UTC-3) but saves timestamps
+  // with "Z" suffix as if UTC, so they're 3 hours ahead of real UTC.
+  const SERVER_OFFSET_MS = 3 * 60 * 60 * 1000;
+
+  const parseTs = (ts: string | number): number => {
+    if (typeof ts === "number") return ts;
+    const s = /[Z+]/.test(ts) ? ts : ts + "Z";
+    return new Date(s).getTime() - SERVER_OFFSET_MS;
+  };
+
+  const getRemaining = () => {
+    const tsMs = parseTs(createdAt);
+    const nowMs = Date.now();
+    const elapsed = Math.floor((nowMs - tsMs) / 1000);
+    const total = PENDING_EXPIRY_MINUTES * 60;
+    const r = total - elapsed;
+    if (r <= 0 || r > total) return 0;
+    return r;
+  };
+
+  const [remaining, setRemaining] = useState(getRemaining);
 
   useEffect(() => {
     const interval = setInterval(() => {
-      const expiresAt = new Date(createdAt).getTime() + PENDING_EXPIRY_MINUTES * 60 * 1000;
-      const secs = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
-      setRemaining(secs);
-      if (secs <= 0) clearInterval(interval);
+      const r = getRemaining();
+      setRemaining(r);
+      if (r <= 0) clearInterval(interval);
     }, 1000);
     return () => clearInterval(interval);
   }, [createdAt]);
 
-  const minutes = Math.floor(remaining / 60);
-  const seconds = remaining % 60;
-  const isUrgent = remaining < 120;
-
   if (remaining <= 0) {
     return <span className="text-xs font-semibold text-red-500 dark:text-red-400">Expirado</span>;
   }
+
+  const minutes = Math.floor(remaining / 60);
+  const seconds = remaining % 60;
+  const isUrgent = remaining < 120;
 
   return (
     <span className={`text-xs font-semibold ${isUrgent ? "text-red-500 dark:text-red-400" : "text-[var(--text-secondary)]"}`}>
@@ -173,6 +190,8 @@ export default function OrdersPage() {
   const [rejectOrderMut] = useMutation(REJECT_ORDER);
   const [vendorCancelOrderMut] = useMutation(VENDOR_CANCEL_ORDER);
   const [vendorConfirmPickupMut] = useMutation(VENDOR_CONFIRM_PICKUP);
+  const [requestCancelDisputeMut] = useMutation(REQUEST_CANCEL_DISPUTE);
+  const [requestingDispute, setRequestingDispute] = useState<Set<string>>(new Set());
   const [statusError, setStatusError] = useState<string | null>(null);
   const [weightEdit, setWeightEdit] = useState<{ itemId: string; value: string } | null>(null);
   const [rejectState, setRejectState] = useState<{ orderId: string; reason: string } | null>(null);
@@ -235,6 +254,8 @@ export default function OrdersPage() {
   async function doAdvanceStatus(orderId: string, currentStatus: string) {
     const next = nextStatus[currentStatus];
     if (!next) return;
+    // Block if already advancing this order
+    if (advancingOrders.has(orderId)) return;
     console.log(`[VENDOR-ADVANCE] Executing: orderId=${orderId}, ${currentStatus} -> ${next}`);
     // M6: per-order advancing
     setAdvancingOrders((prev) => new Set(prev).add(orderId));
@@ -243,11 +264,16 @@ export default function OrdersPage() {
     try {
       await updateStatus({ variables: { id: orderId, status: next } });
       console.log(`[VENDOR-ADVANCE] SUCCESS: orderId=${orderId}, now ${next}`);
-      refetch();
+      await refetch();
     } catch (err: any) {
       console.error(`[VENDOR-ADVANCE] FAILED: orderId=${orderId}, ${currentStatus} -> ${next}:`, err.message);
-      setStatusError(err.message || "Erro ao atualizar status do pedido.");
-      setTimeout(() => setStatusError(null), 5000);
+      // Ignore race condition: order already advanced
+      if (err.message?.includes('Nao pode mudar de') && err.message?.includes(next)) {
+        refetch();
+      } else {
+        setStatusError(err.message || "Erro ao atualizar status do pedido.");
+        setTimeout(() => setStatusError(null), 5000);
+      }
     } finally {
       setAdvancingOrders((prev) => { const s = new Set(prev); s.delete(orderId); return s; });
     }
@@ -614,9 +640,9 @@ export default function OrdersPage() {
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
                     <span className="font-bold text-lg text-[var(--text-primary)]">
-                      R$ {Number(order.total).toFixed(2)}
+                      R$ {Number(order.subtotal).toFixed(2)}
                     </span>
-                    {order.status === "PENDING" && (
+                    {(order.status === "PENDING" || order.status === "AWAITING_PAYMENT" || order.status === "PAYMENT_REVIEW") && (
                       <PendingTimer createdAt={order.createdAt} />
                     )}
                   </div>
@@ -695,8 +721,8 @@ export default function OrdersPage() {
                       )
                     )}
 
-                    {/* Confirm pickup button - appears after deliverer confirms pickup (DELIVERING) and vendor hasn't confirmed yet */}
-                    {order.status === "DELIVERING" && !order.vendorConfirmedPickupAt && (
+                    {/* Confirm pickup button - appears after deliverer confirms pickup */}
+                    {(order.status === "PICKED_UP" || order.status === "DELIVERING") && !order.vendorConfirmedPickupAt && (
                       <button
                         onClick={() => handleVendorConfirmPickup(order.id)}
                         disabled={pickupOrders.has(order.id)}
@@ -705,10 +731,47 @@ export default function OrdersPage() {
                         {pickupOrders.has(order.id) ? "Confirmando..." : "Confirmar coleta"}
                       </button>
                     )}
-                    {order.status === "DELIVERING" && order.vendorConfirmedPickupAt && (
+                    {(order.status === "PICKED_UP" || order.status === "DELIVERING") && order.vendorConfirmedPickupAt && (
                       <span className="text-green-500 text-sm font-bold flex items-center gap-1">
                         ✓ Coleta confirmada
                       </span>
+                    )}
+
+                    {/* Request cancel dispute for DISPUTED orders */}
+                    {order.status === "DISPUTED" && (
+                      <>
+                        {order.customer?.phone && (
+                          <a
+                            href={`https://wa.me/55${order.customer.phone.replace(/\D/g, '')}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 bg-green-500 text-white px-3 py-2 rounded-xl text-sm font-bold hover:bg-green-600 active:scale-95 transition"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                            </svg>
+                            WhatsApp
+                          </a>
+                        )}
+                        <button
+                          onClick={async () => {
+                            setRequestingDispute(prev => new Set(prev).add(order.id));
+                            try {
+                              await requestCancelDisputeMut({ variables: { orderId: order.id } });
+                              setStatusError(null);
+                              alert("Solicitação enviada ao cliente!");
+                            } catch (err: any) {
+                              setStatusError(err?.message || "Erro ao solicitar cancelamento");
+                            } finally {
+                              setRequestingDispute(prev => { const s = new Set(prev); s.delete(order.id); return s; });
+                            }
+                          }}
+                          disabled={requestingDispute.has(order.id)}
+                          className="bg-orange-500 text-white px-4 py-2 rounded-xl text-sm font-bold cursor-pointer hover:bg-orange-600 active:scale-95 transition disabled:opacity-50"
+                        >
+                          {requestingDispute.has(order.id) ? "Enviando..." : "Pedir cancelamento"}
+                        </button>
+                      </>
                     )}
 
                     {/* Advance status button - M6: per-order disabled */}
