@@ -93,14 +93,10 @@ function formatDate(dateStr: string) {
 const PENDING_EXPIRY_MINUTES = 10;
 
 function PendingTimer({ createdAt, onExpired }: { createdAt: string | number; onExpired?: () => void }) {
-  // Parse timestamp — server runs in BRT (UTC-3) but saves timestamps
-  // with "Z" suffix as if UTC, so they're 3 hours ahead of real UTC.
-  const SERVER_OFFSET_MS = 3 * 60 * 60 * 1000;
-
   const parseTs = (ts: string | number): number => {
     if (typeof ts === "number") return ts;
     const s = /[Z+]/.test(ts) ? ts : ts + "Z";
-    return new Date(s).getTime() - SERVER_OFFSET_MS;
+    return new Date(s).getTime();
   };
 
   const getRemaining = () => {
