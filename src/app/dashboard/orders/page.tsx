@@ -204,6 +204,29 @@ export default function OrdersPage() {
   const [weightAdjusting, setWeightAdjusting] = useState<Set<string>>(new Set());
   // M5: confirmation dialog state
   const [confirmAction, setConfirmAction] = useState<{ orderId: string; action: string; label: string } | null>(null);
+  // KAN-129: Checklist de separação de produtos
+  const [separatedItems, setSeparatedItems] = useState<Record<string, string[]>>({});
+  const separatedItemsRef = useRef(separatedItems);
+  separatedItemsRef.current = separatedItems;
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('separatedItems');
+      if (saved) setSeparatedItems(JSON.parse(saved));
+    } catch {}
+  }, []);
+
+  const toggleSeparatedItem = useCallback((orderId: string, itemId: string) => {
+    setSeparatedItems(prev => {
+      const orderItems = prev[orderId] || [];
+      const next = orderItems.includes(itemId)
+        ? { ...prev, [orderId]: orderItems.filter(id => id !== itemId) }
+        : { ...prev, [orderId]: [...orderItems, itemId] };
+      localStorage.setItem('separatedItems', JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
   const allOrders = ordersData?.storeOrders || [];
 
   // Filter orders by tab and date
@@ -588,9 +611,45 @@ export default function OrdersPage() {
                 </div>
 
                 <div className="border-t border-[var(--border-light)] pt-3 mb-3">
+                  {["ACCEPTED", "PREPARING"].includes(order.status) && (() => {
+                    const separated = separatedItems[order.id] || [];
+                    const total = order.items.length;
+                    const done = separated.filter((id: string) => order.items.some((i: any) => i.id === id)).length;
+                    const allDone = done === total && total > 0;
+                    return (
+                      <div className="flex items-center gap-2 mb-2">
+                        {allDone ? (
+                          <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">
+                            Todos separados &#10003;
+                          </span>
+                        ) : (
+                          <span className="text-xs text-[var(--text-secondary)]">
+                            {done} de {total} itens separados
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })()}
                   {order.items.map((item: any) => (
                     <div key={item.id} className="flex justify-between text-sm py-1 items-center gap-2">
                       <span className="text-[var(--text-primary)] flex items-center gap-1.5 flex-wrap">
+                        {["ACCEPTED", "PREPARING"].includes(order.status) && (
+                          <button
+                            onClick={() => toggleSeparatedItem(order.id, item.id)}
+                            className="flex-shrink-0 cursor-pointer"
+                            title="Marcar como separado"
+                          >
+                            {(separatedItems[order.id] || []).includes(item.id) ? (
+                              <span className="w-5 h-5 rounded-full bg-green-500 border-2 border-green-500 flex items-center justify-center">
+                                <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                </svg>
+                              </span>
+                            ) : (
+                              <span className="w-5 h-5 rounded-full border-2 border-gray-300 dark:border-gray-600 inline-block" />
+                            )}
+                          </button>
+                        )}
                         {item.product?.isVariableWeight && item.weightGrams
                           ? <span>{(item.weightGrams / 1000).toFixed(2)}kg</span>
                           : <span>{item.quantity}x</span>

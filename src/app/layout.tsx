@@ -27,6 +27,7 @@ export default function RootLayout({
   return (
     <html lang="pt-BR" suppressHydrationWarning>
       <head>
+        <meta name="referrer" content="no-referrer-when-downgrade" />
         <script
           dangerouslySetInnerHTML={{
             __html: `
