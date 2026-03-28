@@ -519,8 +519,11 @@ export default function OrdersPage() {
                 <div className="flex items-start justify-between mb-3 gap-4">
                   <div>
                     <span className="text-xs text-[var(--text-muted)]">{formatDate(order.createdAt)}</span>
-                    <div className="mt-1">
+                    <div className="mt-1 flex items-center gap-2">
                       <span className="font-bold text-[var(--text-primary)]">#{order.orderNumber}</span>
+                      {stores.length > 1 && order.store?.name && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">{order.store.name}</span>
+                      )}
                     </div>
                     <div className="mt-1">
                       <span className="text-sm text-[var(--text-secondary)]">

@@ -163,7 +163,7 @@ export default function AnalyticsPage() {
       ? allOrders.filter((o) => new Date(o.createdAt) >= cutoff!)
       : allOrders;
 
-    const delivered = orders.filter((o) => o.status === "DELIVERED");
+    const delivered = orders.filter((o) => o.status === "DELIVERED" || o.status === "COMPLETED");
     const cancelled = orders.filter((o) => o.status === "CANCELLED");
     const totalRevenue = delivered.reduce((sum, o) => sum + Number(o.total), 0);
     const avgTicket = delivered.length > 0 ? totalRevenue / delivered.length : 0;
@@ -226,10 +226,10 @@ export default function AnalyticsPage() {
       .slice(0, 8)
       .map((p) => ({ ...p, revenue: Math.round(p.revenue * 100) / 100 }));
 
-    // Hourly distribution
+    // Hourly distribution (delivered orders only)
     const hourlyMap: Record<number, number> = {};
     for (let h = 0; h < 24; h++) hourlyMap[h] = 0;
-    orders.forEach((o) => {
+    delivered.forEach((o) => {
       const hour = new Date(o.createdAt).getHours();
       hourlyMap[hour]++;
     });
@@ -257,9 +257,9 @@ export default function AnalyticsPage() {
       .slice(0, 5)
       .map((c) => ({ ...c, total: Math.round(c.total * 100) / 100 }));
 
-    // Most popular items by quantity (all orders, not just delivered)
+    // Most popular items by quantity (delivered orders only)
     const itemPopularity: Record<string, { name: string; qty: number; orders: number; imageUrl?: string }> = {};
-    orders.forEach((o) => {
+    delivered.forEach((o) => {
       const seen = new Set<string>();
       (o.items || []).forEach((item: any) => {
         const name = item.product?.name || "Removido";

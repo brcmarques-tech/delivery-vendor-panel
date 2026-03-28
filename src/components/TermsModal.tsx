@@ -129,10 +129,10 @@ export default function TermsModal({ type, onAccept, onClose, loading, readOnly,
 function PlatformTerms() {
   return (
     <div className="space-y-4">
-      <p className="font-bold text-gray-900">TERMOS DE USO DA PLATAFORMA BCM TECH DELIVERY</p>
+      <p className="font-bold text-gray-900">TERMOS DE USO DA PLATAFORMA BCM TECH SHOPPING</p>
       <p className="text-xs text-gray-500">&Uacute;ltima atualiza&ccedil;&atilde;o: Mar&ccedil;o de 2026</p>
 
-      <p>Estes Termos de Uso, doravante denominados &quot;Termos&quot;, regulam o acesso e o uso da plataforma bcmTech Delivery, doravante denominada &quot;Plataforma&quot;, operada por BCM TECH, inscrita no CNPJ sob o n&ordm; 59.858.037/0001-06, com sede na Avenida Nossa Senhora da Gra&ccedil;a, 19, Centro, CEP 96330-000, Arroio Grande &ndash; RS, doravante denominada &quot;Empresa&quot;.</p>
+      <p>Estes Termos de Uso, doravante denominados &quot;Termos&quot;, regulam o acesso e o uso da plataforma bcmTech Shopping, doravante denominada &quot;Plataforma&quot;, operada por BCM TECH, inscrita no CNPJ sob o n&ordm; 59.858.037/0001-06, com sede na Avenida Nossa Senhora da Gra&ccedil;a, 19, Centro, CEP 96330-000, Arroio Grande &ndash; RS, doravante denominada &quot;Empresa&quot;.</p>
 
       <p>Ao criar uma conta e utilizar a Plataforma, voc&ecirc;, doravante denominado &quot;Usu&aacute;rio&quot; ou &quot;Vendedor&quot;, declara ter lido, compreendido e concordado integralmente com estes Termos.</p>
 
@@ -219,10 +219,10 @@ function PlatformTerms() {
 function SubscriptionTerms() {
   return (
     <div className="space-y-4">
-      <p className="font-bold text-gray-900">CONTRATO DE ASSINATURA DE PLANO &mdash; BCM TECH DELIVERY</p>
+      <p className="font-bold text-gray-900">CONTRATO DE ASSINATURA DE PLANO &mdash; BCM TECH SHOPPING</p>
       <p className="text-xs text-gray-500">&Uacute;ltima atualiza&ccedil;&atilde;o: Mar&ccedil;o de 2026</p>
 
-      <p>Este Contrato de Assinatura, doravante denominado &quot;Contrato&quot;, regula a contrata&ccedil;&atilde;o de planos pagos na plataforma bcmTech Delivery, doravante denominada &quot;Plataforma&quot;, operada por BCM TECH, inscrita no CNPJ sob o n&ordm; 59.858.037/0001-06, com sede na Avenida Nossa Senhora da Gra&ccedil;a, 19, Centro, CEP 96330-000, Arroio Grande &ndash; RS, doravante denominada &quot;Empresa&quot;.</p>
+      <p>Este Contrato de Assinatura, doravante denominado &quot;Contrato&quot;, regula a contrata&ccedil;&atilde;o de planos pagos na plataforma bcmTech Shopping, doravante denominada &quot;Plataforma&quot;, operada por BCM TECH, inscrita no CNPJ sob o n&ordm; 59.858.037/0001-06, com sede na Avenida Nossa Senhora da Gra&ccedil;a, 19, Centro, CEP 96330-000, Arroio Grande &ndash; RS, doravante denominada &quot;Empresa&quot;.</p>
 
       <p>Este Contrato &eacute; complementar e n&atilde;o substitui os Termos de Uso da Plataforma para Vendedor, que permanecem integralmente vigentes.</p>
 

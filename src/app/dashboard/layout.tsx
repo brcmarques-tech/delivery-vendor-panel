@@ -2,44 +2,48 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useQuery, useMutation, useSubscription } from "@apollo/client";
 import { apolloClient } from "@/lib/apollo";
-import { GET_MY_PLAN, ACCEPT_TERMS, SESSION_KICKED_SUB } from "@/lib/graphql";
+import { GET_MY_PLAN, GET_MY_STORES, ACCEPT_TERMS, SESSION_KICKED_SUB } from "@/lib/graphql";
 import TermsModal from "@/components/TermsModal";
 
-const navGroups = [
-  {
-    label: "Principal",
-    items: [
-      { href: "/dashboard", label: "Visão Geral", icon: "📊" },
-      { href: "/dashboard/orders", label: "Pedidos", icon: "📋" },
-    ],
-  },
-  {
-    label: "Catálogo",
-    items: [
-      { href: "/dashboard/products", label: "Produtos", icon: "📦" },
-      { href: "/dashboard/promotions", label: "Promoções", icon: "📢" },
-      { href: "/dashboard/coupons", label: "Cupons", icon: "🎟️" },
-    ],
-  },
-  {
-    label: "Gestão",
-    items: [
-      { href: "/dashboard/analytics", label: "Analytics", icon: "📈" },
-      { href: "/dashboard/plan", label: "Meu Plano", icon: "💎" },
-      { href: "/dashboard/support", label: "Suporte", icon: "🆘" },
-    ],
-  },
-  {
-    label: "Sistema",
-    items: [
-      { href: "/dashboard/earnings", label: "Recebimentos", icon: "💰" },
-      { href: "/dashboard/settings", label: "Configurações", icon: "⚙️" },
-    ],
-  },
-];
+function buildNavGroups() {
+  return [
+    {
+      label: "Principal",
+      items: [
+        { href: "/dashboard", label: "Visao Geral", icon: "📊" },
+        { href: "/dashboard/orders", label: "Pedidos", icon: "📋" },
+        { href: "/dashboard/appointments", label: "Agendamentos", icon: "📅" },
+      ],
+    },
+    {
+      label: "Catalogo",
+      items: [
+        { href: "/dashboard/products", label: "Produtos", icon: "📦" },
+        { href: "/dashboard/services", label: "Servicos", icon: "💼" },
+        { href: "/dashboard/promotions", label: "Promocoes", icon: "📢" },
+        { href: "/dashboard/coupons", label: "Cupons", icon: "🎟️" },
+      ],
+    },
+    {
+      label: "Gestao",
+      items: [
+        { href: "/dashboard/analytics", label: "Analytics", icon: "📈" },
+        { href: "/dashboard/plan", label: "Meu Plano", icon: "💎" },
+        { href: "/dashboard/support", label: "Suporte", icon: "🆘" },
+      ],
+    },
+    {
+      label: "Sistema",
+      items: [
+        { href: "/dashboard/earnings", label: "Recebimentos", icon: "💰" },
+        { href: "/dashboard/settings", label: "Configuracoes", icon: "⚙️" },
+      ],
+    },
+  ];
+}
 
 export default function DashboardLayout({
   children,
@@ -55,7 +59,12 @@ export default function DashboardLayout({
   const { data: meData } = useQuery(GET_MY_PLAN, {
     skip: !user,
   });
+  const { data: storesData } = useQuery(GET_MY_STORES, {
+    skip: !user,
+  });
   const [acceptTerms, { loading: acceptingTerms }] = useMutation(ACCEPT_TERMS);
+
+  const navGroups = useMemo(() => buildNavGroups(), []);
 
   useEffect(() => {
     const stored = localStorage.getItem("user");
@@ -110,7 +119,7 @@ export default function DashboardLayout({
   const sidebarContent = (
     <>
       <div className="p-4 border-b border-[var(--border-light)]">
-        <img src="/logo-dark.svg" alt="Delivery" className="h-12" />
+        <img src="/logo-dark.svg" alt="Shopping" className="h-12" />
         <p className="text-xs text-[var(--text-muted)] mt-1 text-center">Painel do Vendedor</p>
       </div>
 
@@ -188,7 +197,7 @@ export default function DashboardLayout({
             <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
           </svg>
         </button>
-        <img src="/logo-dark.svg" alt="Delivery" className="h-8" />
+        <img src="/logo-dark.svg" alt="Shopping" className="h-8" />
       </div>
 
       {/* Mobile sidebar overlay */}

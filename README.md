@@ -1,6 +1,6 @@
-# Delivery Vendor Panel
+# Shopping Vendor Panel
 
-Painel administrativo (Next.js) para lojistas/vendedores do delivery.
+Painel administrativo (Next.js) para lojistas/vendedores do shopping.
 
 ## Pré-requisitos
 

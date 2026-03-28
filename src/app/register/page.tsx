@@ -9,10 +9,10 @@ import { apolloClient } from "@/lib/apollo";
 
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 
-const VENDOR_CONTRACT = `TERMOS DE USO DA PLATAFORMA BCM TECH DELIVERY (VENDEDOR)
+const VENDOR_CONTRACT = `TERMOS DE USO DA PLATAFORMA BCM TECH SHOPPING (VENDEDOR)
 Ultima atualizacao: Marco de 2026
 
-Estes Termos regulam o uso da plataforma bcmTech Delivery por Vendedores (estabelecimentos comerciais).
+Estes Termos regulam o uso da plataforma bcmTech Shopping por Vendedores (estabelecimentos comerciais).
 
 Operada por BCM TECH, inscrita no CNPJ sob o n. 59.858.037/0001-06, com sede na Avenida Nossa Senhora da Graca, 19, Centro, CEP 96330-000, Arroio Grande - RS.
 
@@ -81,7 +81,7 @@ function buildContractHtml(userName: string, userCpf: string, userPhone: string)
       .contract { font-size: 13px; line-height: 1.7; white-space: pre-wrap; }
       .footer { margin-top: 40px; text-align: center; font-size: 11px; color: #999; border-top: 1px solid #eee; padding-top: 16px; }
     </style></head><body>
-      <div class="header"><h1>bcmTech Delivery</h1></div>
+      <div class="header"><h1>bcmTech Shopping</h1></div>
       <div class="signee">
         <div class="signee-label">PARTE CONTRATANTE / ASSINANTE:</div>
         <div class="signee-name">${userName}</div>
@@ -89,7 +89,7 @@ function buildContractHtml(userName: string, userCpf: string, userPhone: string)
         <div class="signee-info">Telefone: ${userPhone}</div>
       </div>
       <div class="contract">${VENDOR_CONTRACT}</div>
-      <div class="footer">Contrato aceito digitalmente em ${dateStr} na plataforma bcmTech Delivery.</div>
+      <div class="footer">Contrato aceito digitalmente em ${dateStr} na plataforma bcmTech Shopping.</div>
     </body></html>
   `;
 }
@@ -407,7 +407,7 @@ export default function RegisterPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 21v-7.5a.75.75 0 0 1 .75-.75h3a.75.75 0 0 1 .75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349M3.75 21V9.349m0 0a3.001 3.001 0 0 0 3.75-.615A2.993 2.993 0 0 0 9.75 9.75c.896 0 1.7-.393 2.25-1.016a2.993 2.993 0 0 0 2.25 1.016c.896 0 1.7-.393 2.25-1.015a3.001 3.001 0 0 0 3.75.614m-16.5 0a3.004 3.004 0 0 1-.621-4.72l1.189-1.19A1.5 1.5 0 0 1 5.378 3h13.243a1.5 1.5 0 0 1 1.06.44l1.19 1.189a3 3 0 0 1-.621 4.72M6.75 18h3.75a.75.75 0 0 0 .75-.75V13.5a.75.75 0 0 0-.75-.75H6.75a.75.75 0 0 0-.75.75v3.75c0 .414.336.75.75.75Z" />
               </svg>
             </div>
-            <h1 className="text-4xl font-bold mb-4">bcmTech Delivery</h1>
+            <h1 className="text-4xl font-bold mb-4">bcmTech Shopping</h1>
             <p className="text-lg text-white/80 mb-8">
               Cadastre sua loja e comece a vender para milhares de clientes.
             </p>
@@ -445,7 +445,7 @@ export default function RegisterPage() {
           <div className="bg-white p-8 rounded-2xl shadow-lg w-full max-w-md">
             <StepIndicator current={1} />
 
-            <h1 className="text-3xl font-bold text-center text-orange-500 mb-2">Delivery</h1>
+            <h1 className="text-3xl font-bold text-center text-orange-500 mb-2">Shopping</h1>
             <p className="text-gray-500 text-center mb-6">Cadastro de Vendedor</p>
 
             <form onSubmit={handleNext} className="space-y-3">
