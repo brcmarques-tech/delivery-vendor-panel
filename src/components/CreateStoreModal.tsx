@@ -37,6 +37,7 @@ interface StoreData {
   bannerUrl?: string;
   latitude?: number;
   longitude?: number;
+  storeType?: string;
 }
 
 interface CreateStoreModalProps {
@@ -53,6 +54,7 @@ function emptyForm() {
     hasOwnDelivery: false, freeDelivery: false,
     estimatedDeliveryMinutes: "30", minimumOrder: "0",
     deliveryStartTime: "", deliveryEndTime: "", freeDeliveryAbove: "",
+    storeType: "PRODUCTS" as "PRODUCTS" | "SERVICES",
   };
 }
 
@@ -75,6 +77,7 @@ function storeToForm(store: StoreData) {
     deliveryStartTime: store.deliveryStartTime || "",
     deliveryEndTime: store.deliveryEndTime || "",
     freeDeliveryAbove: store.freeDeliveryAbove ? String(store.freeDeliveryAbove) : "",
+    storeType: (store.storeType || "PRODUCTS") as "PRODUCTS" | "SERVICES",
   };
 }
 
@@ -213,7 +216,7 @@ export default function CreateStoreModal({ open, onClose, onCreated, store }: Cr
       limit: "1",
     });
     const res = await fetch(`https://nominatim.openstreetmap.org/search?${params}`, {
-      headers: { "Accept-Language": "pt-BR", "User-Agent": "bcmtech-delivery/1.0" },
+      headers: { "Accept-Language": "pt-BR", "User-Agent": "bcmtech-shopping/1.0" },
     });
     const data = await res.json();
     if (data.length > 0) return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
@@ -223,7 +226,7 @@ export default function CreateStoreModal({ open, onClose, onCreated, store }: Cr
   async function nominatimFree(query: string): Promise<{ lat: number; lng: number } | null> {
     const res = await fetch(
       `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1&countrycodes=br`,
-      { headers: { "Accept-Language": "pt-BR", "User-Agent": "bcmtech-delivery/1.0" } },
+      { headers: { "Accept-Language": "pt-BR", "User-Agent": "bcmtech-shopping/1.0" } },
     );
     const data = await res.json();
     if (data.length > 0) return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
@@ -284,12 +287,13 @@ export default function CreateStoreModal({ open, onClose, onCreated, store }: Cr
       state: form.state,
       zipCode: form.zipCode,
       hasOwnDelivery: form.hasOwnDelivery,
-      freeDelivery: form.freeDelivery,
-      estimatedDeliveryMinutes: parseInt(form.estimatedDeliveryMinutes),
-      minimumOrder: parseFloat(form.minimumOrder),
+      freeDelivery: form.storeType === "SERVICES" ? false : form.freeDelivery,
+      estimatedDeliveryMinutes: form.storeType === "SERVICES" ? 0 : parseInt(form.estimatedDeliveryMinutes),
+      minimumOrder: form.storeType === "SERVICES" ? 0 : parseFloat(form.minimumOrder),
       deliveryStartTime: form.deliveryStartTime || undefined,
       deliveryEndTime: form.deliveryEndTime || undefined,
-      freeDeliveryAbove: form.freeDeliveryAbove ? parseFloat(form.freeDeliveryAbove) : undefined,
+      freeDeliveryAbove: form.storeType === "SERVICES" ? undefined : (form.freeDeliveryAbove ? parseFloat(form.freeDeliveryAbove) : undefined),
+      storeType: form.storeType,
       ...(mapCoords ? { latitude: mapCoords.lat, longitude: mapCoords.lng } : {}),
     };
     if (logoUrl) input.logoUrl = logoUrl;
@@ -342,6 +346,35 @@ export default function CreateStoreModal({ open, onClose, onCreated, store }: Cr
           {step === 1 && (
             <div className="space-y-4">
               <h3 className="font-semibold text-[var(--text-primary)]">Informações da loja</h3>
+
+              {/* Store Type Selector */}
+              {!isEdit && (
+                <div>
+                  <label className="text-sm text-[var(--text-secondary)] mb-2 block">Tipo de estabelecimento</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button type="button" onClick={() => setForm({ ...form, storeType: "PRODUCTS" })}
+                      className={`p-4 rounded-xl border-2 text-center cursor-pointer transition ${form.storeType === "PRODUCTS" ? "border-orange-500 bg-orange-500/10" : "border-[var(--border-color)] hover:border-[var(--border-light)]"}`}>
+                      <div className="text-2xl mb-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" className={`h-7 w-7 mx-auto ${form.storeType === "PRODUCTS" ? "text-orange-500" : "text-[var(--text-muted)]"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 21v-7.5a.75.75 0 01.75-.75h3a.75.75 0 01.75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349m-16.5 11.65V9.35m0 0a3.001 3.001 0 003.75-.615A2.993 2.993 0 009.75 9.75c.896 0 1.7-.393 2.25-1.016a2.993 2.993 0 002.25 1.016c.896 0 1.7-.393 2.25-1.016a3.001 3.001 0 003.75.614m-16.5 0a3.004 3.004 0 01-.621-4.72L4.318 3.44A1.5 1.5 0 015.378 3h13.243a1.5 1.5 0 011.06.44l1.19 1.189a3 3 0 01-.621 4.72m-13.5 8.65h3.75a.75.75 0 00.75-.75V13.5a.75.75 0 00-.75-.75H6.75a.75.75 0 00-.75.75v3.15c0 .415.336.75.75.75z" />
+                        </svg>
+                      </div>
+                      <span className={`text-sm font-semibold ${form.storeType === "PRODUCTS" ? "text-orange-500" : "text-[var(--text-secondary)]"}`}>Loja de Produtos</span>
+                      <p className="text-xs text-[var(--text-muted)] mt-1">Venda produtos com entrega</p>
+                    </button>
+                    <button type="button" onClick={() => setForm({ ...form, storeType: "SERVICES" })}
+                      className={`p-4 rounded-xl border-2 text-center cursor-pointer transition ${form.storeType === "SERVICES" ? "border-orange-500 bg-orange-500/10" : "border-[var(--border-color)] hover:border-[var(--border-light)]"}`}>
+                      <div className="text-2xl mb-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" className={`h-7 w-7 mx-auto ${form.storeType === "SERVICES" ? "text-orange-500" : "text-[var(--text-muted)]"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 00.75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 00-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0112 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 01-.673-.38m0 0A2.18 2.18 0 013 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 013.413-.387m7.5 0V5.25A2.25 2.25 0 0013.5 3h-3a2.25 2.25 0 00-2.25 2.25v.894m7.5 0a48.667 48.667 0 00-7.5 0M12 12.75h.008v.008H12v-.008z" />
+                        </svg>
+                      </div>
+                      <span className={`text-sm font-semibold ${form.storeType === "SERVICES" ? "text-orange-500" : "text-[var(--text-secondary)]"}`}>Prestador de Servicos</span>
+                      <p className="text-xs text-[var(--text-muted)] mt-1">Ofereça servicos e agendamentos</p>
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* Logo + Banner */}
               <div className="flex gap-4">
@@ -469,70 +502,114 @@ export default function CreateStoreModal({ open, onClose, onCreated, store }: Cr
             </div>
           )}
 
-          {/* Step 4: Entrega */}
+          {/* Step 4: Entrega / Atendimento */}
           {step === 4 && (
             <div className="space-y-4">
-              <h3 className="font-semibold text-[var(--text-primary)]">Configurações de entrega</h3>
+              <h3 className="font-semibold text-[var(--text-primary)]">
+                {form.storeType === "SERVICES" ? "Configurações de atendimento" : "Configurações de entrega"}
+              </h3>
 
-              <div className="grid grid-cols-2 gap-3">
-                <button type="button" onClick={() => setForm({ ...form, hasOwnDelivery: false })}
-                  className={`p-4 rounded-xl border-2 text-center cursor-pointer transition ${!form.hasOwnDelivery ? "border-orange-500 bg-orange-500/10" : "border-[var(--border-color)] hover:border-[var(--border-light)]"}`}>
-                  <div className={`w-5 h-5 rounded-full border-2 mx-auto mb-2 flex items-center justify-center ${!form.hasOwnDelivery ? "border-orange-500" : "border-[var(--text-muted)]"}`}>
-                    {!form.hasOwnDelivery && <div className="w-2.5 h-2.5 rounded-full bg-orange-500" />}
-                  </div>
-                  <span className={`text-sm font-semibold ${!form.hasOwnDelivery ? "text-orange-500" : "text-[var(--text-secondary)]"}`}>Entregadores do app</span>
-                  <p className="text-xs text-[var(--text-muted)] mt-1">A plataforma gerencia</p>
-                </button>
-                <button type="button" onClick={() => setForm({ ...form, hasOwnDelivery: true })}
-                  className={`p-4 rounded-xl border-2 text-center cursor-pointer transition ${form.hasOwnDelivery ? "border-orange-500 bg-orange-500/10" : "border-[var(--border-color)] hover:border-[var(--border-light)]"}`}>
-                  <div className={`w-5 h-5 rounded-full border-2 mx-auto mb-2 flex items-center justify-center ${form.hasOwnDelivery ? "border-orange-500" : "border-[var(--text-muted)]"}`}>
-                    {form.hasOwnDelivery && <div className="w-2.5 h-2.5 rounded-full bg-orange-500" />}
-                  </div>
-                  <span className={`text-sm font-semibold ${form.hasOwnDelivery ? "text-orange-500" : "text-[var(--text-secondary)]"}`}>Entregadores da empresa</span>
-                  <p className="text-xs text-[var(--text-muted)] mt-1">Você gerencia a entrega</p>
-                </button>
-              </div>
-
-              {form.hasOwnDelivery && (
+              {form.storeType === "SERVICES" ? (
                 <>
+                  {/* Services: simplified delivery step */}
                   <div className="flex items-center justify-between p-3 border border-[var(--border-color)] rounded-xl">
-                    <span className="text-sm text-[var(--text-primary)]">Entrega grátis</span>
-                    <button type="button" onClick={() => setForm({ ...form, freeDelivery: !form.freeDelivery })}
-                      className={`w-12 h-6 rounded-full transition cursor-pointer ${form.freeDelivery ? "bg-orange-500" : "bg-gray-300"}`}>
-                      <div className={`w-5 h-5 bg-white rounded-full shadow transition-transform ${form.freeDelivery ? "translate-x-6" : "translate-x-0.5"}`} />
+                    <span className="text-sm text-[var(--text-primary)]">Você se desloca até o cliente?</span>
+                    <button type="button" onClick={() => setForm({ ...form, hasOwnDelivery: !form.hasOwnDelivery })}
+                      className={`w-12 h-6 rounded-full transition cursor-pointer ${form.hasOwnDelivery ? "bg-orange-500" : "bg-gray-300"}`}>
+                      <div className={`w-5 h-5 bg-white rounded-full shadow transition-transform ${form.hasOwnDelivery ? "translate-x-6" : "translate-x-0.5"}`} />
+                    </button>
+                  </div>
+                  <p className="text-sm font-medium text-orange-400 text-right">
+                    {form.hasOwnDelivery ? "Sim, vou até o local do cliente" : "Não, o cliente vem até mim"}
+                  </p>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-sm text-[var(--text-secondary)] mb-1 block">Horario de atendimento (inicio)</label>
+                      <input type="text" inputMode="numeric" placeholder="08:00" maxLength={5} value={form.deliveryStartTime}
+                        onChange={(e) => {
+                          let v = e.target.value.replace(/[^\d]/g, '').slice(0, 4);
+                          if (v.length >= 3) v = v.slice(0, 2) + ':' + v.slice(2);
+                          setForm({ ...form, deliveryStartTime: v });
+                        }}
+                        className="w-full px-4 py-3 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-orange-400" />
+                    </div>
+                    <div>
+                      <label className="text-sm text-[var(--text-secondary)] mb-1 block">Horario de atendimento (fim)</label>
+                      <input type="text" inputMode="numeric" placeholder="18:00" maxLength={5} value={form.deliveryEndTime}
+                        onChange={(e) => {
+                          let v = e.target.value.replace(/[^\d]/g, '').slice(0, 4);
+                          if (v.length >= 3) v = v.slice(0, 2) + ':' + v.slice(2);
+                          setForm({ ...form, deliveryEndTime: v });
+                        }}
+                        className="w-full px-4 py-3 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-orange-400" />
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* Products: full delivery config */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <button type="button" onClick={() => setForm({ ...form, hasOwnDelivery: false })}
+                      className={`p-4 rounded-xl border-2 text-center cursor-pointer transition ${!form.hasOwnDelivery ? "border-orange-500 bg-orange-500/10" : "border-[var(--border-color)] hover:border-[var(--border-light)]"}`}>
+                      <div className={`w-5 h-5 rounded-full border-2 mx-auto mb-2 flex items-center justify-center ${!form.hasOwnDelivery ? "border-orange-500" : "border-[var(--text-muted)]"}`}>
+                        {!form.hasOwnDelivery && <div className="w-2.5 h-2.5 rounded-full bg-orange-500" />}
+                      </div>
+                      <span className={`text-sm font-semibold ${!form.hasOwnDelivery ? "text-orange-500" : "text-[var(--text-secondary)]"}`}>Entregadores do app</span>
+                      <p className="text-xs text-[var(--text-muted)] mt-1">A plataforma gerencia</p>
+                    </button>
+                    <button type="button" onClick={() => setForm({ ...form, hasOwnDelivery: true })}
+                      className={`p-4 rounded-xl border-2 text-center cursor-pointer transition ${form.hasOwnDelivery ? "border-orange-500 bg-orange-500/10" : "border-[var(--border-color)] hover:border-[var(--border-light)]"}`}>
+                      <div className={`w-5 h-5 rounded-full border-2 mx-auto mb-2 flex items-center justify-center ${form.hasOwnDelivery ? "border-orange-500" : "border-[var(--text-muted)]"}`}>
+                        {form.hasOwnDelivery && <div className="w-2.5 h-2.5 rounded-full bg-orange-500" />}
+                      </div>
+                      <span className={`text-sm font-semibold ${form.hasOwnDelivery ? "text-orange-500" : "text-[var(--text-secondary)]"}`}>Entregadores da empresa</span>
+                      <p className="text-xs text-[var(--text-muted)] mt-1">Você gerencia a entrega</p>
                     </button>
                   </div>
 
-                  {!form.freeDelivery && (
-                    <input type="number" step="0.01" placeholder="Entrega grátis acima de R$ (opcional)" value={form.freeDeliveryAbove} onChange={(e) => setForm({ ...form, freeDeliveryAbove: e.target.value })}
-                      className="w-full px-4 py-3 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-orange-400" />
+                  {form.hasOwnDelivery && (
+                    <>
+                      <div className="flex items-center justify-between p-3 border border-[var(--border-color)] rounded-xl">
+                        <span className="text-sm text-[var(--text-primary)]">Entrega grátis</span>
+                        <button type="button" onClick={() => setForm({ ...form, freeDelivery: !form.freeDelivery })}
+                          className={`w-12 h-6 rounded-full transition cursor-pointer ${form.freeDelivery ? "bg-orange-500" : "bg-gray-300"}`}>
+                          <div className={`w-5 h-5 bg-white rounded-full shadow transition-transform ${form.freeDelivery ? "translate-x-6" : "translate-x-0.5"}`} />
+                        </button>
+                      </div>
+
+                      {!form.freeDelivery && (
+                        <input type="number" step="0.01" placeholder="Entrega grátis acima de R$ (opcional)" value={form.freeDeliveryAbove} onChange={(e) => setForm({ ...form, freeDeliveryAbove: e.target.value })}
+                          className="w-full px-4 py-3 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-orange-400" />
+                      )}
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-sm text-[var(--text-secondary)] mb-1 block">Horário início</label>
+                          <input type="time" value={form.deliveryStartTime} onChange={(e) => setForm({ ...form, deliveryStartTime: e.target.value })}
+                            className="w-full px-4 py-3 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-orange-400" />
+                        </div>
+                        <div>
+                          <label className="text-sm text-[var(--text-secondary)] mb-1 block">Horário fim</label>
+                          <input type="time" value={form.deliveryEndTime} onChange={(e) => setForm({ ...form, deliveryEndTime: e.target.value })}
+                            className="w-full px-4 py-3 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-orange-400" />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-sm text-[var(--text-secondary)] mb-1 block">Tempo estimado (min)</label>
+                          <input type="number" value={form.estimatedDeliveryMinutes} onChange={(e) => setForm({ ...form, estimatedDeliveryMinutes: e.target.value })}
+                            className="w-full px-4 py-3 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-orange-400" />
+                        </div>
+                        <div>
+                          <label className="text-sm text-[var(--text-secondary)] mb-1 block">Pedido mínimo (R$)</label>
+                          <input type="number" step="0.01" value={form.minimumOrder} onChange={(e) => setForm({ ...form, minimumOrder: e.target.value })}
+                            className="w-full px-4 py-3 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-orange-400" />
+                        </div>
+                      </div>
+                    </>
                   )}
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-sm text-[var(--text-secondary)] mb-1 block">Horário início</label>
-                      <input type="time" value={form.deliveryStartTime} onChange={(e) => setForm({ ...form, deliveryStartTime: e.target.value })}
-                        className="w-full px-4 py-3 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-orange-400" />
-                    </div>
-                    <div>
-                      <label className="text-sm text-[var(--text-secondary)] mb-1 block">Horário fim</label>
-                      <input type="time" value={form.deliveryEndTime} onChange={(e) => setForm({ ...form, deliveryEndTime: e.target.value })}
-                        className="w-full px-4 py-3 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-orange-400" />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-sm text-[var(--text-secondary)] mb-1 block">Tempo estimado (min)</label>
-                      <input type="number" value={form.estimatedDeliveryMinutes} onChange={(e) => setForm({ ...form, estimatedDeliveryMinutes: e.target.value })}
-                        className="w-full px-4 py-3 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-orange-400" />
-                    </div>
-                    <div>
-                      <label className="text-sm text-[var(--text-secondary)] mb-1 block">Pedido mínimo (R$)</label>
-                      <input type="number" step="0.01" value={form.minimumOrder} onChange={(e) => setForm({ ...form, minimumOrder: e.target.value })}
-                        className="w-full px-4 py-3 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-orange-400" />
-                    </div>
-                  </div>
                 </>
               )}
 

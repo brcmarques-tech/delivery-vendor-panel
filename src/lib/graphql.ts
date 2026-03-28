@@ -59,12 +59,12 @@ export const GET_MY_STORES = gql`
       id name description isOpen hasOwnDelivery freeDelivery deliveryFee
       estimatedDeliveryMinutes minimumOrder deliveryStartTime deliveryEndTime freeDeliveryAbove
       phone street number complement neighborhood city state zipCode
-      logoUrl bannerUrl latitude longitude
+      logoUrl bannerUrl latitude longitude storeType
       verificationLevel verificationScore totalSales totalProducts createdAt
       badgeClaimCount lastClaimedScore freePromoDaysCredit
       commissionReductionPercent commissionReductionExpiresAt
       products { id name price isAvailable isActive stock imageUrl barcode isVariableWeight category { id name } }
-      categories { id name }
+      categories { id name requiresAgeVerification }
     }
   }
 `;
@@ -74,7 +74,7 @@ export const UPDATE_STORE = gql`
     updateStore(input: $input) {
       id name description phone street number complement neighborhood city state zipCode
       hasOwnDelivery freeDelivery deliveryFee estimatedDeliveryMinutes minimumOrder
-      deliveryStartTime deliveryEndTime freeDeliveryAbove logoUrl bannerUrl latitude longitude
+      deliveryStartTime deliveryEndTime freeDeliveryAbove logoUrl bannerUrl latitude longitude storeType
     }
   }
 `;
@@ -83,6 +83,7 @@ export const GET_STORE_ORDERS = gql`
   query StoreOrders($storeId: String!) {
     storeOrders(storeId: $storeId) {
       id orderNumber status total subtotal discount couponCode createdAt updatedAt vendorConfirmedPickupAt
+      store { id name }
       customer { id name phone avatarUrl }
       items { id quantity weightGrams unitPrice totalPrice product { name price promotionalPrice isVariableWeight imageUrl } }
       deliveryAddress deliveryLatitude deliveryLongitude
@@ -122,8 +123,14 @@ export const CREATE_PRODUCT = gql`
 `;
 
 export const CREATE_CATEGORY = gql`
-  mutation CreateCategory($name: String!, $storeId: String!) {
-    createCategory(name: $name, storeId: $storeId) { id name }
+  mutation CreateCategory($name: String!, $storeId: String!, $requiresAgeVerification: Boolean) {
+    createCategory(name: $name, storeId: $storeId, requiresAgeVerification: $requiresAgeVerification) { id name requiresAgeVerification }
+  }
+`;
+
+export const UPDATE_CATEGORY = gql`
+  mutation UpdateCategory($id: String!, $name: String, $requiresAgeVerification: Boolean) {
+    updateCategory(id: $id, name: $name, requiresAgeVerification: $requiresAgeVerification) { id name requiresAgeVerification }
   }
 `;
 
@@ -567,5 +574,142 @@ export const SESSION_KICKED_SUB = gql`
       userId
       userType
     }
+  }
+`;
+
+// ─── Services ───
+
+export const CREATE_SERVICE = gql`
+  mutation CreateService($input: CreateServiceInput!) {
+    createService(input: $input) {
+      id name description price estimatedDuration imageUrl isAvailable isActive requiresQuote
+      category { id name }
+    }
+  }
+`;
+
+export const UPDATE_SERVICE = gql`
+  mutation UpdateService($input: UpdateServiceInput!) {
+    updateService(input: $input) {
+      id name description price estimatedDuration imageUrl isAvailable isActive requiresQuote
+      category { id name }
+    }
+  }
+`;
+
+export const DELETE_SERVICE = gql`
+  mutation DeleteService($id: String!) {
+    deleteService(id: $id)
+  }
+`;
+
+export const SERVICES_BY_STORE = gql`
+  query AllServicesByStore($storeId: String!) {
+    allServicesByStore(storeId: $storeId) {
+      id name description price estimatedDuration imageUrl isAvailable isActive requiresQuote
+      category { id name }
+    }
+  }
+`;
+
+// ─── Schedule ───
+
+export const SET_SCHEDULE = gql`
+  mutation SetSchedule($input: SetScheduleInput!) {
+    setSchedule(input: $input) {
+      id dayOfWeek startTime endTime isActive
+    }
+  }
+`;
+
+export const STORE_SCHEDULE = gql`
+  query StoreSchedule($storeId: String!) {
+    storeSchedule(storeId: $storeId) {
+      id dayOfWeek startTime endTime isActive
+    }
+  }
+`;
+
+// ─── Appointments ─────────────────────────────────────
+
+export const STORE_APPOINTMENTS = gql`
+  query StoreAppointments($storeId: String!, $date: String, $status: AppointmentStatus) {
+    storeAppointments(storeId: $storeId, date: $date, status: $status) {
+      id
+      appointmentNumber
+      scheduledDate
+      scheduledTime
+      endTime
+      status
+      price
+      notes
+      address
+      quoteDescription
+      quoteResponse
+      paymentMethod
+      createdAt
+      customer {
+        id
+        name
+        phone
+      }
+      service {
+        id
+        name
+        estimatedDuration
+      }
+    }
+  }
+`;
+
+export const CONFIRM_APPOINTMENT = gql`
+  mutation ConfirmAppointment($id: String!) {
+    confirmAppointment(id: $id) { id status }
+  }
+`;
+
+export const VENDOR_CANCEL_APPOINTMENT = gql`
+  mutation VendorCancelAppointment($id: String!) {
+    vendorCancelAppointment(id: $id) { id status }
+  }
+`;
+
+export const COMPLETE_APPOINTMENT = gql`
+  mutation CompleteAppointment($id: String!) {
+    completeAppointment(id: $id) { id status }
+  }
+`;
+
+export const MARK_NO_SHOW = gql`
+  mutation MarkNoShow($id: String!) {
+    markNoShow(id: $id) { id status }
+  }
+`;
+
+export const RESPOND_QUOTE = gql`
+  mutation RespondQuote($id: String!, $price: Float!, $response: String!) {
+    respondQuote(id: $id, price: $price, response: $response) {
+      id status price quoteResponse
+    }
+  }
+`;
+
+export const SERVICE_RATINGS = gql`
+  query ServiceRatings($storeId: String!) {
+    serviceRatings(storeId: $storeId) {
+      id
+      rating
+      comment
+      photoUrls
+      createdAt
+      customer { id name }
+      service { id name }
+    }
+  }
+`;
+
+export const AVERAGE_STORE_RATING = gql`
+  query AverageStoreRating($storeId: String!) {
+    averageStoreRating(storeId: $storeId)
   }
 `;

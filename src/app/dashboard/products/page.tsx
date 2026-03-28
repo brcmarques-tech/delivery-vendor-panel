@@ -6,6 +6,7 @@ import {
   GET_MY_STORES,
   CREATE_PRODUCT,
   CREATE_CATEGORY,
+  UPDATE_CATEGORY,
   DELETE_PRODUCT,
   DELETE_CATEGORY,
   TOGGLE_PRODUCT_AVAILABILITY,
@@ -127,7 +128,8 @@ function ProductImage({ name, imageUrl, size = 12 }: { name: string; imageUrl?: 
 
 export default function ProductsPage() {
   const { data: storesData, refetch, error: storesError } = useQuery(GET_MY_STORES);
-  const stores = storesData?.myStores || [];
+  const allStores = storesData?.myStores || [];
+  const stores = allStores.filter((s: any) => s.storeType === "PRODUCTS" || !s.storeType);
   const [showCreateStore, setShowCreateStore] = useState(false);
   const [selectedStoreId, setSelectedStoreId] = useState<string>("");
   const [activePanel, setActivePanel] = useState<"catalog" | "product" | "category" | "csv" | "trash" | null>("catalog");
@@ -140,11 +142,21 @@ export default function ProductsPage() {
 
   const [productForm, setProductForm] = useState({ name: "", description: "", price: "", unit: "", categoryId: "", stock: "", barcode: "", isVariableWeight: false });
   const [categoryName, setCategoryName] = useState("");
+  const [categoryAgeVerification, setCategoryAgeVerification] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<any>(null);
+  const [editCategoryName, setEditCategoryName] = useState("");
+  const [editCategoryAgeVerification, setEditCategoryAgeVerification] = useState(false);
   const [inlineNewCategory, setInlineNewCategory] = useState<"product" | "edit" | "csv" | null>(null);
   const [inlineCategoryName, setInlineCategoryName] = useState("");
 
+  const PRODUCT_CATEGORY_SUGGESTIONS = [
+    'Lanches', 'Bebidas', 'Refeicoes', 'Carnes', 'Padaria',
+    'Frutas', 'Mercearia', 'Doces', 'Petshop', 'Farmacia',
+  ];
+
   const [createProduct] = useMutation(CREATE_PRODUCT);
   const [createCategory] = useMutation(CREATE_CATEGORY);
+  const [updateCategoryMut] = useMutation(UPDATE_CATEGORY);
   const [deleteProduct] = useMutation(DELETE_PRODUCT);
   const [deleteCategory] = useMutation(DELETE_CATEGORY);
   const [toggleAvailability] = useMutation(TOGGLE_PRODUCT_AVAILABILITY);
@@ -529,9 +541,25 @@ export default function ProductsPage() {
     e.preventDefault(); setError("");
     if (!activeStoreId) { setError("Nenhuma loja encontrada."); return; }
     try {
-      await createCategory({ variables: { name: categoryName, storeId: activeStoreId } });
-      setCategoryName(""); setActivePanel("catalog"); refetch();
+      await createCategory({ variables: { name: categoryName, storeId: activeStoreId, requiresAgeVerification: categoryAgeVerification || undefined } });
+      setCategoryName(""); setCategoryAgeVerification(false); setActivePanel("catalog"); refetch();
     } catch (err: any) { setError(err.message || "Erro ao criar categoria"); }
+  }
+
+  async function handleUpdateCategory(e: React.FormEvent) {
+    e.preventDefault(); setError("");
+    if (!editingCategory) return;
+    try {
+      await updateCategoryMut({ variables: { id: editingCategory.id, name: editCategoryName || undefined, requiresAgeVerification: editCategoryAgeVerification } });
+      setEditingCategory(null); setCategoryMenuId(null); refetch();
+    } catch (err: any) { setError(err.message || "Erro ao editar categoria"); }
+  }
+
+  function startEditingCategory(cat: any) {
+    setEditingCategory(cat);
+    setEditCategoryName(cat.name);
+    setEditCategoryAgeVerification(cat.requiresAgeVerification || false);
+    setCategoryMenuId(null);
   }
 
   async function handleInlineCreateCategory(target: "product" | "edit" | "csv") {
@@ -958,10 +986,11 @@ export default function ProductsPage() {
       <>
         <CreateStoreModal open={showCreateStore} onClose={() => setShowCreateStore(false)} onCreated={() => refetch()} />
         <div className="text-center mt-20">
-          <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-2">Nenhuma loja cadastrada</h2>
-          <p className="text-[var(--text-secondary)] mb-6">Crie sua primeira loja para começar a cadastrar produtos</p>
+          <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-2">Nenhuma loja de produtos</h2>
+          <p className="text-[var(--text-secondary)] mb-4">Para cadastrar produtos, você precisa ter uma loja do tipo "Loja de Produtos".</p>
+          <p className="text-sm text-orange-400 mb-6">Crie uma loja de produtos para começar a cadastrar seus itens.</p>
           <button onClick={() => setShowCreateStore(true)} className="bg-orange-500 text-white px-6 py-3 rounded-xl font-bold cursor-pointer hover:bg-orange-600 active:scale-95 transition">
-            Criar loja
+            Criar loja de produtos
           </button>
         </div>
       </>
@@ -976,9 +1005,20 @@ export default function ProductsPage() {
         </div>
       )}
 
+      {/* Store selector */}
+      {stores.length > 1 && (
+        <div className="flex items-center gap-3 mb-4 p-3 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl">
+          <span className="text-sm font-medium text-[var(--text-secondary)]">Loja:</span>
+          <select value={activeStoreId} onChange={(e) => setSelectedStoreId(e.target.value)}
+            className="flex-1 px-3 py-2 border border-[var(--border-color)] rounded-lg text-sm text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-orange-400">
+            {stores.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between mb-6 gap-3">
-        <h1 className="text-2xl font-bold text-[var(--text-primary)]">Produtos</h1>
+        <h1 className="text-2xl font-bold text-[var(--text-primary)]">Produtos {store ? `— ${store.name}` : ""}</h1>
         <button onClick={() => { setActivePanel(activePanel === "product" ? "catalog" : "product"); setBarcodeInput(""); setBarcodeResult(null); }}
           className={`px-5 py-2.5 rounded-xl text-sm font-bold cursor-pointer active:scale-95 transition flex items-center gap-2 ${activePanel === "product" ? "bg-orange-600 text-white" : "bg-orange-500 text-white hover:bg-orange-600"}`}>
           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1004,7 +1044,52 @@ export default function ProductsPage() {
               className="flex-1 px-4 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)]" required />
             <button type="submit" className="px-6 py-2 bg-orange-500 text-white rounded-xl font-bold cursor-pointer hover:bg-orange-600 active:scale-95 transition">Criar</button>
           </div>
+          {!categoryName && (
+            <div className="mt-3">
+              <span className="text-xs text-[var(--text-secondary)] mb-1.5 block">Sugestoes:</span>
+              <div className="flex flex-wrap gap-2">
+                {['Bebidas', 'Doces', 'Frutas', 'Carnes', 'Padaria', 'Limpeza', 'Frios', 'Hortifruti', 'Mercearia', 'Higiene', 'Congelados', 'Lanches'].filter(s => !categories.some((c: any) => c.name.toLowerCase() === s.toLowerCase())).map(s => (
+                  <button key={s} type="button" onClick={() => setCategoryName(s)}
+                    className="px-3 py-1 text-sm rounded-lg border border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-orange-50 hover:text-orange-600 hover:border-orange-300 dark:hover:bg-orange-500/10 transition cursor-pointer">
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          <label className="flex items-center gap-2 mt-3 cursor-pointer select-none">
+            <input type="checkbox" checked={categoryAgeVerification} onChange={(e) => setCategoryAgeVerification(e.target.checked)}
+              className="w-4 h-4 rounded border-gray-300 text-orange-500 focus:ring-orange-500 accent-orange-500 cursor-pointer" />
+            <span className="text-sm text-[var(--text-secondary)]">Requer verificacao de idade (+18)</span>
+          </label>
         </form>
+      )}
+
+      {/* Edit category modal */}
+      {editingCategory && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setEditingCategory(null)}>
+          <form onSubmit={handleUpdateCategory} onClick={(e) => e.stopPropagation()} className="bg-[var(--bg-card)] rounded-2xl p-6 shadow-lg w-full max-w-md mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-[var(--text-primary)]">Editar categoria</h3>
+              <button type="button" onClick={() => setEditingCategory(null)} className="text-gray-400 hover:text-[var(--text-secondary)] cursor-pointer">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <input type="text" placeholder="Nome da categoria" value={editCategoryName} onChange={(e) => setEditCategoryName(e.target.value)}
+              className="w-full px-4 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] mb-3" required />
+            <label className="flex items-center gap-2 mb-4 cursor-pointer select-none">
+              <input type="checkbox" checked={editCategoryAgeVerification} onChange={(e) => setEditCategoryAgeVerification(e.target.checked)}
+                className="w-4 h-4 rounded border-gray-300 text-orange-500 focus:ring-orange-500 accent-orange-500 cursor-pointer" />
+              <span className="text-sm text-[var(--text-secondary)]">Requer verificacao de idade (+18)</span>
+            </label>
+            <div className="flex justify-end gap-3">
+              <button type="button" onClick={() => setEditingCategory(null)} className="px-4 py-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer transition">Cancelar</button>
+              <button type="submit" className="px-6 py-2 bg-orange-500 text-white rounded-xl font-bold cursor-pointer hover:bg-orange-600 active:scale-95 transition">Salvar</button>
+            </div>
+          </form>
+        </div>
       )}
 
       {/* CSV Import */}
@@ -1150,13 +1235,26 @@ export default function ProductsPage() {
             <input type="text" placeholder="Unidade: kg, un, lt (opcional)" value={productForm.unit} onChange={(e) => setProductForm({ ...productForm, unit: e.target.value })} className="px-4 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)]" disabled={productForm.isVariableWeight} />
             <input type="number" min="0" placeholder="Estoque (0 = ilimitado)" value={productForm.stock} onChange={(e) => setProductForm({ ...productForm, stock: e.target.value })} className="px-4 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)]" />
             {inlineNewCategory === "product" ? (
-              <div className="flex gap-2">
-                <input type="text" autoFocus placeholder="Nome da categoria" value={inlineCategoryName}
-                  onChange={(e) => setInlineCategoryName(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleInlineCreateCategory("product"); } if (e.key === "Escape") { setInlineNewCategory(null); setInlineCategoryName(""); } }}
-                  className="flex-1 px-4 py-2 border border-orange-300 rounded-xl text-[var(--text-primary)] focus:ring-2 focus:ring-orange-200 outline-none" />
-                <button type="button" onClick={() => handleInlineCreateCategory("product")} className="px-4 py-2 bg-orange-500 text-white rounded-xl font-bold cursor-pointer hover:bg-orange-600 active:scale-95 transition text-sm">Criar</button>
-                <button type="button" onClick={() => { setInlineNewCategory(null); setInlineCategoryName(""); }} className="px-3 py-2 text-gray-400 hover:text-[var(--text-secondary)] cursor-pointer">&#10005;</button>
+              <div>
+                <div className="flex gap-2">
+                  <input type="text" autoFocus placeholder="Nome da categoria" value={inlineCategoryName}
+                    onChange={(e) => setInlineCategoryName(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleInlineCreateCategory("product"); } if (e.key === "Escape") { setInlineNewCategory(null); setInlineCategoryName(""); } }}
+                    className="flex-1 px-4 py-2 border border-orange-300 rounded-xl text-[var(--text-primary)] focus:ring-2 focus:ring-orange-200 outline-none" />
+                  <button type="button" onClick={() => handleInlineCreateCategory("product")} className="px-4 py-2 bg-orange-500 text-white rounded-xl font-bold cursor-pointer hover:bg-orange-600 active:scale-95 transition text-sm">Criar</button>
+                  <button type="button" onClick={() => { setInlineNewCategory(null); setInlineCategoryName(""); }} className="px-3 py-2 text-gray-400 hover:text-[var(--text-secondary)] cursor-pointer">&#10005;</button>
+                </div>
+                {PRODUCT_CATEGORY_SUGGESTIONS.filter(s => !categories.some((c: any) => c.name.toLowerCase() === s.toLowerCase())).length > 0 && (
+                  <div className="mt-2">
+                    <span className="text-xs text-[var(--text-secondary)]">ou escolha uma das categorias principais:</span>
+                    <div className="grid grid-cols-5 gap-1 mt-1">
+                      {PRODUCT_CATEGORY_SUGGESTIONS.filter(s => !categories.some((c: any) => c.name.toLowerCase() === s.toLowerCase())).map(s => (
+                        <button key={s} type="button" onClick={() => setInlineCategoryName(s)}
+                          className="px-1 py-1 text-xs rounded-full bg-orange-100 text-orange-700 hover:bg-orange-200 cursor-pointer transition text-center">{s}</button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <select value={productForm.categoryId} onChange={(e) => { if (e.target.value === "__new__") { setInlineNewCategory("product"); setInlineCategoryName(""); return; } setProductForm({ ...productForm, categoryId: e.target.value }); }} className="px-4 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)]">
@@ -1400,13 +1498,26 @@ export default function ProductsPage() {
                   <span className="text-sm text-[var(--text-secondary)]">Produto vendido por peso (preco por kg)</span>
                 </label>
                 {inlineNewCategory === "edit" ? (
-                  <div className="flex gap-2">
-                    <input type="text" autoFocus placeholder="Nome da categoria" value={inlineCategoryName}
-                      onChange={(e) => setInlineCategoryName(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleInlineCreateCategory("edit"); } if (e.key === "Escape") { setInlineNewCategory(null); setInlineCategoryName(""); } }}
-                      className="flex-1 px-4 py-2 border border-orange-300 rounded-xl text-[var(--text-primary)] focus:ring-2 focus:ring-orange-200 outline-none" />
-                    <button type="button" onClick={() => handleInlineCreateCategory("edit")} className="px-4 py-2 bg-orange-500 text-white rounded-xl font-bold cursor-pointer hover:bg-orange-600 active:scale-95 transition text-sm">Criar</button>
-                    <button type="button" onClick={() => { setInlineNewCategory(null); setInlineCategoryName(""); }} className="px-3 py-2 text-gray-400 hover:text-[var(--text-secondary)] cursor-pointer">&#10005;</button>
+                  <div className="space-y-2">
+                    <div className="flex gap-2">
+                      <input type="text" autoFocus placeholder="Nome da categoria" value={inlineCategoryName}
+                        onChange={(e) => setInlineCategoryName(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleInlineCreateCategory("edit"); } if (e.key === "Escape") { setInlineNewCategory(null); setInlineCategoryName(""); } }}
+                        className="flex-1 px-4 py-2 border border-orange-300 rounded-xl text-[var(--text-primary)] focus:ring-2 focus:ring-orange-200 outline-none" />
+                      <button type="button" onClick={() => handleInlineCreateCategory("edit")} className="px-4 py-2 bg-orange-500 text-white rounded-xl font-bold cursor-pointer hover:bg-orange-600 active:scale-95 transition text-sm">Criar</button>
+                      <button type="button" onClick={() => { setInlineNewCategory(null); setInlineCategoryName(""); }} className="px-3 py-2 text-gray-400 hover:text-[var(--text-secondary)] cursor-pointer">&#10005;</button>
+                    </div>
+                    {PRODUCT_CATEGORY_SUGGESTIONS.filter(s => !categories.some((c: any) => c.name.toLowerCase() === s.toLowerCase())).length > 0 && (
+                      <div>
+                        <span className="text-xs text-[var(--text-secondary)]">ou escolha uma das categorias principais:</span>
+                        <div className="grid grid-cols-5 gap-1 mt-1">
+                          {PRODUCT_CATEGORY_SUGGESTIONS.filter(s => !categories.some((c: any) => c.name.toLowerCase() === s.toLowerCase())).map(s => (
+                            <button key={s} type="button" onClick={() => setInlineCategoryName(s)}
+                              className="px-1 py-1 text-xs rounded-full bg-orange-100 text-orange-700 hover:bg-orange-200 cursor-pointer transition text-center">{s}</button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <select value={editForm.categoryId} onChange={(e) => { if (e.target.value === "__new__") { setInlineNewCategory("edit"); setInlineCategoryName(""); return; } setEditForm({ ...editForm, categoryId: e.target.value }); }} className="w-full px-4 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)]">
@@ -1451,8 +1562,9 @@ export default function ProductsPage() {
               </button>
               {categories.map((c: any) => (
                 <button key={c.id} onClick={() => { setCategoryFilter(c.id); setShowFilterDropdown(false); }}
-                  className={`w-full text-left px-4 py-2.5 text-sm cursor-pointer transition ${categoryFilter === c.id ? "bg-orange-50 text-orange-600 font-semibold" : "text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"}`}>
+                  className={`w-full text-left px-4 py-2.5 text-sm cursor-pointer transition flex items-center gap-2 ${categoryFilter === c.id ? "bg-orange-50 text-orange-600 font-semibold" : "text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"}`}>
                   {c.name}
+                  {c.requiresAgeVerification && <span className="px-1.5 py-0.5 text-[10px] font-bold bg-red-100 text-red-600 rounded-md">+18</span>}
                 </button>
               ))}
               <div className="border-t border-gray-100 my-1" />
@@ -1509,6 +1621,9 @@ export default function ProductsPage() {
             >
               <div className="flex items-center gap-2 mb-2 px-1">
                 <h3 className="text-sm font-bold text-[var(--text-muted)] uppercase tracking-wide">{group.name} ({group.products.length})</h3>
+                {categories.find((c: any) => c.id === key)?.requiresAgeVerification && (
+                  <span className="px-1.5 py-0.5 text-[10px] font-bold bg-red-100 text-red-600 rounded-md">+18</span>
+                )}
                 {key !== "sem-categoria" && (
                   <div className="relative">
                     <button onClick={() => setCategoryMenuId(categoryMenuId === key ? null : key)}
@@ -1521,6 +1636,13 @@ export default function ProductsPage() {
                       <>
                         <div className="fixed inset-0 z-10" onClick={() => setCategoryMenuId(null)} />
                         <div className="absolute left-0 top-full mt-1 z-20 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl shadow-lg py-1 min-w-[160px]">
+                          <button onClick={() => startEditingCategory(categories.find((c: any) => c.id === key))}
+                            className="w-full text-left px-4 py-2.5 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-hover)] cursor-pointer transition flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                            Editar categoria
+                          </button>
                           <button onClick={() => handleDeleteCategory(key)}
                             className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 cursor-pointer transition flex items-center gap-2">
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

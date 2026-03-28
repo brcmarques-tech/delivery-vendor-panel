@@ -118,7 +118,7 @@ export default function LoginPage() {
       )}
       <div className="bg-white p-8 rounded-2xl shadow-lg w-full max-w-md">
         <div className="flex justify-center mb-6">
-          <img src="/logo-dark.svg" alt="Delivery" className="h-16" />
+          <img src="/logo-dark.svg" alt="Shopping" className="h-16" />
         </div>
         <p className="text-gray-500 text-center mb-8">Painel do Vendedor</p>
 
