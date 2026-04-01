@@ -19,6 +19,10 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Painel do Vendedor - Shopping",
   description: "Gerencie sua loja, produtos e pedidos",
+  icons: {
+    icon: '/logo.svg',
+    shortcut: '/logo.svg',
+  },
 };
 
 export default function RootLayout({
