@@ -1,5 +1,14 @@
 @import "tailwindcss";
 
+/* Esconde scrollbar mantendo scroll funcional */
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
 @theme inline {
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
@@ -20,6 +29,35 @@
   --text-muted: #9ca3af;
   --text-inverted: #ffffff;
   --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+  --focus-ring: #f97316;
+  --z-header: 30;
+  --z-overlay: 40;
+  --z-drawer: 50;
+  --z-modal: 60;
+  --z-toast: 70;
+
+  /* Brand */
+  --brand-primary: #f97316;
+  --brand-primary-hover: #ea580c;
+  --brand-primary-light: #fff7ed;
+  --brand-primary-muted: rgba(249,115,22,0.10);
+
+  /* Status */
+  --status-success-bg: #f0fdf4;
+  --status-success-text: #16a34a;
+  --status-warning-bg: #fffbeb;
+  --status-warning-text: #d97706;
+  --status-error-bg: #fef2f2;
+  --status-error-text: #dc2626;
+  --status-info-bg: #eff6ff;
+  --status-info-text: #2563eb;
+  --status-neutral-bg: #f3f4f6;
+  --status-neutral-text: #6b7280;
+
+  /* Card */
+  --card-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+  --card-shadow-hover: 0 4px 12px rgba(0,0,0,0.10);
+  --card-radius: 1rem;
 }
 
 /* Dark mode */
@@ -37,6 +75,52 @@
   --text-muted: #6b7280;
   --text-inverted: #111827;
   --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+  --focus-ring: #fb923c;
+
+  /* Brand */
+  --brand-primary: #fb923c;
+  --brand-primary-hover: #f97316;
+  --brand-primary-light: rgba(249,115,22,0.15);
+  --brand-primary-muted: rgba(249,115,22,0.08);
+
+  /* Status */
+  --status-success-bg: rgba(22,163,74,0.15);
+  --status-success-text: #4ade80;
+  --status-warning-bg: rgba(217,119,6,0.15);
+  --status-warning-text: #fbbf24;
+  --status-error-bg: rgba(220,38,38,0.15);
+  --status-error-text: #f87171;
+  --status-info-bg: rgba(37,99,235,0.15);
+  --status-info-text: #60a5fa;
+  --status-neutral-bg: #374151;
+  --status-neutral-text: #9ca3af;
+
+  /* Card */
+  --card-shadow: 0 1px 3px rgba(0,0,0,0.2), 0 1px 2px rgba(0,0,0,0.12);
+  --card-shadow-hover: 0 4px 12px rgba(0,0,0,0.25);
+  --card-radius: 1rem;
+}
+
+/* Focus ring utility */
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--focus-ring);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--focus-ring) 25%, transparent);
+}
+
+/* Spinner animation */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@view-transition {
+  navigation: auto;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.3s;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 body {

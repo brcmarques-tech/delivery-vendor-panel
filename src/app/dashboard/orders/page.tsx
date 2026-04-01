@@ -1,9 +1,18 @@
 "use client";
 
 import { useQuery, useMutation, useSubscription } from "@apollo/client";
+import { useTour } from "@/hooks/useTour";
+import { type DriveStep } from "driver.js";
 import { GET_MY_STORES, GET_STORE_ORDERS, UPDATE_ORDER_STATUS, ORDER_CREATED_SUB, ORDER_UPDATED_SUB, ADJUST_ORDER_ITEM_WEIGHT, REJECT_ORDER, VENDOR_CANCEL_ORDER, VENDOR_CONFIRM_PICKUP, REQUEST_CANCEL_DISPUTE } from "@/lib/graphql";
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { MessageCircle, MapPin, Check, Pencil, ClipboardList, CheckCircle } from "lucide-react";
 import CreateStoreModal from "@/components/CreateStoreModal";
+import PageHeader from "@/components/ui/PageHeader";
+import StatusBadge from "@/components/ui/StatusBadge";
+import { SkeletonTable } from "@/components/ui/Skeleton";
+import EmptyState from "@/components/ui/EmptyState";
+import { motion } from "framer-motion";
+import { fadeIn, staggerContainer, staggerItem, scaleIn } from "@/lib/motion";
 
 const statusLabels: Record<string, { label: string; color: string }> = {
   AWAITING_PAYMENT: { label: "Aguardando pagamento", color: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300" },
@@ -14,7 +23,7 @@ const statusLabels: Record<string, { label: string; color: string }> = {
   READY: { label: "Pronto - Aguardando entregador", color: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300" },
   PICKED_UP: { label: "Coletado", color: "bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300" },
   DELIVERING: { label: "A caminho", color: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300" },
-  DELIVERED: { label: "Entregue", color: "bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-300" },
+  DELIVERED: { label: "Entregue", color: "bg-[var(--bg-muted)] text-[var(--text-secondary)]" },
   CANCELLED: { label: "Cancelado", color: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300" },
   EXPIRED: { label: "Não aceito (expirado)", color: "bg-red-100 text-red-400 dark:bg-red-900/30 dark:text-red-400" },
   VENDOR_CONFIRMED_PICKUP: { label: "Aguardando entregador confirmar", color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" },
@@ -23,6 +32,34 @@ const statusLabels: Record<string, { label: string; color: string }> = {
   REJECTED: { label: "Rejeitado", color: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300" },
   DISPUTED: { label: "Em reclamação", color: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300" },
 };
+
+function getStatusVariant(status: string): 'success' | 'warning' | 'error' | 'info' | 'neutral' {
+  switch (status) {
+    case 'PENDING':
+    case 'AWAITING_PAYMENT':
+    case 'PAYMENT_REVIEW':
+    case 'DISPUTED':
+      return 'warning';
+    case 'ACCEPTED':
+    case 'PREPARING':
+    case 'READY':
+    case 'PICKED_UP':
+    case 'DELIVERING':
+    case 'OUT_FOR_DELIVERY':
+    case 'VENDOR_CONFIRMED_PICKUP':
+    case 'DELIVERER_CONFIRMED_DELIVERY':
+      return 'info';
+    case 'DELIVERED':
+    case 'COMPLETED':
+      return 'success';
+    case 'CANCELLED':
+    case 'EXPIRED':
+    case 'REJECTED':
+      return 'error';
+    default:
+      return 'neutral';
+  }
+}
 
 const nextStatus: Record<string, string> = {
   PENDING: "ACCEPTED",
@@ -37,6 +74,42 @@ const INCOMPLETE_STATUSES = ["CANCELLED", "EXPIRED", "REJECTED", "DISPUTED"];
 
 type TabKey = "active" | "completed" | "incomplete";
 type DateFilter = "today" | "week" | "month" | "year" | "all";
+
+const TOUR_STEPS: DriveStep[] = [
+  {
+    popover: {
+      title: "👋 Bem-vindo aos Pedidos!",
+      description: "Aqui você gerencia todos os pedidos recebidos nas suas lojas. Vou te mostrar como funciona.",
+    },
+  },
+  {
+    element: '[data-tour="orders-tabs"]',
+    popover: {
+      title: "Filtrar pedidos",
+      description: "Navegue entre pedidos ativos, histórico e pedidos por status. A aba ativa é destacada automaticamente.",
+      side: "bottom",
+      align: "start",
+    },
+  },
+  {
+    element: '[data-tour="orders-filters"]',
+    popover: {
+      title: "Filtros avançados",
+      description: "Filtre por período, status ou loja para encontrar pedidos rapidamente.",
+      side: "bottom",
+      align: "start",
+    },
+  },
+  {
+    element: '[data-tour="orders-list"]',
+    popover: {
+      title: "✅ Gerenciar pedidos",
+      description: "Todos os pedidos aparecem aqui. Clique em um pedido para ver os detalhes e atualizar o status.\n\nIsso é tudo! Para rever, clique no ❓ ao lado do título 'Pedidos'.",
+      side: "top",
+      align: "start",
+    },
+  },
+];
 
 function playNotificationSound() {
   const ctx = new AudioContext();
@@ -139,6 +212,7 @@ function PendingTimer({ createdAt, onExpired }: { createdAt: string | number; on
 }
 
 export default function OrdersPage() {
+  const { startTour, hasSeenTour } = useTour("orders", TOUR_STEPS);
   const { data: storesData } = useQuery(GET_MY_STORES);
   const stores = storesData?.myStores || [];
   const [showCreateStore, setShowCreateStore] = useState(false);
@@ -388,7 +462,7 @@ export default function OrdersPage() {
   if (!storesData) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--brand-primary)]" />
       </div>
     );
   }
@@ -398,9 +472,9 @@ export default function OrdersPage() {
       <>
         <CreateStoreModal open={showCreateStore} onClose={() => setShowCreateStore(false)} onCreated={() => { storesData && window.location.reload(); }} />
         <div className="text-center mt-20">
-          <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-2">Nenhuma loja cadastrada</h2>
+          <h2 className="text-xl md:text-2xl font-bold text-[var(--text-primary)] mb-2">Nenhuma loja cadastrada</h2>
           <p className="text-[var(--text-secondary)] mb-6">Crie sua primeira loja para começar a receber pedidos</p>
-          <button onClick={() => setShowCreateStore(true)} className="bg-orange-500 text-white px-6 py-3 rounded-xl font-bold cursor-pointer hover:bg-orange-600 active:scale-95 transition">
+          <button onClick={() => setShowCreateStore(true)} className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white px-6 py-3 rounded-xl font-bold cursor-pointer active:scale-95 transition">
             Criar loja
           </button>
         </div>
@@ -423,11 +497,11 @@ export default function OrdersPage() {
   ];
 
   return (
-    <div>
+    <motion.div {...fadeIn}>
       {/* M5: Confirmation dialog */}
       {confirmAction && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-[var(--bg-card)] rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
+          <motion.div {...scaleIn} className="bg-[var(--bg-card)] rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
             <h3 className="text-lg font-bold text-[var(--text-primary)] mb-3">Confirmar Acao</h3>
             <p className="text-sm text-[var(--text-secondary)] mb-6">{confirmAction.label}</p>
             <div className="flex gap-3">
@@ -439,7 +513,7 @@ export default function OrdersPage() {
                     doVendorConfirmPickup(confirmAction.orderId);
                   }
                 }}
-                className="flex-1 py-3 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition cursor-pointer"
+                className="flex-1 py-3 bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white rounded-xl font-semibold transition cursor-pointer"
               >
                 Confirmar
               </button>
@@ -450,12 +524,12 @@ export default function OrdersPage() {
                 Cancelar
               </button>
             </div>
-          </div>
+          </motion.div>
         </div>
       )}
 
       {notification && (
-        <div className="fixed top-4 right-4 left-4 sm:left-auto bg-orange-500 text-white px-6 py-4 rounded-2xl shadow-lg z-50 animate-bounce">
+        <div className="fixed top-4 right-4 left-4 sm:left-auto bg-[var(--brand-primary)] text-white px-6 py-4 rounded-2xl shadow-lg z-50 animate-bounce">
           <p className="font-bold">{notification}</p>
         </div>
       )}
@@ -465,37 +539,41 @@ export default function OrdersPage() {
         </div>
       )}
 
-      <div className="flex flex-wrap items-center justify-between mb-4 gap-3">
-        <h1 className="text-2xl font-bold text-[var(--text-primary)]">Pedidos</h1>
-        {stores.length > 1 && (
-          <select
-            value={selectedStore}
-            onChange={(e) => setSelectedStore(e.target.value)}
-            className="px-4 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)]"
-          >
-            {stores.map((s: any) => (
-              <option key={s.id} value={s.id}>{s.name}</option>
-            ))}
-          </select>
-        )}
-      </div>
+      <PageHeader
+        title="Pedidos"
+        onTourStart={startTour}
+        tourNotSeen={!hasSeenTour}
+        actions={
+          stores.length > 1 ? (
+            <select
+              value={selectedStore}
+              onChange={(e) => setSelectedStore(e.target.value)}
+              className="px-4 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)]"
+            >
+              {stores.map((s: any) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          ) : undefined
+        }
+      />
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-4 bg-[var(--bg-input)] rounded-xl p-1">
+      <div data-tour="orders-tabs" className="flex gap-1 mb-4 bg-[var(--bg-input)] rounded-xl p-1">
         {tabs.map((tab) => (
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
             className={`flex-1 px-3 py-2 rounded-lg text-sm font-semibold transition cursor-pointer ${
               activeTab === tab.key
-                ? "bg-orange-500 text-white shadow-sm"
-                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                ? "bg-[var(--brand-primary)] text-white shadow-sm"
+                : "text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
             }`}
           >
             {tab.label}
             {tab.count > 0 && (
               <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-xs ${
-                activeTab === tab.key ? "bg-orange-600" : "bg-[var(--bg-hover)]"
+                activeTab === tab.key ? "bg-[var(--brand-primary-hover)]" : "bg-[var(--bg-hover)]"
               }`}>
                 {tab.count}
               </span>
@@ -506,15 +584,15 @@ export default function OrdersPage() {
 
       {/* Date filter - only for completed and incomplete */}
       {activeTab !== "active" && (
-        <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
+        <div data-tour="orders-filters" className="flex gap-2 mb-4 overflow-x-auto pb-1">
           {dateFilters.map((df) => (
             <button
               key={df.key}
               onClick={() => setDateFilter(df.key)}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer whitespace-nowrap ${
                 dateFilter === df.key
-                  ? "bg-orange-500 text-white"
-                  : "bg-[var(--bg-input)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                  ? "bg-[var(--brand-primary)] text-white"
+                  : "bg-[var(--bg-input)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
               }`}
             >
               {df.label}
@@ -524,28 +602,33 @@ export default function OrdersPage() {
       )}
 
       {loading ? (
-        <p className="text-[var(--text-secondary)]">Carregando...</p>
+        <SkeletonTable rows={5} cols={4} />
       ) : filteredOrders.length === 0 ? (
-        <p className="text-[var(--text-secondary)] text-center mt-20">
-          {activeTab === "active" && "Nenhum pedido ativo"}
-          {activeTab === "completed" && "Nenhum pedido concluído neste período"}
-          {activeTab === "incomplete" && "Nenhum pedido não concluído neste período"}
-        </p>
+        <EmptyState
+          icon={ClipboardList}
+          title={
+            activeTab === "active" ? "Nenhum pedido ativo" :
+            activeTab === "completed" ? "Nenhum pedido concluído neste período" :
+            "Nenhum pedido não concluído neste período"
+          }
+          description="Os pedidos aparecerão aqui quando forem recebidos."
+        />
       ) : (
-        <div className="space-y-4">
-          {filteredOrders.map((order: any) => {
-            const status = statusLabels[order.status] || { label: order.status, color: "bg-gray-100" };
+        <div data-tour="orders-list" className="bg-[var(--bg-card)] rounded-2xl shadow-[var(--card-shadow)] border border-[var(--border-light)] overflow-hidden">
+          <div className="overflow-x-auto">
+          {filteredOrders.map((order: any, orderIndex: number) => {
+            const status = statusLabels[order.status] || { label: order.status, color: "bg-[var(--bg-muted)]" };
             const canAdvance = !!nextStatus[order.status];
 
             return (
-              <div key={order.id} className="bg-[var(--bg-card)] rounded-2xl p-4 sm:p-6 shadow-sm">
+              <div key={order.id} className={`p-4 sm:p-6 hover:bg-[var(--bg-hover)] transition-colors ${orderIndex > 0 ? "border-t border-[var(--border-light)]" : ""}`}>
                 <div className="flex items-start justify-between mb-3 gap-4">
                   <div>
                     <span className="text-xs text-[var(--text-muted)]">{formatDate(order.createdAt)}</span>
                     <div className="mt-1 flex items-center gap-2">
                       <span className="font-bold text-[var(--text-primary)]">#{order.orderNumber}</span>
                       {stores.length > 1 && order.store?.name && (
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">{order.store.name}</span>
+                        <StatusBadge variant="info">{order.store.name}</StatusBadge>
                       )}
                     </div>
                     <div className="mt-1">
@@ -565,9 +648,7 @@ export default function OrdersPage() {
                             className="w-8 h-8 flex items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/50 transition"
                             title="WhatsApp do entregador"
                           >
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
-                              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-                            </svg>
+                            <MessageCircle className="w-4 h-4" />
                           </a>
                         )}
                         {order.delivery.deliverer.profilePhotoUrl ? (
@@ -590,9 +671,7 @@ export default function OrdersPage() {
                             className="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/50 transition"
                             title="Ver no mapa"
                           >
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                              <path fillRule="evenodd" d="M9.69 18.933l.003.001C9.89 19.02 10 19 10 19s.11.02.308-.066l.002-.001.006-.003.018-.008a5.741 5.741 0 00.281-.14c.186-.096.446-.24.757-.433a19.695 19.695 0 002.683-2.006c1.9-1.7 3.945-4.283 3.945-7.343a8 8 0 00-16 0c0 3.06 2.046 5.643 3.945 7.343a19.695 19.695 0 002.683 2.006 12.3 12.3 0 00.757.433l.281.14.018.008.006.003zM10 11.25a2.25 2.25 0 100-4.5 2.25 2.25 0 000 4.5z" clipRule="evenodd" />
-                            </svg>
+                            <MapPin className="w-4 h-4" />
                           </a>
                         ) : (
                           <div className="w-8 h-8" />
@@ -604,9 +683,9 @@ export default function OrdersPage() {
                       </p>
                     </div>
                   ) : (
-                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${status.color} shrink-0`}>
+                    <StatusBadge variant={getStatusVariant(order.status)} dot className="shrink-0">
                       {status.label}
-                    </span>
+                    </StatusBadge>
                   )}
                 </div>
 
@@ -641,12 +720,10 @@ export default function OrdersPage() {
                           >
                             {(separatedItems[order.id] || []).includes(item.id) ? (
                               <span className="w-5 h-5 rounded-full bg-green-500 border-2 border-green-500 flex items-center justify-center">
-                                <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                </svg>
+                                <Check className="w-3 h-3 text-white" strokeWidth={3} />
                               </span>
                             ) : (
-                              <span className="w-5 h-5 rounded-full border-2 border-gray-300 dark:border-gray-600 inline-block" />
+                              <span className="w-5 h-5 rounded-full border-2 border-[var(--border-color)] inline-block" />
                             )}
                           </button>
                         )}
@@ -666,27 +743,25 @@ export default function OrdersPage() {
                                 onChange={(e) => setWeightEdit({ itemId: item.id, value: e.target.value })}
                                 onKeyDown={(e) => { if (e.key === "Enter") handleAdjustWeight(item.id, weightEdit!.value); if (e.key === "Escape") setWeightEdit(null); }}
                                 placeholder="gramas"
-                                className="w-24 px-2 py-0.5 border border-orange-300 rounded-lg text-xs text-[var(--text-primary)] bg-[var(--bg-input)] focus:ring-1 focus:ring-orange-200 outline-none"
+                                className="w-24 px-2 py-0.5 border border-[var(--border-color)] rounded-lg text-xs text-[var(--text-primary)] bg-[var(--bg-input)] focus:ring-1 focus:ring-[var(--brand-primary-muted)] outline-none"
                               />
                               <span className="text-xs text-[var(--text-muted)]">g</span>
                               <button
                                 onClick={() => handleAdjustWeight(item.id, weightEdit!.value)}
-                                className="px-2 py-0.5 bg-orange-500 text-white rounded-lg text-xs font-bold cursor-pointer hover:bg-orange-600 active:scale-95 transition"
+                                className="px-2 py-0.5 bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white rounded-lg text-xs font-bold cursor-pointer active:scale-95 transition"
                               >OK</button>
                               <button
                                 onClick={() => setWeightEdit(null)}
-                                className="px-1.5 py-0.5 text-gray-400 hover:text-gray-600 cursor-pointer text-xs"
+                                className="px-1.5 py-0.5 text-[var(--text-muted)] hover:text-[var(--text-secondary)] cursor-pointer text-xs"
                               >&#10005;</button>
                             </span>
                           ) : (
                             <button
                               onClick={() => setWeightEdit({ itemId: item.id, value: String(item.weightGrams || "") })}
-                              className="p-0.5 rounded text-gray-400 hover:text-orange-500 cursor-pointer transition"
+                              className="p-0.5 rounded text-[var(--text-muted)] hover:text-[var(--brand-primary)] cursor-pointer transition"
                               title="Ajustar peso"
                             >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                              </svg>
+                              <Pencil className="h-3.5 w-3.5" strokeWidth={2} />
                             </button>
                           )
                         )}
@@ -724,7 +799,7 @@ export default function OrdersPage() {
                           <button
                             onClick={() => handleRejectOrder(order.id, rejectState!.reason)}
                             disabled={rejectingOrders.has(order.id)}
-                            className="bg-red-500 text-white px-3 py-2 rounded-xl text-sm font-bold cursor-pointer hover:bg-red-600 active:scale-95 transition disabled:opacity-50"
+                            className="bg-[var(--status-error-text)] text-white px-3 py-2 rounded-xl text-sm font-bold cursor-pointer hover:bg-red-700 active:scale-[0.98] transition disabled:opacity-50"
                           >
                             {rejectingOrders.has(order.id) ? "Rejeitando..." : "Confirmar"}
                           </button>
@@ -738,7 +813,7 @@ export default function OrdersPage() {
                       ) : (
                         <button
                           onClick={() => setRejectState({ orderId: order.id, reason: "" })}
-                          className="bg-red-500 text-white px-4 py-2 rounded-xl text-sm font-bold cursor-pointer hover:bg-red-600 active:scale-95 transition"
+                          className="bg-[var(--status-error-text)] text-white px-4 py-2 rounded-xl text-sm font-bold cursor-pointer hover:bg-red-700 active:scale-[0.98] transition"
                         >
                           Rejeitar
                         </button>
@@ -761,7 +836,7 @@ export default function OrdersPage() {
                           <button
                             onClick={() => handleVendorCancelOrder(order.id, cancelState!.reason)}
                             disabled={cancellingOrders.has(order.id)}
-                            className="bg-red-500 text-white px-3 py-2 rounded-xl text-sm font-bold cursor-pointer hover:bg-red-600 active:scale-95 transition disabled:opacity-50"
+                            className="bg-[var(--status-error-text)] text-white px-3 py-2 rounded-xl text-sm font-bold cursor-pointer hover:bg-red-700 active:scale-[0.98] transition disabled:opacity-50"
                           >
                             {cancellingOrders.has(order.id) ? "Cancelando..." : "Confirmar"}
                           </button>
@@ -775,7 +850,7 @@ export default function OrdersPage() {
                       ) : (
                         <button
                           onClick={() => setCancelState({ orderId: order.id, reason: "" })}
-                          className="bg-red-500 text-white px-4 py-2 rounded-xl text-sm font-bold cursor-pointer hover:bg-red-600 active:scale-95 transition"
+                          className="bg-[var(--status-error-text)] text-white px-4 py-2 rounded-xl text-sm font-bold cursor-pointer hover:bg-red-700 active:scale-[0.98] transition"
                         >
                           Cancelar pedido
                         </button>
@@ -794,7 +869,7 @@ export default function OrdersPage() {
                     )}
                     {(order.status === "PICKED_UP" || order.status === "DELIVERING") && order.vendorConfirmedPickupAt && (
                       <span className="text-green-500 text-sm font-bold flex items-center gap-1">
-                        ✓ Coleta confirmada
+                        <CheckCircle className="w-4 h-4" /> Coleta confirmada
                       </span>
                     )}
 
@@ -808,9 +883,7 @@ export default function OrdersPage() {
                             rel="noopener noreferrer"
                             className="flex items-center gap-1 bg-green-500 text-white px-3 py-2 rounded-xl text-sm font-bold hover:bg-green-600 active:scale-95 transition"
                           >
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
-                              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-                            </svg>
+                            <MessageCircle className="w-4 h-4" />
                             WhatsApp
                           </a>
                         )}
@@ -828,7 +901,7 @@ export default function OrdersPage() {
                             }
                           }}
                           disabled={requestingDispute.has(order.id)}
-                          className="bg-orange-500 text-white px-4 py-2 rounded-xl text-sm font-bold cursor-pointer hover:bg-orange-600 active:scale-95 transition disabled:opacity-50"
+                          className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white px-4 py-2 rounded-xl text-sm font-bold cursor-pointer active:scale-95 transition disabled:opacity-50"
                         >
                           {requestingDispute.has(order.id) ? "Enviando..." : "Pedir cancelamento"}
                         </button>
@@ -840,7 +913,7 @@ export default function OrdersPage() {
                       <button
                         onClick={() => handleAdvanceStatus(order.id, order.status)}
                         disabled={advancingOrders.has(order.id)}
-                        className="bg-orange-500 text-white px-4 py-2 rounded-xl text-sm font-bold cursor-pointer hover:bg-orange-600 active:scale-95 transition disabled:opacity-50"
+                        className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white px-4 py-2 rounded-xl text-sm font-bold cursor-pointer active:scale-95 transition disabled:opacity-50"
                       >
                         {advancingOrders.has(order.id) ? "Processando..." :
                           order.status === "PENDING" ? "Aceitar pedido" :
@@ -853,6 +926,7 @@ export default function OrdersPage() {
               </div>
             );
           })}
+          </div>
         </div>
       )}
       {zoomedAvatar && (
@@ -868,6 +942,6 @@ export default function OrdersPage() {
           />
         </div>
       )}
-    </div>
+    </motion.div>
   );
 }

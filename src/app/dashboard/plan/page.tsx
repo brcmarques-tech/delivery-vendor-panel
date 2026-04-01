@@ -12,6 +12,15 @@ import {
 import { useSearchParams, useRouter } from "next/navigation";
 import { useState, useRef, useEffect, Suspense } from "react";
 import TermsModal from "@/components/TermsModal";
+import SubscriptionManager from "@/components/SubscriptionManager";
+import CardForm from "@/components/CardForm";
+import { CreditCard, QrCode, ChevronLeft, ChevronRight, Check, X, Award, Flame } from "lucide-react";
+import { motion } from "framer-motion";
+import { fadeIn, staggerContainer, staggerItem } from "@/lib/motion";
+import PageHeader from "@/components/ui/PageHeader";
+import { SkeletonGrid } from "@/components/ui/Skeleton";
+import { useTour } from "@/hooks/useTour";
+import { type DriveStep } from "driver.js";
 
 const planLabels: Record<string, string> = {
   FREE: "Gratuito",
@@ -68,13 +77,41 @@ function getBillingLabel(billing: string): string {
 
 export default function PlanPage() {
   return (
-    <Suspense fallback={<p className="text-gray-500">Carregando...</p>}>
+    <Suspense fallback={<SkeletonGrid count={4} />}>
       <PlanContent />
     </Suspense>
   );
 }
 
+const TOUR_STEPS: DriveStep[] = [
+  {
+    popover: {
+      title: "👋 Bem-vindo ao Meu Plano!",
+      description: "Aqui você vê seu plano atual e pode fazer upgrade para desbloquear mais recursos.",
+    },
+  },
+  {
+    element: '[data-tour="current-plan"]',
+    popover: {
+      title: "Seu plano atual",
+      description: "Aqui está seu plano com todos os benefícios incluídos: lojas, produtos, promoções e suporte.",
+      side: "bottom",
+      align: "start",
+    },
+  },
+  {
+    element: '[data-tour="available-plans"]',
+    popover: {
+      title: "✅ Comparar planos",
+      description: "Escolha o plano ideal para o seu negócio. Faça upgrade a qualquer momento sem perder seus dados.\n\nIsso é tudo! Para rever, clique no ❓ ao lado do título 'Meu Plano'.",
+      side: "top",
+      align: "start",
+    },
+  },
+];
+
 function PlanContent() {
+  const { startTour, hasSeenTour } = useTour("plan", TOUR_STEPS);
   const { data: userData, loading: loadingUser, refetch: refetchPlan } = useQuery(GET_MY_PLAN, {
     fetchPolicy: "network-only", // M2: always fetch fresh plan data
   });
@@ -102,6 +139,10 @@ function PlanContent() {
   // H4: Track plan at mount to verify payment status
   const [planAtMount, setPlanAtMount] = useState<string | null>(null);
   const [paymentVerified, setPaymentVerified] = useState(false);
+
+  // Show card form inside confirm modal
+  const [showCardInModal, setShowCardInModal] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<'credit_card' | 'pix'>('credit_card');
 
   // H4: When status=success, refetch plan and verify it actually changed
   useEffect(() => {
@@ -136,7 +177,7 @@ function PlanContent() {
   }, [paymentStatus, router]);
 
   if (loadingUser || loadingPlans) {
-    return <p className="text-gray-500">Carregando...</p>;
+    return <SkeletonGrid count={4} />;
   }
 
   const user = userData?.meVendor;
@@ -203,24 +244,26 @@ function PlanContent() {
     }
   }
 
-  async function proceedUpgrade(plan: string) {
+  async function proceedUpgrade(plan: string, cardToken?: string) {
     // H1: double-click prevention
     if (processingRef.current) return;
     processingRef.current = true;
 
     setUpgrading(plan);
     setPlanError("");
-    setConfirmModal(null);
     try {
-      const { data } = await createUpgrade({
-        variables: { plan, billingPeriod: billing },
+      await createUpgrade({
+        variables: { plan, billingPeriod: billing, cardToken: cardToken || null, paymentMethod },
       });
-      const checkoutUrl = data?.createPlanUpgrade?.checkoutUrl;
-      if (checkoutUrl) {
-        window.location.href = checkoutUrl;
-      }
+      setConfirmModal(null);
+      setShowCardInModal(false);
+      refetchPlan();
+      setPlanError("");
+      // Show success inline
+      setPaymentVerified(true);
+      router.replace("/dashboard/plan?status=success", { scroll: false });
     } catch (err: any) {
-      setPlanError(err.message || "Erro ao criar upgrade.");
+      setPlanError(err.message || "Erro ao criar assinatura.");
       setUpgrading(null);
     } finally {
       processingRef.current = false; // H1: reset guard
@@ -297,7 +340,7 @@ function PlanContent() {
   }
 
   return (
-    <div>
+    <motion.div {...fadeIn}>
       {showSubTerms && (
         <TermsModal
           type="subscription"
@@ -308,61 +351,122 @@ function PlanContent() {
         />
       )}
 
-      {/* M1: Confirmation modal */}
+      {/* M1: Confirmation modal with card form */}
       {confirmModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-[var(--bg-card)] rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
-            <h3 className="text-lg font-bold text-[var(--text-primary)] mb-4">Confirmar Upgrade</h3>
-            <div className="space-y-2 mb-6">
-              <p className="text-[var(--text-secondary)]">
-                Plano: <span className="font-semibold text-orange-600">{planLabels[confirmModal.plan]}</span>
-              </p>
-              <p className="text-[var(--text-secondary)]">
-                Periodo: <span className="font-semibold">{confirmModal.billingLabel}</span>
-              </p>
-              <p className="text-[var(--text-secondary)]">
-                Preco base: <span className="font-semibold">R$ {confirmModal.price.toFixed(2)}</span>
-              </p>
-              {/* H2: Badge discount note */}
-              {badgeDiscount > 0 && (
-                <p className="text-sm text-purple-600 dark:text-purple-400">
-                  O desconto de {badgeDiscount}% do selo sera aplicado automaticamente no checkout (sujeito a confirmacao).
+          <div className="bg-[var(--bg-card)] rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <h3 className="text-lg font-bold text-[var(--text-primary)] mb-4">
+              {showCardInModal ? "Dados do Cartao" : "Confirmar Assinatura"}
+            </h3>
+
+            {!showCardInModal ? (
+              <>
+                <div className="space-y-2 mb-4">
+                  <p className="text-[var(--text-secondary)]">
+                    Plano: <span className="font-semibold text-[var(--brand-primary)]">{planLabels[confirmModal.plan]}</span>
+                  </p>
+                  <p className="text-[var(--text-secondary)]">
+                    Periodo: <span className="font-semibold">{confirmModal.billingLabel}</span>
+                  </p>
+                  <p className="text-[var(--text-secondary)]">
+                    Preco base: <span className="font-semibold">R$ {confirmModal.price.toFixed(2)}</span>
+                  </p>
+                  {badgeDiscount > 0 && (
+                    <p className="text-sm text-purple-600 dark:text-purple-400">
+                      O desconto de {badgeDiscount}% do selo sera aplicado automaticamente (sujeito a confirmacao).
+                    </p>
+                  )}
+                </div>
+
+                {/* Payment method selector */}
+                <div className="mb-4">
+                  <p className="text-sm font-medium text-[var(--text-secondary)] mb-2">Forma de pagamento:</p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setPaymentMethod('credit_card')}
+                      className={`flex-1 py-3 px-4 rounded-xl border-2 text-sm font-semibold transition cursor-pointer flex items-center justify-center gap-2 ${
+                        paymentMethod === 'credit_card'
+                          ? 'border-[var(--brand-primary)] bg-[var(--brand-primary-light)] text-[var(--brand-primary)]'
+                          : 'border-[var(--border-color)] text-[var(--text-secondary)] hover:border-[var(--brand-primary)]'
+                      }`}
+                    >
+                      <CreditCard className="w-5 h-5" />
+                      Cartao
+                    </button>
+                    <button
+                      onClick={() => setPaymentMethod('pix')}
+                      className={`flex-1 py-3 px-4 rounded-xl border-2 text-sm font-semibold transition cursor-pointer flex items-center justify-center gap-2 ${
+                        paymentMethod === 'pix'
+                          ? 'border-teal-500 bg-teal-50 dark:bg-teal-950/30 text-teal-600'
+                          : 'border-[var(--border-color)] text-[var(--text-secondary)] hover:border-teal-300'
+                      }`}
+                    >
+                      <QrCode className="w-5 h-5" />
+                      PIX
+                    </button>
+                  </div>
+                </div>
+
+                <p className="text-sm text-[var(--text-muted)] mb-4">
+                  {paymentMethod === 'credit_card'
+                    ? 'A cobranca sera recorrente no cartao de credito. Voce pode cancelar a qualquer momento.'
+                    : 'A cada ciclo, um novo QR Code PIX sera gerado para pagamento. Voce pode cancelar a qualquer momento.'
+                  }
                 </p>
-              )}
-            </div>
-            <p className="text-sm text-[var(--text-muted)] mb-4">
-              Voce sera redirecionado para a pagina de pagamento seguro.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => proceedUpgrade(confirmModal.plan)}
-                disabled={upgrading !== null}
-                className="flex-1 py-3 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition cursor-pointer disabled:opacity-50"
-              >
-                {upgrading === confirmModal.plan ? "Redirecionando..." : "Confirmar e Pagar"}
-              </button>
-              <button
-                onClick={() => setConfirmModal(null)}
-                className="px-4 py-3 bg-[var(--bg-muted)] text-[var(--text-secondary)] rounded-xl font-semibold hover:bg-[var(--bg-hover)] transition cursor-pointer"
-              >
-                Cancelar
-              </button>
-            </div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => {
+                      if (paymentMethod === 'pix') {
+                        proceedUpgrade(confirmModal.plan);
+                      } else {
+                        setShowCardInModal(true);
+                      }
+                    }}
+                    disabled={upgrading !== null}
+                    className="flex-1 py-3 bg-[var(--brand-primary)] text-white rounded-xl font-semibold hover:bg-[var(--brand-primary-hover)] transition cursor-pointer disabled:opacity-50"
+                  >
+                    {upgrading ? "Processando..." : "Continuar"}
+                  </button>
+                  <button
+                    onClick={() => { setConfirmModal(null); setShowCardInModal(false); }}
+                    className="px-4 py-3 bg-[var(--bg-muted)] text-[var(--text-secondary)] rounded-xl font-semibold hover:bg-[var(--bg-hover)] transition cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="mb-4 p-3 rounded-lg bg-[var(--bg-muted)]">
+                  <p className="text-sm text-[var(--text-secondary)]">
+                    <span className="font-semibold text-[var(--brand-primary)]">{planLabels[confirmModal.plan]}</span>
+                    {" — "}{confirmModal.billingLabel}{" — "}
+                    R$ {confirmModal.price.toFixed(2)}
+                  </p>
+                </div>
+                <CardForm
+                  onTokenGenerated={(token) => proceedUpgrade(confirmModal.plan, token)}
+                  onCancel={() => { setConfirmModal(null); setShowCardInModal(false); }}
+                  loading={upgrading !== null}
+                  submitLabel={upgrading ? "Processando..." : "Assinar Agora"}
+                />
+              </>
+            )}
           </div>
         </div>
       )}
 
-      <h1 className="text-2xl font-bold text-[var(--text-primary)] mb-2">Meu Plano</h1>
+      <PageHeader title="Meu Plano" onTourStart={startTour} tourNotSeen={!hasSeenTour} />
 
       {planError && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-xl text-sm mb-4">
+        <div className="bg-[var(--status-error-bg)] border border-[var(--status-error-text)]/20 text-[var(--status-error-text)] px-4 py-3 rounded-xl text-sm mb-4">
           {planError}
         </div>
       )}
 
       {badgeDiscount > 0 && (
         <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-2xl p-4 mb-6 flex items-center gap-3">
-          <span className="text-2xl">🏅</span>
+          <Award className="w-7 h-7 text-purple-500" />
           <div>
             <p className="text-purple-800 dark:text-purple-300 font-semibold">
               Desconto de {badgeDiscount}% na assinatura (Selo {badgeLevel})
@@ -377,7 +481,7 @@ function PlanContent() {
 
       {/* H4: Only show success banner if payment was verified */}
       {paymentStatus === "success" && paymentVerified && (
-        <div className="bg-green-50 border border-green-200 rounded-2xl p-4 mb-6">
+        <div className="bg-[var(--status-success-bg)] border border-[var(--status-success-text)]/20 rounded-2xl p-4 mb-6">
           <p className="text-green-800 font-semibold">
             Pagamento aprovado! Seu plano foi atualizado com sucesso.
           </p>
@@ -391,7 +495,7 @@ function PlanContent() {
         </div>
       )}
       {paymentStatus === "failure" && (
-        <div className="bg-red-50 border border-red-200 rounded-2xl p-4 mb-6">
+        <div className="bg-[var(--status-error-bg)] border border-[var(--status-error-text)]/20 rounded-2xl p-4 mb-6">
           <p className="text-red-800 font-semibold">
             Pagamento recusado. Tente novamente.
           </p>
@@ -405,9 +509,9 @@ function PlanContent() {
         </div>
       )}
 
-      <p className="text-[var(--text-secondary)] mb-4">
+      <p data-tour="current-plan" className="text-[var(--text-secondary)] mb-4">
         Voce esta no plano{" "}
-        <span className="font-semibold text-orange-600">
+        <span className="font-semibold text-[var(--brand-primary)]">
           {planLabels[currentPlan]}
         </span>
         {user?.planExpiresAt && (
@@ -419,6 +523,13 @@ function PlanContent() {
         )}
       </p>
 
+      {/* Active subscription management */}
+      {currentPlan !== "FREE" && (
+        <div className="mb-6">
+          <SubscriptionManager />
+        </div>
+      )}
+
       {/* Billing period selector */}
       <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl p-1.5 inline-flex gap-1 mb-6">
         {billingOptions.map((opt) => (
@@ -427,7 +538,7 @@ function PlanContent() {
             onClick={() => setBilling(opt.key)}
             className={`relative px-5 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
               billing === opt.key
-                ? "bg-orange-500 text-white shadow-lg shadow-orange-500/25"
+                ? "bg-[var(--brand-primary)] text-white shadow-lg shadow-[var(--brand-primary)]/25"
                 : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
             }`}
           >
@@ -444,30 +555,29 @@ function PlanContent() {
       </div>
 
       {/* Plan cards carousel */}
-      <div className="relative">
+      <div data-tour="available-plans" className="relative">
         {/* Left arrow */}
         <button
           onClick={() => scrollRef.current?.scrollBy({ left: -320, behavior: "smooth" })}
-          className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-3 z-10 w-10 h-10 bg-[var(--bg-card)] border-2 border-[var(--border-color)] rounded-full shadow-lg flex items-center justify-center text-[var(--text-secondary)] hover:bg-orange-50 hover:border-orange-300 transition cursor-pointer hidden md:flex"
+          className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-3 z-10 w-10 h-10 bg-[var(--bg-card)] border-2 border-[var(--border-color)] rounded-full shadow-lg flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--brand-primary-light)] hover:border-[var(--brand-primary)] transition cursor-pointer hidden md:flex"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
-            <path fillRule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clipRule="evenodd" />
-          </svg>
+          <ChevronLeft className="w-5 h-5" />
         </button>
 
         {/* Right arrow */}
         <button
           onClick={() => scrollRef.current?.scrollBy({ left: 320, behavior: "smooth" })}
-          className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-3 z-10 w-10 h-10 bg-[var(--bg-card)] border-2 border-[var(--border-color)] rounded-full shadow-lg flex items-center justify-center text-[var(--text-secondary)] hover:bg-orange-50 hover:border-orange-300 transition cursor-pointer hidden md:flex"
+          className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-3 z-10 w-10 h-10 bg-[var(--bg-card)] border-2 border-[var(--border-color)] rounded-full shadow-lg flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--brand-primary-light)] hover:border-[var(--brand-primary)] transition cursor-pointer hidden md:flex"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
-            <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
-          </svg>
+          <ChevronRight className="w-5 h-5" />
         </button>
 
-        <div
+        <motion.div
           ref={scrollRef}
-          className="flex gap-6 overflow-x-auto scroll-smooth pb-4 snap-x snap-mandatory md:px-4"
+          variants={staggerContainer}
+          initial="hidden"
+          animate="show"
+          className="flex gap-6 overflow-x-auto scroll-smooth pt-4 pb-4 snap-x snap-mandatory md:px-4"
           style={{ scrollbarWidth: "none", msOverflowStyle: "none", WebkitOverflowScrolling: "touch" }}
         >
           {plans.map((plan: any) => {
@@ -477,28 +587,29 @@ function PlanContent() {
             const { positives, negatives } = getFeatures(plan);
 
             return (
-              <div
+              <motion.div
+                variants={staggerItem}
                 key={plan.plan}
-                className={`rounded-2xl p-6 border-2 transition min-w-[280px] w-[280px] shrink-0 snap-center flex flex-col relative ${
+                className={`bg-[var(--bg-card)] rounded-2xl shadow-[var(--card-shadow)] border border-[var(--border-light)] p-6 transition min-w-[280px] w-[280px] shrink-0 snap-center flex flex-col relative ${
                   isCurrent
-                    ? "border-orange-500 bg-orange-50 dark:bg-orange-950/30"
+                    ? "border-2 border-[var(--brand-primary)] ring-2 ring-[var(--brand-primary-muted)]"
                     : plan.plan === "CUSTOM"
-                    ? "border-emerald-400 bg-emerald-50 dark:bg-emerald-950/20 hover:border-emerald-500"
+                    ? "border-emerald-400 hover:border-emerald-500"
                     : plan.plan === "ENTERPRISE"
-                    ? "border-amber-400 bg-amber-50 dark:bg-amber-950/20 hover:border-amber-500"
+                    ? "border-amber-400 hover:border-amber-500"
                     : plan.plan === "PRO"
-                    ? "border-blue-400 bg-[var(--bg-card)] hover:border-blue-500 ring-2 ring-blue-400/20"
-                    : "border-[var(--border-color)] bg-[var(--bg-card)] hover:border-orange-300"
+                    ? "border-blue-400 hover:border-blue-500 ring-2 ring-blue-400/20"
+                    : "hover:border-[var(--brand-primary)]"
                 }`}
               >
                 {/* Badge: mais popular */}
                 {plan.plan === "PRO" && !isCurrent && (
                   <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-orange-500 to-red-500 text-white text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1 shadow-lg whitespace-nowrap">
-                    🔥 MAIS POPULAR
+                    <Flame className="w-3.5 h-3.5" /> MAIS POPULAR
                   </span>
                 )}
                 {isCurrent && (
-                  <span className="bg-orange-500 text-white text-xs font-bold px-3 py-1 rounded-full self-start">
+                  <span className="bg-[var(--brand-primary)] text-white text-xs font-bold px-3 py-1 rounded-full self-start">
                     PLANO ATUAL
                   </span>
                 )}
@@ -509,9 +620,9 @@ function PlanContent() {
 
                 <div className="mt-2">
                   {isContactSales ? (
-                    <p className="text-3xl font-bold text-[var(--text-primary)]">Sob consulta</p>
+                    <p className="text-3xl font-bold text-[var(--brand-primary)]">Sob consulta</p>
                   ) : price === 0 ? (
-                    <p className="text-3xl font-bold text-[var(--text-primary)]">Gratis</p>
+                    <p className="text-3xl font-bold text-[var(--brand-primary)]">Gratis</p>
                   ) : (() => {
                     const discountedPrice = badgeDiscount > 0
                       ? Math.round(price * (1 - badgeDiscount / 100) * 100) / 100
@@ -523,7 +634,7 @@ function PlanContent() {
                             R$ {price.toFixed(2)}
                           </p>
                         )}
-                        <p className="text-3xl font-bold text-[var(--text-primary)]">
+                        <p className="text-3xl font-bold text-[var(--brand-primary)]">
                           R$ {discountedPrice.toFixed(2)}
                           <span className="text-sm font-normal text-[var(--text-muted)]">
                             {getBillingLabel(billing)}
@@ -532,11 +643,11 @@ function PlanContent() {
                         {badgeDiscount > 0 && (
                           <p className="text-xs text-purple-600 font-semibold mt-1 flex items-center gap-1">
                             {/* H2: clarify that the discounted price is subject to backend confirmation */}
-                            <span>🏅</span> -{badgeDiscount}% selo {badgeLevel} (sujeito a confirmacao)
+                            <Award className="w-3.5 h-3.5 inline" /> -{badgeDiscount}% selo {badgeLevel} (sujeito a confirmacao)
                           </p>
                         )}
                         {billing !== "monthly" && (
-                          <p className="text-xs text-green-600 font-semibold mt-1">
+                          <p className="text-xs text-[var(--status-success-text)] font-semibold mt-1">
                             Economia de {billingDiscount[billing]}%
                           </p>
                         )}
@@ -553,15 +664,15 @@ function PlanContent() {
                   <ul className="mt-6 space-y-3 flex-1">
                     {/* Positive features first */}
                     {positives.map((f, i) => (
-                      <li key={`p-${i}`} className="flex items-center gap-2 text-[var(--text-secondary)]">
-                        <span className="text-green-500 shrink-0">&#10003;</span>
-                        <span>{f.label}</span>
+                      <li key={`p-${i}`} className="flex items-center gap-2 text-sm py-1.5">
+                        <Check className="w-4 h-4 text-[var(--status-success-text)] shrink-0" />
+                        <span className="text-[var(--text-secondary)]">{f.label}</span>
                       </li>
                     ))}
                     {/* Negative features last */}
                     {negatives.map((f, i) => (
-                      <li key={`n-${i}`} className="flex items-center gap-2 text-[var(--text-secondary)]">
-                        <span className="text-red-400 shrink-0">&#10007;</span>
+                      <li key={`n-${i}`} className="flex items-center gap-2 text-sm py-1.5">
+                        <X className="w-4 h-4 text-[var(--status-error-text)] shrink-0" />
                         <span className="text-[var(--text-muted)]">{f.label}</span>
                       </li>
                     ))}
@@ -583,29 +694,29 @@ function PlanContent() {
                     <button
                       onClick={() => handleUpgrade(plan.plan)}
                       disabled={upgrading !== null}
-                      className="mt-6 w-full py-3 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition cursor-pointer disabled:opacity-50"
+                      className="mt-6 w-full py-3 bg-[var(--brand-primary)] text-white rounded-xl font-semibold hover:bg-[var(--brand-primary-hover)] transition cursor-pointer disabled:opacity-50"
                     >
-                      {upgrading === plan.plan ? "Redirecionando..." : "Fazer Upgrade"}
+                      {upgrading === plan.plan ? "Processando..." : "Fazer Upgrade"}
                     </button>
                   ) : null
                 )}
-              </div>
+              </motion.div>
             );
           })}
-        </div>
+        </motion.div>
       </div>
 
-      <div className="mt-8 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl p-6">
+      <div className="mt-8 bg-[var(--bg-card)] border border-[var(--border-light)] rounded-2xl shadow-[var(--card-shadow)] p-6">
         <h3 className="font-semibold text-[var(--text-primary)]">Como funciona?</h3>
         <ul className="mt-2 text-sm text-[var(--text-secondary)] space-y-1">
           <li>&bull; Escolha o periodo: mensal, trimestral (-10%), semestral (-20%) ou anual (-30%)</li>
-          <li>&bull; Ao clicar em &quot;Fazer Upgrade&quot;, voce sera redirecionado para a pagina de pagamento</li>
-          <li>&bull; Aceita PIX, cartao de credito (com parcelamento) e boleto</li>
-          <li>&bull; Apos o pagamento, seu plano e ativado automaticamente</li>
+          <li>&bull; Pague com cartao de credito (recorrente) ou PIX (QR Code por ciclo)</li>
+          <li>&bull; A cobranca e automatica — voce pode cancelar a qualquer momento</li>
+          <li>&bull; Ao cancelar, voce mantem o acesso ate o fim do periodo pago</li>
           <li>&bull; Planos superiores permitem mais lojas e funcionalidades</li>
           <li>&bull; Para o plano Personalizado, entre em contato pelo WhatsApp</li>
         </ul>
       </div>
-    </div>
+    </motion.div>
   );
 }

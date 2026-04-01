@@ -40,10 +40,7 @@ const errorLink = onError(({ graphQLErrors, networkError }) => {
   const sessionExpired = graphQLErrors?.some(
     (e) => e.message?.includes('SESSION_EXPIRED') || e.extensions?.code === 'UNAUTHENTICATED'
   );
-  const activeSession = graphQLErrors?.some(
-    (e) => e.message?.includes('ACTIVE_SESSION')
-  );
-  if ((sessionExpired || activeSession) && localStorage.getItem('token')) {
+  if (sessionExpired && localStorage.getItem('token')) {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     window.location.href = '/';
@@ -53,7 +50,7 @@ const errorLink = onError(({ graphQLErrors, networkError }) => {
   // L3: Generic error toast for unhandled GraphQL errors
   if (graphQLErrors) {
     for (const err of graphQLErrors) {
-      if (!err.message?.includes('SESSION_EXPIRED') && err.extensions?.code !== 'UNAUTHENTICATED') {
+      if (!err.message?.includes('SESSION_EXPIRED') && !err.message?.includes('GOOGLE_NO_ACCOUNT') && err.extensions?.code !== 'UNAUTHENTICATED') {
         console.error(`[GraphQL Error]: ${err.message}`);
         // Show a toast notification if a global toast handler is available
         if (typeof window !== 'undefined' && (window as any).__apolloErrorToast) {

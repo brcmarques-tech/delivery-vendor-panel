@@ -1,6 +1,8 @@
 "use client";
 
 import { useQuery, useMutation } from "@apollo/client";
+import { useTour } from "@/hooks/useTour";
+import { type DriveStep } from "driver.js";
 import {
   GET_MY_STORES,
   STORE_APPOINTMENTS,
@@ -11,17 +13,62 @@ import {
   RESPOND_QUOTE,
 } from "@/lib/graphql";
 import { useState, useEffect, useMemo } from "react";
+import PageHeader from "@/components/ui/PageHeader";
+import StatusBadge from "@/components/ui/StatusBadge";
+import { SkeletonTable } from "@/components/ui/Skeleton";
+import EmptyState from "@/components/ui/EmptyState";
+import { CalendarX, Calendar, Clock, User, MapPin, Filter, X } from "lucide-react";
+import { motion } from "framer-motion";
+import { fadeIn, staggerContainer, staggerItem, scaleIn } from "@/lib/motion";
 
-const statusLabels: Record<string, { label: string; color: string }> = {
-  PENDING: { label: "Pendente", color: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300" },
-  CONFIRMED: { label: "Confirmado", color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" },
-  COMPLETED: { label: "Concluido", color: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300" },
-  CANCELLED: { label: "Cancelado", color: "bg-gray-100 text-gray-700 dark:bg-gray-800/50 dark:text-gray-400" },
-  NO_SHOW: { label: "Nao compareceu", color: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300" },
-  QUOTE_REQUESTED: { label: "Orcamento solicitado", color: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300" },
-  QUOTED: { label: "Orcamento enviado", color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" },
-  QUOTE_ACCEPTED: { label: "Orcamento aceito", color: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300" },
-  QUOTE_REJECTED: { label: "Orcamento recusado", color: "bg-gray-100 text-gray-700 dark:bg-gray-800/50 dark:text-gray-400" },
+type BadgeVariant = 'success' | 'warning' | 'error' | 'info' | 'neutral';
+
+const TOUR_STEPS: DriveStep[] = [
+  {
+    popover: {
+      title: "👋 Bem-vindo aos Agendamentos!",
+      description: "Aqui você gerencia os agendamentos de serviços. Vou te mostrar como filtrar e gerenciar cada um.",
+    },
+  },
+  {
+    element: '[data-tour="appointments-tabs"]',
+    popover: {
+      title: "Períodos de agendamento",
+      description: "Visualize agendamentos de hoje, da semana, todos ou filtre por orçamentos pendentes.",
+      side: "bottom",
+      align: "start",
+    },
+  },
+  {
+    element: '[data-tour="appointments-filters"]',
+    popover: {
+      title: "Filtros de agendamento",
+      description: "Refine por status (confirmado, pendente, concluído...) ou por uma data específica.",
+      side: "bottom",
+      align: "start",
+    },
+  },
+  {
+    element: '[data-tour="appointment-card"]',
+    popover: {
+      title: "✅ Gerenciar agendamentos",
+      description: "Veja os detalhes do cliente, serviço, data e hora. Use os botões para confirmar, concluir ou cancelar.\n\nIsso é tudo! Para rever, clique no ❓ ao lado do título 'Agendamentos'.",
+      side: "top",
+      align: "start",
+    },
+  },
+];
+
+const statusLabels: Record<string, { label: string; variant: BadgeVariant }> = {
+  PENDING: { label: "Pendente", variant: "warning" },
+  CONFIRMED: { label: "Confirmado", variant: "info" },
+  COMPLETED: { label: "Concluido", variant: "success" },
+  CANCELLED: { label: "Cancelado", variant: "error" },
+  NO_SHOW: { label: "Nao compareceu", variant: "error" },
+  QUOTE_REQUESTED: { label: "Orcamento solicitado", variant: "warning" },
+  QUOTED: { label: "Orcamento enviado", variant: "info" },
+  QUOTE_ACCEPTED: { label: "Orcamento aceito", variant: "success" },
+  QUOTE_REJECTED: { label: "Orcamento recusado", variant: "neutral" },
 };
 
 type TabKey = "today" | "week" | "all" | "quotes";
@@ -45,6 +92,7 @@ function formatDate(dateStr: string) {
 }
 
 export default function AppointmentsPage() {
+  const { startTour, hasSeenTour } = useTour("appointments", TOUR_STEPS);
   const { data: storesData } = useQuery(GET_MY_STORES);
   const allStores = storesData?.myStores || [];
   // Filter only SERVICES type stores
@@ -148,18 +196,20 @@ export default function AppointmentsPage() {
 
   if (!storesData) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500" />
+      <div className="space-y-6">
+        <PageHeader title="Agendamentos" />
+        <SkeletonTable rows={5} cols={4} />
       </div>
     );
   }
 
   if (stores.length === 0) {
     return (
-      <div className="text-center mt-20">
-        <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-2">Nenhuma loja de servicos</h2>
-        <p className="text-[var(--text-secondary)]">Crie uma loja do tipo Servicos para gerenciar agendamentos.</p>
-      </div>
+      <EmptyState
+        icon={CalendarX}
+        title="Nenhuma loja de servicos"
+        description="Crie uma loja do tipo Servicos para gerenciar agendamentos."
+      />
     );
   }
 
@@ -173,115 +223,142 @@ export default function AppointmentsPage() {
   const allStatuses = Object.keys(statusLabels);
 
   return (
-    <div>
+    <motion.div {...fadeIn}>
       {statusError && (
         <div className="fixed top-4 right-4 left-4 sm:left-auto bg-red-500 text-white px-6 py-4 rounded-2xl shadow-lg z-50">
           <p className="font-semibold text-sm">{statusError}</p>
         </div>
       )}
 
-      <div className="flex flex-wrap items-center justify-between mb-4 gap-3">
-        <h1 className="text-2xl font-bold text-[var(--text-primary)]">Agendamentos</h1>
-        {stores.length > 1 && (
-          <select
-            value={selectedStore}
-            onChange={(e) => setSelectedStore(e.target.value)}
-            className="px-4 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)]"
-          >
-            {stores.map((s: any) => (
-              <option key={s.id} value={s.id}>{s.name}</option>
-            ))}
-          </select>
-        )}
-      </div>
+      <PageHeader
+        title="Agendamentos"
+        onTourStart={startTour}
+        tourNotSeen={!hasSeenTour}
+        badge={
+          <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-[var(--bg-muted)] text-[var(--text-muted)]">
+            {filteredAppointments.length}
+          </span>
+        }
+        actions={
+          stores.length > 1 ? (
+            <select
+              value={selectedStore}
+              onChange={(e) => setSelectedStore(e.target.value)}
+              className="px-4 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)]"
+            >
+              {stores.map((s: any) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          ) : undefined
+        }
+      />
 
-      {/* Tabs */}
-      <div className="flex gap-1 mb-4 bg-[var(--bg-input)] rounded-xl p-1">
-        {tabs.map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => { setActiveTab(tab.key); setDateFilter(""); }}
-            className={`flex-1 px-3 py-2 rounded-lg text-sm font-semibold transition cursor-pointer ${
-              activeTab === tab.key
-                ? "bg-orange-500 text-white shadow-sm"
-                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      {/* Toolbar — tabs à esquerda, filtros colados à direita */}
+      <div className="flex flex-wrap items-center justify-between gap-y-2 gap-x-2 mb-6">
+        {/* Grupo esquerdo: tabs */}
+        <div data-tour="appointments-tabs" className="flex flex-wrap items-center gap-2">
+          {tabs.map((tab) => {
+            const count = tab.key === "today"
+              ? allAppointments.filter((a: any) => a.scheduledDate === getDateStr(new Date())).length
+              : tab.key === "week"
+              ? allAppointments.filter((a: any) => { const w = getWeekDates(); return a.scheduledDate >= w.start && a.scheduledDate <= w.end; }).length
+              : tab.key === "quotes"
+              ? allAppointments.filter((a: any) => ["QUOTE_REQUESTED", "QUOTED", "QUOTE_ACCEPTED", "QUOTE_REJECTED"].includes(a.status)).length
+              : allAppointments.length;
 
-      {/* Filters */}
-      <div className="flex flex-wrap gap-2 mb-4">
-        {/* Status chips */}
-        <button
-          onClick={() => setStatusFilter("")}
-          className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer whitespace-nowrap ${
-            !statusFilter
-              ? "bg-orange-500 text-white"
-              : "bg-[var(--bg-input)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-          }`}
-        >
-          Todos
-        </button>
-        {allStatuses.map((s) => (
-          <button
-            key={s}
-            onClick={() => setStatusFilter(statusFilter === s ? "" : s)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer whitespace-nowrap ${
-              statusFilter === s
-                ? "bg-orange-500 text-white"
-                : "bg-[var(--bg-input)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-            }`}
-          >
-            {statusLabels[s].label}
-          </button>
-        ))}
+            return (
+              <button
+                key={tab.key}
+                onClick={() => { setActiveTab(tab.key); setDateFilter(""); }}
+                className={`h-9 px-3 rounded-xl text-xs sm:text-sm font-semibold transition cursor-pointer flex items-center gap-1.5 ${
+                  activeTab === tab.key
+                    ? "bg-[var(--brand-primary)] text-white shadow-md"
+                    : "bg-[var(--bg-card)] text-[var(--text-secondary)] border border-[var(--border-light)] hover:border-[var(--brand-primary)] hover:text-[var(--brand-primary)]"
+                }`}
+              >
+                {tab.label}
+                <span className={`text-[10px] sm:text-xs px-1.5 py-0.5 rounded-md font-bold ${
+                  activeTab === tab.key
+                    ? "bg-white/20"
+                    : "bg-[var(--bg-muted)] text-[var(--text-muted)]"
+                }`}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
 
-        {/* Date filter */}
-        <input
-          type="date"
-          value={dateFilter}
-          onChange={(e) => setDateFilter(e.target.value)}
-          className="px-3 py-1.5 rounded-lg text-xs border border-[var(--border-color)] bg-[var(--bg-input)] text-[var(--text-primary)]"
-        />
-        {dateFilter && (
-          <button
-            onClick={() => setDateFilter("")}
-            className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 cursor-pointer"
-          >
-            Limpar data
-          </button>
-        )}
+        {/* Grupo direito: filtros colados */}
+        <div data-tour="appointments-filters" className="flex items-center gap-0">
+          {/* Status dropdown */}
+          <div className="relative">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="appearance-none h-9 pl-8 pr-7 rounded-l-xl rounded-r-none text-xs sm:text-sm font-medium border border-[var(--border-light)] bg-[var(--bg-card)] text-[var(--text-primary)] cursor-pointer focus:outline-none focus:border-[var(--brand-primary)] transition"
+            >
+              <option value="">Todos os status</option>
+              {allStatuses.map((s) => (
+                <option key={s} value={s}>{statusLabels[s].label}</option>
+              ))}
+            </select>
+            <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--text-muted)] pointer-events-none" />
+          </div>
+
+          {/* Date input */}
+          <div className="relative">
+            <input
+              type="date"
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+              className={`h-9 pl-8 pr-2.5 text-xs sm:text-sm border-y border-r border-[var(--border-light)] border-l-0 bg-[var(--bg-card)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-primary)] transition ${
+                statusFilter || dateFilter ? "rounded-none" : "rounded-r-xl"
+              }`}
+            />
+            <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--text-muted)] pointer-events-none" />
+          </div>
+
+          {/* Limpar filtros */}
+          {(statusFilter || dateFilter) && (
+            <button
+              onClick={() => { setStatusFilter(""); setDateFilter(""); }}
+              className="h-9 flex items-center gap-1 px-2.5 rounded-r-xl text-xs sm:text-sm font-medium text-[var(--status-error-text)] bg-[var(--status-error-bg)] border border-l-0 border-[var(--border-light)] hover:opacity-80 transition cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5" />
+              Limpar
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Loading */}
       {loading && (
-        <div className="flex items-center justify-center h-32">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500" />
-        </div>
+        <SkeletonTable rows={4} cols={4} />
       )}
 
       {/* Empty state */}
       {!loading && filteredAppointments.length === 0 && (
-        <div className="text-center mt-16">
-          <p className="text-4xl mb-3">📅</p>
-          <h3 className="text-lg font-bold text-[var(--text-primary)] mb-1">Nenhum agendamento</h3>
-          <p className="text-sm text-[var(--text-secondary)]">Nenhum agendamento encontrado com os filtros selecionados.</p>
-        </div>
+        <EmptyState
+          icon={CalendarX}
+          title="Nenhum agendamento"
+          description="Nenhum agendamento encontrado com os filtros selecionados."
+        />
       )}
 
       {/* Cards */}
-      <div className="space-y-3">
-        {filteredAppointments.map((appt: any) => {
-          const status = statusLabels[appt.status] || { label: appt.status, color: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400" };
+      <motion.div variants={staggerContainer} initial="hidden" animate="show" className="space-y-3">
+        {filteredAppointments.map((appt: any, apptIndex: number) => {
+          const status = statusLabels[appt.status] || { label: appt.status, variant: "neutral" as BadgeVariant };
           const isLoading = actionLoading.has(appt.id);
 
           return (
-            <div
+            <motion.div
               key={appt.id}
-              className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl p-4 shadow-sm"
+              variants={staggerItem}
+              data-tour={apptIndex === 0 ? "appointment-card" : undefined}
+              className="bg-[var(--bg-card)] rounded-2xl shadow-[var(--card-shadow)] border border-[var(--border-light)] p-5"
             >
               {/* Header */}
               <div className="flex items-center justify-between mb-3">
@@ -289,14 +366,14 @@ export default function AppointmentsPage() {
                   <span className="text-xs text-[var(--text-muted)]">#{appt.appointmentNumber}</span>
                   <h3 className="text-sm font-bold text-[var(--text-primary)]">{appt.service?.name}</h3>
                 </div>
-                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${status.color}`}>
+                <StatusBadge variant={status.variant} dot>
                   {status.label}
-                </span>
+                </StatusBadge>
               </div>
 
               {/* Customer */}
               <div className="flex items-center gap-2 mb-2">
-                <span className="text-sm">👤</span>
+                <User className="w-4 h-4 text-[var(--text-muted)]" />
                 <span className="text-sm text-[var(--text-primary)]">{appt.customer?.name}</span>
                 {appt.customer?.phone && (
                   <span className="text-xs text-[var(--text-muted)]">({appt.customer.phone})</span>
@@ -306,11 +383,11 @@ export default function AppointmentsPage() {
               {/* Date/time */}
               <div className="flex items-center gap-4 mb-2 text-sm text-[var(--text-secondary)]">
                 <div className="flex items-center gap-1">
-                  <span>📅</span>
+                  <Calendar className="w-4 h-4 text-[var(--text-muted)]" />
                   <span>{formatDate(appt.scheduledDate)}</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <span>🕐</span>
+                  <Clock className="w-4 h-4 text-[var(--text-muted)]" />
                   <span>{appt.scheduledTime}{appt.endTime ? ` - ${appt.endTime}` : ""}</span>
                 </div>
                 {appt.service?.estimatedDuration && (
@@ -350,7 +427,10 @@ export default function AppointmentsPage() {
 
               {/* Address */}
               {appt.address && (
-                <p className="text-xs text-[var(--text-muted)] mb-2">📍 {appt.address}</p>
+                <p className="text-xs text-[var(--text-muted)] mb-2 flex items-center gap-1">
+                  <MapPin className="w-3.5 h-3.5" />
+                  {appt.address}
+                </p>
               )}
 
               {/* Action buttons */}
@@ -360,14 +440,14 @@ export default function AppointmentsPage() {
                     <button
                       disabled={isLoading}
                       onClick={() => handleAction(appt.id, () => confirmAppointment({ variables: { id: appt.id } }))}
-                      className="px-4 py-2 bg-green-500 text-white rounded-lg text-xs font-semibold hover:bg-green-600 transition cursor-pointer disabled:opacity-50"
+                      className="px-4 py-2 bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white rounded-xl text-xs font-semibold transition cursor-pointer disabled:opacity-50"
                     >
                       {isLoading ? "..." : "Confirmar"}
                     </button>
                     <button
                       disabled={isLoading}
                       onClick={() => handleAction(appt.id, () => cancelAppointment({ variables: { id: appt.id } }))}
-                      className="px-4 py-2 bg-red-500 text-white rounded-lg text-xs font-semibold hover:bg-red-600 transition cursor-pointer disabled:opacity-50"
+                      className="px-4 py-2 bg-[var(--status-error-bg)] text-[var(--status-error-text)] rounded-xl text-xs font-semibold hover:opacity-80 transition cursor-pointer disabled:opacity-50"
                     >
                       {isLoading ? "..." : "Cancelar"}
                     </button>
@@ -379,21 +459,21 @@ export default function AppointmentsPage() {
                     <button
                       disabled={isLoading}
                       onClick={() => handleAction(appt.id, () => completeAppointment({ variables: { id: appt.id } }))}
-                      className="px-4 py-2 bg-green-500 text-white rounded-lg text-xs font-semibold hover:bg-green-600 transition cursor-pointer disabled:opacity-50"
+                      className="px-4 py-2 bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white rounded-xl text-xs font-semibold transition cursor-pointer disabled:opacity-50"
                     >
                       {isLoading ? "..." : "Concluir"}
                     </button>
                     <button
                       disabled={isLoading}
                       onClick={() => handleAction(appt.id, () => markNoShow({ variables: { id: appt.id } }))}
-                      className="px-4 py-2 bg-yellow-500 text-white rounded-lg text-xs font-semibold hover:bg-yellow-600 transition cursor-pointer disabled:opacity-50"
+                      className="px-4 py-2 bg-[var(--status-warning-bg)] text-[var(--status-warning-text)] rounded-xl text-xs font-semibold hover:opacity-80 transition cursor-pointer disabled:opacity-50"
                     >
                       {isLoading ? "..." : "No-Show"}
                     </button>
                     <button
                       disabled={isLoading}
                       onClick={() => handleAction(appt.id, () => cancelAppointment({ variables: { id: appt.id } }))}
-                      className="px-4 py-2 bg-red-500 text-white rounded-lg text-xs font-semibold hover:bg-red-600 transition cursor-pointer disabled:opacity-50"
+                      className="px-4 py-2 bg-[var(--status-error-bg)] text-[var(--status-error-text)] rounded-xl text-xs font-semibold hover:opacity-80 transition cursor-pointer disabled:opacity-50"
                     >
                       {isLoading ? "..." : "Cancelar"}
                     </button>
@@ -426,13 +506,13 @@ export default function AppointmentsPage() {
                           <button
                             disabled={isLoading}
                             onClick={() => handleRespondQuote(appt.id)}
-                            className="px-4 py-2 bg-green-500 text-white rounded-lg text-xs font-semibold hover:bg-green-600 transition cursor-pointer disabled:opacity-50"
+                            className="px-4 py-2 bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white rounded-xl text-xs font-semibold transition cursor-pointer disabled:opacity-50"
                           >
                             {isLoading ? "..." : "Enviar orcamento"}
                           </button>
                           <button
                             onClick={() => { setRespondingTo(null); setQuotePrice(""); setQuoteResponse(""); }}
-                            className="px-4 py-2 bg-[var(--bg-muted)] text-[var(--text-secondary)] rounded-lg text-xs font-semibold hover:bg-[var(--bg-hover)] transition cursor-pointer"
+                            className="px-4 py-2 bg-[var(--bg-muted)] text-[var(--text-secondary)] rounded-xl text-xs font-semibold hover:bg-[var(--bg-hover)] transition cursor-pointer"
                           >
                             Cancelar
                           </button>
@@ -441,7 +521,7 @@ export default function AppointmentsPage() {
                     ) : (
                       <button
                         onClick={() => setRespondingTo(appt.id)}
-                        className="px-4 py-2 bg-blue-500 text-white rounded-lg text-xs font-semibold hover:bg-blue-600 transition cursor-pointer"
+                        className="px-4 py-2 bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white rounded-xl text-xs font-semibold transition cursor-pointer"
                       >
                         Responder orcamento
                       </button>
@@ -449,10 +529,10 @@ export default function AppointmentsPage() {
                   </>
                 )}
               </div>
-            </div>
+            </motion.div>
           );
         })}
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }

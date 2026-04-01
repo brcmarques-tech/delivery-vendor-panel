@@ -17,6 +17,86 @@ import {
 } from "@/lib/graphql";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { compressImage } from "@/lib/compressImage";
+import { Image, X, Plus, Briefcase, ChevronDown, SquarePen, Trash2, Clock, HelpCircle } from "lucide-react";
+import PageHeader from "@/components/ui/PageHeader";
+import { SkeletonGrid } from "@/components/ui/Skeleton";
+import EmptyState from "@/components/ui/EmptyState";
+import { motion } from "framer-motion";
+import { fadeIn, staggerContainer, staggerItem, scaleIn } from "@/lib/motion";
+import { useTour } from "@/hooks/useTour";
+import { type DriveStep } from "driver.js";
+
+const TOUR_STEPS: DriveStep[] = [
+  {
+    popover: {
+      title: "👋 Bem-vindo aos Serviços!",
+      description: "Aqui você cadastra e gerencia os serviços que sua loja oferece. Vou te mostrar como funciona.",
+    },
+  },
+  {
+    element: '[data-tour="service-grid"]',
+    popover: {
+      title: "✅ Seus serviços",
+      description: "Gerencie seus serviços: edite horários, preços, fotos e ative ou desative conforme a demanda.",
+      side: "top",
+      align: "start",
+    },
+  },
+  {
+    element: '[data-tour="add-service-btn"]',
+    popover: {
+      title: "Cadastrar serviço",
+      description: "Clique aqui para cadastrar um novo serviço! Um tutorial vai te guiar pelo formulário.\n\nIsso é tudo! Para rever, clique no ❓ ao lado do título.",
+      side: "bottom",
+      align: "start",
+    },
+  },
+];
+
+const SERVICE_FORM_TOUR: DriveStep[] = [
+  {
+    popover: {
+      title: "👋 Novo Serviço!",
+      description: "Vou te mostrar como cadastrar um serviço. É rápido!",
+    },
+  },
+  {
+    element: '[data-tour="service-name"]',
+    popover: {
+      title: "Nome do serviço",
+      description: "Digite o nome do serviço. Ex: Corte de cabelo, Consultoria, Massagem...",
+      side: "bottom",
+      align: "start",
+    },
+  },
+  {
+    element: '[data-tour="service-duration"]',
+    popover: {
+      title: "⏱️ Duração estimada",
+      description: "Selecione quanto tempo o serviço leva em média. Isso ajuda no agendamento.",
+      side: "bottom",
+      align: "start",
+    },
+  },
+  {
+    element: '[data-tour="service-price"]',
+    popover: {
+      title: "💰 Preço",
+      description: "Defina o preço ou ative 'Solicitar orçamento' para preços sob consulta.",
+      side: "bottom",
+      align: "start",
+    },
+  },
+  {
+    element: '[data-tour="service-submit"]',
+    popover: {
+      title: "✅ Pronto!",
+      description: "Após preencher, clique aqui para criar o serviço.\n\nIsso é tudo! Agora é só preencher os dados.",
+      side: "top",
+      align: "start",
+    },
+  },
+];
 
 const DURATION_OPTIONS = [
   { value: 15, label: "15 min" },
@@ -58,6 +138,8 @@ function defaultSchedule() {
 }
 
 export default function ServicesPage() {
+  const { startTour, hasSeenTour } = useTour("services", TOUR_STEPS);
+  const { startTour: startServiceFormTour, hasSeenTour: hasSeenFormTour } = useTour("create-service", SERVICE_FORM_TOUR, false);
   const { data: storesData, refetch: refetchStores } = useQuery(GET_MY_STORES);
   const allStores = storesData?.myStores || [];
   const stores = allStores.filter((s: any) => s.storeType === "SERVICES");
@@ -69,6 +151,13 @@ export default function ServicesPage() {
 
   // Service form
   const [showForm, setShowForm] = useState(false);
+
+  // Start service form tour when form opens
+  useEffect(() => {
+    if (!showForm || hasSeenFormTour) return;
+    const timer = setTimeout(() => startServiceFormTour(), 800);
+    return () => clearTimeout(timer);
+  }, [showForm, hasSeenFormTour, startServiceFormTour]);
   const [serviceForm, setServiceForm] = useState(emptyServiceForm());
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [imageBase64, setImageBase64] = useState<string | null>(null);
@@ -159,7 +248,7 @@ export default function ServicesPage() {
   }
 
   function getServiceStatus(s: any): { label: string; color: string } {
-    if (!s.isActive) return { label: "Oculto", color: "text-gray-400" };
+    if (!s.isActive) return { label: "Oculto", color: "text-[var(--text-muted)]" };
     if (!s.isAvailable) return { label: "Indisponivel", color: "text-red-500" };
     return { label: "Disponivel", color: "text-green-500" };
   }
@@ -419,13 +508,13 @@ export default function ServicesPage() {
       <>
         <CreateStoreModal open={showCreateStore} onClose={() => setShowCreateStore(false)} onCreated={() => refetchStores()} />
         <div className="text-center mt-20">
-          <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-2">Nenhuma loja de servicos</h2>
+          <h2 className="text-xl md:text-2xl font-bold text-[var(--text-primary)] mb-2">Nenhuma loja de servicos</h2>
           <p className="text-[var(--text-secondary)] mb-6">
             Crie uma loja do tipo &quot;Prestador de Servicos&quot; para comecar
           </p>
           <button
             onClick={() => setShowCreateStore(true)}
-            className="bg-orange-500 text-white px-6 py-3 rounded-xl font-bold cursor-pointer hover:bg-orange-600 active:scale-95 transition"
+            className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white px-6 py-3 rounded-xl font-medium cursor-pointer active:scale-95 transition"
           >
             Criar loja de servicos
           </button>
@@ -456,7 +545,7 @@ export default function ServicesPage() {
                 placeholder="Nome da categoria"
                 value={inlineCategoryName}
                 onChange={(e) => setInlineCategoryName(e.target.value)}
-                className="flex-1 px-3 py-2 border border-[var(--border-color)] rounded-xl text-sm text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-orange-400"
+                className="flex-1 px-3 py-2 border border-[var(--border-color)] rounded-xl text-sm text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-[var(--brand-primary)]"
                 autoFocus
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
@@ -468,7 +557,7 @@ export default function ServicesPage() {
               <button
                 type="button"
                 onClick={() => handleInlineCategory(target)}
-                className="px-3 py-2 bg-orange-500 text-white rounded-xl text-sm font-bold cursor-pointer hover:bg-orange-600"
+                className="px-3 py-2 bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white rounded-xl text-sm font-medium cursor-pointer"
               >
                 Criar
               </button>
@@ -489,7 +578,7 @@ export default function ServicesPage() {
                 <div className="grid grid-cols-5 gap-1">
                   {SERVICE_CATEGORY_SUGGESTIONS.filter(s => !categories.some((c: any) => c.name.toLowerCase() === s.toLowerCase())).map(s => (
                     <button key={s} type="button" onClick={() => setInlineCategoryName(s)}
-                      className="px-1 py-1 text-xs rounded-full bg-orange-100 text-orange-700 hover:bg-orange-200 cursor-pointer transition text-center">{s}</button>
+                      className="px-1 py-1 text-xs rounded-full bg-[var(--brand-primary-muted)] text-[var(--brand-primary)] hover:opacity-80 cursor-pointer transition text-center">{s}</button>
                   ))}
                 </div>
               </div>
@@ -502,7 +591,7 @@ export default function ServicesPage() {
               if (e.target.value === "__new__") { setInlineNewCategory(target); e.target.value = value; }
               else onChange(e.target.value);
             }}
-            className="w-full px-3 py-2 border border-[var(--border-color)] rounded-xl text-sm text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-orange-400"
+            className="w-full px-3 py-2 border border-[var(--border-color)] rounded-xl text-sm text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-[var(--brand-primary)]"
           >
             <option value="">Sem categoria</option>
             {categories.map((c: any) => (
@@ -530,8 +619,9 @@ export default function ServicesPage() {
             placeholder="Ex: Corte de cabelo, Consultoria, Massagem..."
             value={form.name}
             onChange={(e) => handleNameChange(e.target.value, form, setForm, mode)}
-            className="w-full px-4 py-3 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-orange-400"
+            className="w-full px-4 py-3 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-[var(--brand-primary)]"
             required
+            {...(mode === "create" ? { "data-tour": "service-name" } : {})}
           />
         </div>
 
@@ -542,17 +632,18 @@ export default function ServicesPage() {
             value={form.description}
             onChange={(e) => setForm({ ...form, description: e.target.value })}
             rows={2}
-            className="w-full px-4 py-3 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-orange-400 resize-none"
+            className="w-full px-4 py-3 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-[var(--brand-primary)] resize-none"
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="text-sm text-[var(--text-secondary)] mb-1 block">Duracao estimada</label>
             <select
               value={form.estimatedDuration}
               onChange={(e) => setForm({ ...form, estimatedDuration: e.target.value })}
-              className="w-full px-4 py-3 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-orange-400"
+              className="w-full px-4 py-3 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-[var(--brand-primary)]"
+              {...(mode === "create" ? { "data-tour": "service-duration" } : {})}
             >
               {DURATION_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>
@@ -562,7 +653,7 @@ export default function ServicesPage() {
             </select>
           </div>
 
-          <div>
+          <div {...(mode === "create" ? { "data-tour": "service-price" } : {})}>
             <label className="text-sm text-[var(--text-secondary)] mb-1 block">
               {form.requiresQuote ? "Preco (orcamento)" : "Preco (R$)"}
             </label>
@@ -577,7 +668,7 @@ export default function ServicesPage() {
                 placeholder="0.00"
                 value={form.price}
                 onChange={(e) => setForm({ ...form, price: e.target.value })}
-                className="w-full px-4 py-3 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-orange-400"
+                className="w-full px-4 py-3 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-[var(--brand-primary)]"
               />
             )}
           </div>
@@ -591,7 +682,7 @@ export default function ServicesPage() {
           <button
             type="button"
             onClick={() => setForm({ ...form, requiresQuote: !form.requiresQuote })}
-            className={`w-12 h-6 rounded-full transition cursor-pointer ${form.requiresQuote ? "bg-orange-500" : "bg-gray-300"}`}
+            className={`w-12 h-6 rounded-full transition cursor-pointer ${form.requiresQuote ? "bg-[var(--brand-primary)]" : "bg-[var(--bg-muted)]"}`}
           >
             <div
               className={`w-5 h-5 bg-white rounded-full shadow transition-transform ${form.requiresQuote ? "translate-x-6" : "translate-x-0.5"}`}
@@ -617,7 +708,7 @@ export default function ServicesPage() {
                     ? fileInputRef.current?.click()
                     : editFileInputRef.current?.click()
                 }
-                className="w-32 h-32 rounded-xl border-2 border-dashed border-[var(--border-color)] flex items-center justify-center cursor-pointer hover:border-orange-400 transition overflow-hidden"
+                className="w-32 h-32 rounded-xl border-2 border-dashed border-[var(--border-color)] flex items-center justify-center cursor-pointer hover:border-[var(--brand-primary)] transition overflow-hidden"
               >
                 {(mode === "create" ? imagePreview : editImagePreview) ? (
                   <img
@@ -627,9 +718,7 @@ export default function ServicesPage() {
                   />
                 ) : (
                   <div className="flex flex-col items-center gap-1">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-[var(--text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
+                    <Image className="h-8 w-8 text-[var(--text-muted)]" />
                     <span className="text-[10px] text-[var(--text-muted)]">Clique para adicionar</span>
                   </div>
                 )}
@@ -640,9 +729,7 @@ export default function ServicesPage() {
                   if (mode === "create") { setImagePreview(null); setImageBase64(null); }
                   else { setEditImagePreview(null); setEditImageBase64(null); }
                 }} className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center cursor-pointer hover:bg-red-600 transition">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+                  <X className="h-3.5 w-3.5" strokeWidth={3} />
                 </button>
               )}
             </div>
@@ -651,10 +738,10 @@ export default function ServicesPage() {
             {showWebSearch === mode && webImageResults.length > 0 && (
               <div className="flex-1 min-w-0">
                 <span className="text-xs text-[var(--text-muted)] mb-1.5 block">Clique para usar:</span>
-                <div className="grid grid-cols-4 gap-1.5">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
                   {webImageResults.slice(0, 8).map((url, i) => (
                     <div key={i} onClick={() => !savingWebImage && handleSelectWebImage(url)}
-                      className={`aspect-square rounded-lg overflow-hidden border-2 border-[var(--border-color)] cursor-pointer hover:border-orange-400 transition ${savingWebImage ? "opacity-50 pointer-events-none" : ""}`}>
+                      className={`aspect-square rounded-lg overflow-hidden border-2 border-[var(--border-color)] cursor-pointer hover:border-[var(--brand-primary)] transition ${savingWebImage ? "opacity-50 pointer-events-none" : ""}`}>
                       <img src={url} alt="" className="w-full h-full object-cover" onError={(e) => (e.currentTarget.style.display = "none")} />
                     </div>
                   ))}
@@ -675,9 +762,9 @@ export default function ServicesPage() {
   }
 
   return (
-    <div>
+    <motion.div {...fadeIn}>
       {error && (
-        <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm mb-4">{error}</div>
+        <div className="bg-[var(--status-error-bg)] text-[var(--status-error-text)] p-3 rounded-xl text-sm mb-4">{error}</div>
       )}
       {success && (
         <div className="bg-green-50 text-green-600 p-3 rounded-lg text-sm mb-4">{success}</div>
@@ -688,38 +775,33 @@ export default function ServicesPage() {
         <div className="flex items-center gap-3 mb-4 p-3 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl">
           <span className="text-sm font-medium text-[var(--text-secondary)]">Loja:</span>
           <select value={activeStoreId} onChange={(e) => setSelectedStoreId(e.target.value)}
-            className="flex-1 px-3 py-2 border border-[var(--border-color)] rounded-lg text-sm text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-orange-400">
+            className="flex-1 px-3 py-2 border border-[var(--border-color)] rounded-lg text-sm text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-[var(--brand-primary)]">
             {stores.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
         </div>
       )}
 
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between mb-6 gap-3">
-        <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold text-[var(--text-primary)]">Servicos {store ? `— ${store.name}` : ""}</h1>
-        </div>
-        {activeTab === "services" && (
-          <button
-            onClick={() => {
-              setShowForm(!showForm);
-              setEditingService(null);
-            }}
-            className={`px-5 py-2.5 rounded-xl text-sm font-bold cursor-pointer active:scale-95 transition flex items-center gap-2 ${showForm ? "bg-orange-600 text-white" : "bg-orange-500 text-white hover:bg-orange-600"}`}
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-4 w-4"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
+      <PageHeader
+        title={`Servicos ${store ? `— ${store.name}` : ""}`}
+        onTourStart={startTour}
+        tourNotSeen={!hasSeenTour}
+        actions={
+          activeTab === "services" ? (
+            <button
+              data-tour="add-service-btn"
+              onClick={() => {
+                setShowForm(!showForm);
+                setEditingService(null);
+              }}
+              className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white rounded-xl px-4 py-2.5 font-medium cursor-pointer active:scale-95 transition flex items-center gap-2"
             >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Novo Servico
-          </button>
-        )}
-      </div>
+              <Plus className="h-4 w-4" />
+              Novo Servico
+            </button>
+          ) : undefined
+        }
+      />
 
       {/* Tabs */}
       <div className="flex gap-1 mb-6 bg-[var(--bg-muted)] rounded-xl p-1">
@@ -727,7 +809,7 @@ export default function ServicesPage() {
           onClick={() => setActiveTab("services")}
           className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition cursor-pointer ${
             activeTab === "services"
-              ? "bg-[var(--bg-card)] text-orange-500 shadow-sm"
+              ? "bg-[var(--bg-card)] text-[var(--brand-primary)] shadow-sm"
               : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
           }`}
         >
@@ -737,7 +819,7 @@ export default function ServicesPage() {
           onClick={() => setActiveTab("schedule")}
           className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition cursor-pointer ${
             activeTab === "schedule"
-              ? "bg-[var(--bg-card)] text-orange-500 shadow-sm"
+              ? "bg-[var(--bg-card)] text-[var(--brand-primary)] shadow-sm"
               : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
           }`}
         >
@@ -752,7 +834,12 @@ export default function ServicesPage() {
           {showForm && (
             <form onSubmit={handleCreateService} className="bg-[var(--bg-card)] rounded-2xl p-6 shadow-sm mb-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-bold text-[var(--text-primary)]">Novo servico</h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-bold text-[var(--text-primary)]">Novo servico</h3>
+                  <button onClick={startServiceFormTour} title="Ver tutorial" className="flex items-center justify-center w-6 h-6 rounded-full bg-[var(--bg-muted)] text-[var(--text-muted)] hover:bg-[var(--brand-primary-muted)] hover:text-[var(--brand-primary)] transition cursor-pointer">
+                    <HelpCircle className="w-4 h-4" />
+                  </button>
+                </div>
                 <button
                   type="button"
                   onClick={() => {
@@ -761,11 +848,9 @@ export default function ServicesPage() {
                     setImagePreview(null);
                     setImageBase64(null);
                   }}
-                  className="text-gray-400 hover:text-[var(--text-secondary)] cursor-pointer"
+                  className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] cursor-pointer"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+                  <X className="h-5 w-5" />
                 </button>
               </div>
 
@@ -774,7 +859,8 @@ export default function ServicesPage() {
               <button
                 type="submit"
                 disabled={uploading}
-                className="mt-4 w-full py-3 bg-orange-500 text-white rounded-xl font-bold cursor-pointer hover:bg-orange-600 active:scale-95 disabled:opacity-50 transition"
+                data-tour="service-submit"
+                className="mt-4 w-full py-3 bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white rounded-xl font-medium cursor-pointer active:scale-95 disabled:opacity-50 transition"
               >
                 {uploading ? "Criando..." : "Criar servico"}
               </button>
@@ -784,7 +870,8 @@ export default function ServicesPage() {
           {/* Edit modal */}
           {editingService && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setEditingService(null)}>
-              <div
+              <motion.div
+                {...scaleIn}
                 className="bg-[var(--bg-card)] rounded-2xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto"
                 onClick={(e) => e.stopPropagation()}
               >
@@ -807,21 +894,22 @@ export default function ServicesPage() {
                     <button
                       type="submit"
                       disabled={uploading}
-                      className="flex-1 py-3 bg-orange-500 text-white rounded-xl font-bold cursor-pointer hover:bg-orange-600 active:scale-95 disabled:opacity-50 transition"
+                      className="flex-1 py-3 bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white rounded-xl font-medium cursor-pointer active:scale-95 disabled:opacity-50 transition"
                     >
                       {uploading ? "Salvando..." : "Salvar"}
                     </button>
                   </div>
                 </form>
-              </div>
+              </motion.div>
             </div>
           )}
 
           {/* Delete confirmation */}
           {deleteConfirm && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setDeleteConfirm(null)}>
-              <div
-                className="bg-[var(--bg-card)] rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6"
+              <motion.div
+                {...scaleIn}
+                className="bg-[var(--bg-card)] rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6 max-h-[90vh] overflow-y-auto"
                 onClick={(e) => e.stopPropagation()}
               >
                 <h3 className="font-bold text-[var(--text-primary)] mb-2">Remover servico?</h3>
@@ -840,133 +928,104 @@ export default function ServicesPage() {
                     Remover
                   </button>
                 </div>
-              </div>
+              </motion.div>
             </div>
           )}
 
           {/* Services list */}
           {services.length === 0 ? (
-            <div className="text-center py-12 bg-[var(--bg-card)] rounded-2xl">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-12 w-12 mx-auto text-[var(--text-muted)] mb-3"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 00.75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 00-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0112 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 01-.673-.38m0 0A2.18 2.18 0 013 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 013.413-.387m7.5 0V5.25A2.25 2.25 0 0013.5 3h-3a2.25 2.25 0 00-2.25 2.25v.894m7.5 0a48.667 48.667 0 00-7.5 0M12 12.75h.008v.008H12v-.008z"
-                />
-              </svg>
-              <p className="text-[var(--text-secondary)] mb-3">Nenhum servico cadastrado</p>
-              <button
-                onClick={() => setShowForm(true)}
-                className="bg-orange-500 text-white px-5 py-2.5 rounded-xl font-bold cursor-pointer hover:bg-orange-600 active:scale-95 transition"
-              >
-                Cadastrar primeiro servico
-              </button>
-            </div>
+            <EmptyState
+              icon={Briefcase}
+              title="Nenhum servico cadastrado"
+              description="Crie seu primeiro servico para comecar a receber agendamentos"
+              action={{ label: "Cadastrar primeiro servico", onClick: () => setShowForm(true) }}
+            />
           ) : (
-            <div className="space-y-3">
+            <motion.div data-tour="service-grid" variants={staggerContainer} initial="hidden" animate="show" className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
               {services.map((service: any) => (
-                <div
+                <motion.div
+                  variants={staggerItem}
                   key={service.id}
-                  className="bg-[var(--bg-card)] rounded-2xl p-4 shadow-sm flex items-center gap-4"
+                  className="bg-[var(--bg-card)] rounded-2xl shadow-[var(--card-shadow)] border border-[var(--border-light)] overflow-hidden hover:shadow-[var(--card-shadow-hover)] transition-shadow"
                 >
                   {/* Image */}
-                  <div className="w-14 h-14 rounded-xl bg-[var(--bg-muted)] flex items-center justify-center flex-shrink-0 overflow-hidden">
+                  <div className="w-full h-40 bg-[var(--bg-muted)] flex items-center justify-center overflow-hidden">
                     {service.imageUrl ? (
                       <img src={service.imageUrl} alt={service.name} className="w-full h-full object-cover" />
                     ) : (
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-6 w-6 text-[var(--text-muted)]"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={1.5}
-                          d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 00.75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 00-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0112 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 01-.673-.38m0 0A2.18 2.18 0 013 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 013.413-.387m7.5 0V5.25A2.25 2.25 0 0013.5 3h-3a2.25 2.25 0 00-2.25 2.25v.894m7.5 0a48.667 48.667 0 00-7.5 0M12 12.75h.008v.008H12v-.008z"
-                        />
-                      </svg>
+                      <Briefcase className="h-10 w-10 text-[var(--text-muted)]" strokeWidth={1.5} />
                     )}
                   </div>
 
-                  {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
+                  {/* Card content */}
+                  <div className="p-4 space-y-2">
+                    <div className="flex items-center justify-between gap-2">
                       <h3 className="font-semibold text-[var(--text-primary)] truncate">{service.name}</h3>
-                      {service.category && (
-                        <span className="px-2 py-0.5 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 text-xs rounded-full flex-shrink-0">
-                          {service.category.name}
-                        </span>
-                      )}
-                    </div>
-                    {service.description && (
-                      <p className="text-xs text-[var(--text-muted)] truncate mt-0.5">{service.description}</p>
-                    )}
-                    <div className="flex items-center gap-3 mt-1">
-                      <span className="text-sm font-bold text-[var(--text-primary)]">
-                        {service.requiresQuote ? "Sob orcamento" : `R$ ${Number(service.price || 0).toFixed(2)}`}
-                      </span>
-                      <span className="text-xs text-[var(--text-muted)]">
-                        {DURATION_OPTIONS.find((d) => d.value === service.estimatedDuration)?.label ||
-                          `${service.estimatedDuration} min`}
-                      </span>
-                      <div className="relative">
+                      <div className="relative flex-shrink-0">
                         <button type="button" onClick={() => setStatusMenuId(statusMenuId === service.id ? null : service.id)}
                           className={`text-xs font-semibold cursor-pointer px-2 py-0.5 rounded-full border transition hover:opacity-80 flex items-center gap-1 ${
                             getServiceStatus(service).color
-                          } ${!service.isActive ? "border-gray-400/30 bg-gray-100/10" : !service.isAvailable ? "border-red-400/30 bg-red-100/10" : "border-green-400/30 bg-green-100/10"}`}>
+                          } ${!service.isActive ? "border-[var(--border-light)] bg-[var(--bg-muted)]" : !service.isAvailable ? "border-red-400/30 bg-red-100/10" : "border-green-400/30 bg-green-100/10"}`}>
                           {getServiceStatus(service).label}
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                          </svg>
+                          <ChevronDown className="h-3 w-3" />
                         </button>
                         {statusMenuId === service.id && (
-                          <div className="absolute top-5 left-0 z-20 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl shadow-lg py-1 min-w-[140px]">
+                          <div className="absolute top-6 right-0 z-20 bg-[var(--bg-card)] border border-[var(--border-light)] rounded-xl shadow-lg py-1 min-w-[140px]">
                             <button onClick={() => handleStatusChange(service.id, "available")}
                               className="w-full px-3 py-2 text-left text-xs hover:bg-[var(--bg-hover)] text-green-500 cursor-pointer">Disponivel</button>
                             <button onClick={() => handleStatusChange(service.id, "unavailable")}
                               className="w-full px-3 py-2 text-left text-xs hover:bg-[var(--bg-hover)] text-red-500 cursor-pointer">Indisponivel</button>
                             <button onClick={() => handleStatusChange(service.id, "hidden")}
-                              className="w-full px-3 py-2 text-left text-xs hover:bg-[var(--bg-hover)] text-gray-400 cursor-pointer">Oculto</button>
+                              className="w-full px-3 py-2 text-left text-xs hover:bg-[var(--bg-hover)] text-[var(--text-muted)] cursor-pointer">Oculto</button>
                           </div>
                         )}
                       </div>
                     </div>
-                  </div>
 
-                  {/* Actions */}
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <button
-                      onClick={() => startEdit(service)}
-                      className="p-2 rounded-lg hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] cursor-pointer transition"
-                      title="Editar"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
-                    </button>
-                    <button
-                      onClick={() => setDeleteConfirm(service.id)}
-                      className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-red-400 hover:text-red-500 cursor-pointer transition"
-                      title="Remover"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
+                    {service.category && (
+                      <span className="inline-block px-2 py-0.5 bg-[var(--brand-primary-muted)] text-[var(--brand-primary)] text-xs rounded-full">
+                        {service.category.name}
+                      </span>
+                    )}
+
+                    {service.description && (
+                      <p className="text-xs text-[var(--text-muted)] line-clamp-2">{service.description}</p>
+                    )}
+
+                    <div className="flex items-center justify-between pt-1">
+                      <span className="text-lg font-bold text-[var(--brand-primary)]">
+                        {service.requiresQuote ? "Sob orcamento" : `R$ ${Number(service.price || 0).toFixed(2)}`}
+                      </span>
+                      <span className="flex items-center gap-1 text-xs text-[var(--text-muted)]">
+                        <Clock className="h-3.5 w-3.5" />
+                        {DURATION_OPTIONS.find((d) => d.value === service.estimatedDuration)?.label ||
+                          `${service.estimatedDuration} min`}
+                      </span>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-2 pt-1 border-t border-[var(--border-light)]">
+                      <button
+                        onClick={() => startEdit(service)}
+                        className="flex-1 flex items-center justify-center gap-1.5 p-2 rounded-xl hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] cursor-pointer transition text-xs font-medium"
+                        title="Editar"
+                      >
+                        <SquarePen className="h-3.5 w-3.5" />
+                        Editar
+                      </button>
+                      <button
+                        onClick={() => setDeleteConfirm(service.id)}
+                        className="flex-1 flex items-center justify-center gap-1.5 p-2 rounded-xl hover:bg-[var(--status-error-bg)] text-[var(--status-error-text)]/60 hover:text-[var(--status-error-text)] cursor-pointer transition text-xs font-medium"
+                        title="Remover"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        Remover
+                      </button>
+                    </div>
                   </div>
-                </div>
+                </motion.div>
               ))}
-            </div>
+            </motion.div>
           )}
         </>
       )}
@@ -984,7 +1043,7 @@ export default function ServicesPage() {
             <button
               onClick={handleSaveSchedule}
               disabled={savingSchedule}
-              className="px-5 py-2.5 bg-orange-500 text-white rounded-xl font-bold cursor-pointer hover:bg-orange-600 active:scale-95 disabled:opacity-50 transition"
+              className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white rounded-xl px-4 py-2.5 font-medium cursor-pointer active:scale-95 disabled:opacity-50 transition"
             >
               {savingSchedule ? "Salvando..." : "Salvar horarios"}
             </button>
@@ -1007,7 +1066,7 @@ export default function ServicesPage() {
                     type="button"
                     onClick={() => updateScheduleDay(day.dayOfWeek, "isActive", !day.isActive)}
                     className={`w-10 h-5 rounded-full transition cursor-pointer flex-shrink-0 ${
-                      day.isActive ? "bg-orange-500" : "bg-gray-300"
+                      day.isActive ? "bg-[var(--brand-primary)]" : "bg-[var(--bg-muted)]"
                     }`}
                   >
                     <div
@@ -1029,14 +1088,14 @@ export default function ServicesPage() {
                         type="time"
                         value={day.startTime}
                         onChange={(e) => updateScheduleDay(day.dayOfWeek, "startTime", e.target.value)}
-                        className="px-3 py-1.5 border border-[var(--border-color)] rounded-lg text-sm text-[var(--text-primary)] bg-[var(--bg-card)] focus:outline-none focus:border-orange-400"
+                        className="px-3 py-1.5 border border-[var(--border-color)] rounded-lg text-sm text-[var(--text-primary)] bg-[var(--bg-card)] focus:outline-none focus:border-[var(--brand-primary)]"
                       />
                       <span className="text-[var(--text-muted)] text-sm">ate</span>
                       <input
                         type="time"
                         value={day.endTime}
                         onChange={(e) => updateScheduleDay(day.dayOfWeek, "endTime", e.target.value)}
-                        className="px-3 py-1.5 border border-[var(--border-color)] rounded-lg text-sm text-[var(--text-primary)] bg-[var(--bg-card)] focus:outline-none focus:border-orange-400"
+                        className="px-3 py-1.5 border border-[var(--border-color)] rounded-lg text-sm text-[var(--text-primary)] bg-[var(--bg-card)] focus:outline-none focus:border-[var(--brand-primary)]"
                       />
                     </div>
                   ) : (
@@ -1054,6 +1113,6 @@ export default function ServicesPage() {
         onClose={() => setShowCreateStore(false)}
         onCreated={() => refetchStores()}
       />
-    </div>
+    </motion.div>
   );
 }

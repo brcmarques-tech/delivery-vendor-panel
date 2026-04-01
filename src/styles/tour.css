@@ -1,0 +1,231 @@
+/* driver.js theme override — usa CSS vars do design system */
+
+/* Overlay escurecido */
+.driver-overlay {
+  background: rgba(0, 0, 0, 0.6) !important;
+}
+
+/* Popover principal */
+.driver-popover {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-light) !important;
+  border-radius: 1.25rem !important;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25) !important;
+  padding: 1.25rem 1.25rem 0 1.25rem !important;
+  max-width: min(90vw, 420px) !important;
+  min-width: 280px !important;
+}
+
+/* Header do popover */
+.driver-popover-header {
+  padding: 0.25rem 2rem 0 0 !important;
+  display: flex !important;
+  align-items: flex-start !important;
+  gap: 0.5rem !important;
+}
+
+/* Título */
+.driver-popover-title {
+  font-size: 0.9375rem !important;
+  font-weight: 700 !important;
+  color: var(--text-primary) !important;
+  line-height: 1.5 !important;
+  margin: 0 !important;
+  flex: 1 !important;
+}
+
+/* Fechar — posição absoluta no canto superior direito */
+.driver-popover-close-btn {
+  position: absolute !important;
+  top: 1rem !important;
+  right: 1rem !important;
+  color: var(--text-muted) !important;
+  background: var(--bg-muted) !important;
+  border-radius: 50% !important;
+  width: 1.75rem !important;
+  height: 1.75rem !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 0.875rem !important;
+  line-height: 1 !important;
+  border: 1px solid var(--border-light) !important;
+  cursor: pointer !important;
+  transition: background 0.15s, color 0.15s !important;
+  margin: 0 !important;
+  z-index: 1 !important;
+}
+.driver-popover-close-btn:hover {
+  background: var(--bg-hover) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Descrição */
+.driver-popover-description {
+  font-size: 0.875rem !important;
+  color: var(--text-secondary) !important;
+  line-height: 1.6 !important;
+  padding: 0.625rem 0 0 0 !important;
+  margin: 0 !important;
+}
+
+/* Progress */
+.driver-popover-progress-text {
+  font-size: 0.75rem !important;
+  color: var(--text-muted) !important;
+  font-weight: 500 !important;
+}
+
+/* Barra de progresso customizada */
+.driver-popover-footer {
+  padding: 1rem 0 0.25rem 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0.75rem !important;
+  border-top: 1px solid var(--border-light) !important;
+  margin-top: 1rem !important;
+}
+
+/* Linha de progresso + navegação */
+.driver-popover-navigation-btns {
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.5rem !important;
+  width: 100% !important;
+}
+
+/* Botões base */
+.driver-popover-prev-btn,
+.driver-popover-next-btn,
+.driver-popover-done-btn {
+  height: 2.25rem !important;
+  padding: 0 1rem !important;
+  border-radius: 0.75rem !important;
+  font-size: 0.8125rem !important;
+  font-weight: 600 !important;
+  border: none !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.25rem !important;
+}
+
+/* Botão anterior */
+.driver-popover-prev-btn {
+  background: var(--bg-muted) !important;
+  color: var(--text-secondary) !important;
+  margin-right: auto !important;
+}
+.driver-popover-prev-btn:hover {
+  background: var(--bg-hover) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Botão próximo */
+.driver-popover-next-btn {
+  background: var(--brand-primary) !important;
+  color: white !important;
+  margin-left: auto !important;
+}
+.driver-popover-next-btn:hover {
+  background: var(--brand-primary-hover) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--brand-primary) 40%, transparent) !important;
+}
+
+/* Botão concluir */
+.driver-popover-done-btn {
+  background: var(--brand-primary) !important;
+  color: white !important;
+  margin-left: auto !important;
+}
+.driver-popover-done-btn:hover {
+  background: var(--brand-primary-hover) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--brand-primary) 40%, transparent) !important;
+}
+
+/* Seta do popover — maior e com glow */
+.driver-popover-arrow {
+  border-width: 10px !important;
+  filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.5)) !important;
+}
+.driver-popover-arrow-side-top {
+  border-color: #fff transparent transparent transparent !important;
+}
+.driver-popover-arrow-side-left {
+  border-color: transparent transparent transparent #fff !important;
+}
+.driver-popover-arrow-side-right {
+  border-color: transparent #fff transparent transparent !important;
+}
+.driver-popover-arrow-side-bottom {
+  border-color: transparent transparent #fff transparent !important;
+}
+
+/* Highlight do elemento — ring pulsante */
+.driver-active-element {
+  outline: 3px solid var(--brand-primary) !important;
+  outline-offset: 4px !important;
+  border-radius: 0.875rem !important;
+  cursor: pointer !important;
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, var(--brand-primary) 35%, transparent),
+    0 0 0 8px color-mix(in srgb, var(--brand-primary) 15%, transparent) !important;
+  animation: tour-pulse 1.5s ease-in-out infinite !important;
+}
+
+@keyframes tour-pulse {
+  0%, 100% {
+    box-shadow:
+      0 0 0 4px color-mix(in srgb, var(--brand-primary) 35%, transparent),
+      0 0 0 8px color-mix(in srgb, var(--brand-primary) 15%, transparent);
+  }
+  50% {
+    box-shadow:
+      0 0 0 6px color-mix(in srgb, var(--brand-primary) 25%, transparent),
+      0 0 0 14px color-mix(in srgb, var(--brand-primary) 8%, transparent);
+  }
+}
+
+/* Focus visible — acessibilidade via teclado */
+.driver-popover-next-btn:focus-visible,
+.driver-popover-prev-btn:focus-visible,
+.driver-popover-done-btn:focus-visible,
+.driver-popover-close-btn:focus-visible {
+  outline: 2px solid var(--brand-primary) !important;
+  outline-offset: 2px !important;
+}
+
+/* Respeita preferência de movimento reduzido */
+@media (prefers-reduced-motion: reduce) {
+  .driver-active-element {
+    animation: none !important;
+    box-shadow:
+      0 0 0 4px color-mix(in srgb, var(--brand-primary) 35%, transparent),
+      0 0 0 8px color-mix(in srgb, var(--brand-primary) 15%, transparent) !important;
+  }
+}
+
+/* Garante margem lateral — topo é controlado via JS no hook */
+.driver-popover {
+  margin: 0 0.75rem !important;
+}
+
+/* Mobile */
+@media (max-width: 640px) {
+  .driver-popover {
+    max-width: calc(100vw - 2rem) !important;
+    min-width: 0 !important;
+    margin: 1rem !important;
+  }
+
+  .driver-popover-title {
+    font-size: 0.875rem !important;
+  }
+
+  .driver-popover-description {
+    font-size: 0.8125rem !important;
+  }
+}

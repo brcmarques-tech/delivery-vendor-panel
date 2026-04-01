@@ -3,43 +3,74 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, useMemo } from "react";
-import { useQuery, useMutation, useSubscription } from "@apollo/client";
+import { useQuery, useMutation } from "@apollo/client";
 import { apolloClient } from "@/lib/apollo";
-import { GET_MY_PLAN, GET_MY_STORES, ACCEPT_TERMS, SESSION_KICKED_SUB } from "@/lib/graphql";
+import { GET_MY_PLAN, GET_MY_STORES, GET_AVAILABLE_PLANS, ACCEPT_TERMS } from "@/lib/graphql";
 import TermsModal from "@/components/TermsModal";
+import {
+  LayoutDashboard, ClipboardList, CalendarCheck, Package, Briefcase,
+  Megaphone, Ticket, BarChart3, Crown, LifeBuoy, Wallet, Settings,
+  Menu, X, LogOut, Lock, Plus, ArrowRight,
+} from "lucide-react";
+
+// Requisitos por rota: storeType = precisa de loja desse tipo, plan = precisa de plano pago
+const ROUTE_REQUIREMENTS: Record<string, { storeType?: 'PRODUCTS' | 'SERVICES'; plan?: true }> = {
+  "/dashboard/orders":       { storeType: "PRODUCTS" },
+  "/dashboard/appointments": { storeType: "SERVICES" },
+  "/dashboard/analytics":    { plan: true },
+  "/dashboard/promotions":   { plan: true },
+  "/dashboard/coupons":      { plan: true },
+};
+
+const PAID_PLANS = ["PRO", "PREMIUM", "ENTERPRISE", "CUSTOM"];
+
+const NAV_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  "/dashboard": LayoutDashboard,
+  "/dashboard/orders": ClipboardList,
+  "/dashboard/appointments": CalendarCheck,
+  "/dashboard/products": Package,
+  "/dashboard/services": Briefcase,
+  "/dashboard/promotions": Megaphone,
+  "/dashboard/coupons": Ticket,
+  "/dashboard/analytics": BarChart3,
+  "/dashboard/plan": Crown,
+  "/dashboard/support": LifeBuoy,
+  "/dashboard/earnings": Wallet,
+  "/dashboard/settings": Settings,
+};
 
 function buildNavGroups() {
   return [
     {
       label: "Principal",
       items: [
-        { href: "/dashboard", label: "Visao Geral", icon: "📊" },
-        { href: "/dashboard/orders", label: "Pedidos", icon: "📋" },
-        { href: "/dashboard/appointments", label: "Agendamentos", icon: "📅" },
+        { href: "/dashboard", label: "Visao Geral" },
+        { href: "/dashboard/orders", label: "Pedidos" },
+        { href: "/dashboard/appointments", label: "Agendamentos" },
       ],
     },
     {
       label: "Catalogo",
       items: [
-        { href: "/dashboard/products", label: "Produtos", icon: "📦" },
-        { href: "/dashboard/services", label: "Servicos", icon: "💼" },
-        { href: "/dashboard/promotions", label: "Promocoes", icon: "📢" },
-        { href: "/dashboard/coupons", label: "Cupons", icon: "🎟️" },
+        { href: "/dashboard/products", label: "Produtos" },
+        { href: "/dashboard/services", label: "Servicos" },
+        { href: "/dashboard/promotions", label: "Promocoes" },
+        { href: "/dashboard/coupons", label: "Cupons" },
       ],
     },
     {
       label: "Gestao",
       items: [
-        { href: "/dashboard/analytics", label: "Analytics", icon: "📈" },
-        { href: "/dashboard/plan", label: "Meu Plano", icon: "💎" },
-        { href: "/dashboard/support", label: "Suporte", icon: "🆘" },
+        { href: "/dashboard/analytics", label: "Analytics" },
+        { href: "/dashboard/plan", label: "Meu Plano" },
+        { href: "/dashboard/support", label: "Suporte" },
       ],
     },
     {
       label: "Sistema",
       items: [
-        { href: "/dashboard/earnings", label: "Recebimentos", icon: "💰" },
-        { href: "/dashboard/settings", label: "Configuracoes", icon: "⚙️" },
+        { href: "/dashboard/earnings", label: "Recebimentos" },
+        { href: "/dashboard/settings", label: "Configuracoes" },
       ],
     },
   ];
@@ -55,6 +86,8 @@ export default function DashboardLayout({
   const [user, setUser] = useState<{ id?: string; name: string } | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
+  const [lockedPopover, setLockedPopover] = useState<string | null>(null);
+  const [popoverY, setPopoverY] = useState(0);
 
   const { data: meData } = useQuery(GET_MY_PLAN, {
     skip: !user,
@@ -62,9 +95,21 @@ export default function DashboardLayout({
   const { data: storesData } = useQuery(GET_MY_STORES, {
     skip: !user,
   });
+  const { data: plansData } = useQuery(GET_AVAILABLE_PLANS, {
+    skip: !user,
+  });
   const [acceptTerms, { loading: acceptingTerms }] = useMutation(ACCEPT_TERMS);
 
   const navGroups = useMemo(() => buildNavGroups(), []);
+
+  const stores: any[] = storesData?.myStores || [];
+  const hasProductStore = stores.some((s) => s.storeType === "PRODUCTS");
+  const hasServiceStore = stores.some((s) => s.storeType === "SERVICES");
+  const isPaidPlan = PAID_PLANS.includes(meData?.meVendor?.vendorPlan || "");
+  const currentPlanName: string = meData?.meVendor?.vendorPlan || "FREE";
+  const currentPlanConfig = plansData?.availablePlans?.find((p: any) => p.plan === currentPlanName);
+  const maxStores: number = currentPlanConfig?.maxStores ?? 1;
+  const atStoreLimit = stores.length >= maxStores;
 
   useEffect(() => {
     const stored = localStorage.getItem("user");
@@ -89,24 +134,14 @@ export default function DashboardLayout({
     }
   }, [meData]);
 
-  // Listen for session kicked via WebSocket
-  useSubscription(SESSION_KICKED_SUB, {
-    variables: { userId: user?.id, userType: 'vendor' },
-    skip: !user?.id,
-    onData: () => {
-      // Ignore kick events right after forceLogin (same userId gets kicked then logged in)
-      if (typeof window !== 'undefined' && (window as any).__justLoggedIn) return;
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-      apolloClient.clearStore();
-      alert("Sua conta foi conectada em outro dispositivo. Voce foi desconectado.");
-      router.replace("/");
-    },
-  });
-
   // Auto-close sidebar on navigation (mobile)
   useEffect(() => {
     setSidebarOpen(false);
+  }, [pathname]);
+
+  // Fecha popover ao navegar
+  useEffect(() => {
+    setLockedPopover(null);
   }, [pathname]);
 
   function handleLogout() {
@@ -119,40 +154,147 @@ export default function DashboardLayout({
   const sidebarContent = (
     <>
       <div className="p-4 border-b border-[var(--border-light)]">
-        <img src="/logo-dark.svg" alt="Shopping" className="h-12" />
-        <p className="text-xs text-[var(--text-muted)] mt-1 text-center">Painel do Vendedor</p>
+        <Link href="/dashboard"><img src="/logo-dark.svg" alt="Shopping" className="h-[72px] mx-auto" /></Link>
       </div>
 
-      <nav className="flex-1 p-4 space-y-4 overflow-y-auto">
-        {navGroups.map((group) => (
-          <div key={group.label}>
-            <p className="px-4 mb-1 text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">{group.label}</p>
-            <div className="space-y-0.5">
-              {group.items.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`flex items-center gap-3 px-4 py-2.5 rounded-xl transition ${
-                    pathname === item.href
-                      ? "bg-orange-50 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 font-semibold"
-                      : "text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
-                  }`}
-                >
-                  <span>{item.icon}</span>
-                  <span className="text-sm">{item.label}</span>
-                </Link>
-              ))}
+      <nav className="flex-1 px-3 py-3 space-y-3 overflow-y-auto scrollbar-none" style={{ scrollbarWidth: 'none' }}>
+        {navGroups.map((group, gi) => (
+          <div key={group.label} className={gi > 0 ? 'pt-2' : ''}>
+            <p className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">{group.label}</p>
+            <div className="space-y-1">
+              {group.items.map((item) => {
+                const Icon = NAV_ICONS[item.href];
+                const active = pathname === item.href;
+                const req = ROUTE_REQUIREMENTS[item.href];
+
+                // Lock por falta de loja — não clicável
+                const storeBlocked = req?.storeType
+                  ? req.storeType === "PRODUCTS" ? !hasProductStore : !hasServiceStore
+                  : false;
+
+                // Lock por plano — clicável (vai para /dashboard/plan)
+                const planBlocked = req?.plan ? !isPaidPlan : false;
+
+                if (storeBlocked) {
+                  const storeType = req?.storeType === "PRODUCTS" ? "produtos" : "servicos";
+                  const isOpen = lockedPopover === item.href;
+                  return (
+                    <div key={item.href} className="relative">
+                      <div className="flex items-center gap-3 px-3 py-2 rounded-xl opacity-50 cursor-default select-none">
+                        {Icon && <Icon className="w-5 h-5 shrink-0 text-[var(--text-muted)]" />}
+                        <span className="text-sm text-[var(--text-secondary)] flex-1">{item.label}</span>
+                        <button
+                          onClick={(e) => { setLockedPopover(isOpen ? null : item.href); setPopoverY(e.currentTarget.getBoundingClientRect().top); }}
+                          className="p-0.5 rounded-md hover:bg-[var(--bg-hover)] transition opacity-100 cursor-pointer"
+                        >
+                          <Lock className="w-3.5 h-3.5 text-[var(--text-muted)]" />
+                        </button>
+                      </div>
+                      {isOpen && (
+                        <div className="fixed left-[17rem] z-[9999] w-56 bg-[var(--bg-card)] border border-[var(--border-light)] rounded-2xl shadow-2xl p-4" style={{ top: `${popoverY - 20}px` }}>
+                          {/* Flechinha apontando para o cadeado */}
+                          <div className="absolute -left-2 top-6 w-0 h-0 border-t-[8px] border-t-transparent border-b-[8px] border-b-transparent border-r-[8px] border-r-[var(--bg-card)]" />
+
+                          <p className="text-xs font-semibold text-[var(--text-primary)] mb-1">
+                            Loja de {storeType} necessaria
+                          </p>
+                          <p className="text-xs text-[var(--text-muted)] mb-3 leading-relaxed">
+                            Crie uma loja do tipo {storeType} para acessar esta area.
+                          </p>
+                          {atStoreLimit ? (
+                            <Link
+                              href="/dashboard/plan"
+                              onClick={() => setLockedPopover(null)}
+                              className="flex items-center justify-between gap-2 w-full px-3 py-2 rounded-xl bg-[#ffd700]/10 text-[#b8860b] dark:text-[#ffd700] text-xs font-semibold hover:opacity-80 transition"
+                            >
+                              <Crown className="w-3.5 h-3.5 shrink-0" />
+                              Fazer upgrade de plano
+                              <ArrowRight className="w-3.5 h-3.5 shrink-0" />
+                            </Link>
+                          ) : (
+                            <Link
+                              href="/dashboard/settings"
+                              onClick={() => setLockedPopover(null)}
+                              className="flex items-center justify-between gap-2 w-full px-3 py-2 rounded-xl bg-[var(--brand-primary)] text-white text-xs font-semibold hover:bg-[var(--brand-primary-hover)] transition"
+                            >
+                              <Plus className="w-3.5 h-3.5 shrink-0" />
+                              Criar loja de {storeType}
+                              <ArrowRight className="w-3.5 h-3.5 shrink-0" />
+                            </Link>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+
+                if (planBlocked) {
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={`group flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-150 relative ${
+                        active
+                          ? "bg-[var(--brand-primary-light)] text-[var(--brand-primary)] font-semibold shadow-sm"
+                          : "text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+                      }`}
+                    >
+                      {active && (
+                        <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 rounded-r-full bg-[var(--brand-primary)]" />
+                      )}
+                      {Icon && <Icon className={`w-5 h-5 shrink-0 ${active ? '' : 'text-[var(--text-muted)] group-hover:text-[var(--text-secondary)]'}`} />}
+                      <span className="text-sm flex-1">{item.label}</span>
+                      <Crown className="w-3.5 h-3.5 shrink-0 text-[#b8860b] dark:text-[#ffd700]" />
+                    </Link>
+                  );
+                }
+
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`group flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-150 relative ${
+                      active
+                        ? "bg-[var(--brand-primary-light)] text-[var(--brand-primary)] font-semibold shadow-sm"
+                        : "text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+                    }`}
+                  >
+                    {active && (
+                      <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 rounded-r-full bg-[var(--brand-primary)]" />
+                    )}
+                    {Icon && <Icon className={`w-5 h-5 shrink-0 ${active ? '' : 'text-[var(--text-muted)] group-hover:text-[var(--text-secondary)]'}`} />}
+                    <span className="text-sm">{item.label}</span>
+                  </Link>
+                );
+              })}
             </div>
           </div>
         ))}
       </nav>
 
       <div className="p-4 border-t border-[var(--border-light)]">
-        <p className="text-sm text-[var(--text-secondary)] mb-2">{user?.name}</p>
+        <Link
+          href="/dashboard/profile"
+          className={`flex items-center gap-3 mb-3 p-1.5 -m-1.5 rounded-xl transition ${
+            pathname === "/dashboard/profile"
+              ? "bg-[var(--brand-primary-light)]"
+              : "hover:bg-[var(--bg-hover)]"
+          }`}
+        >
+          <div className="w-9 h-9 rounded-full bg-[var(--brand-primary)] flex items-center justify-center text-white text-sm font-bold shrink-0">
+            {user?.name?.charAt(0)?.toUpperCase() || '?'}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium text-[var(--text-primary)] truncate">{user?.name}</p>
+            <p className="text-xs text-[var(--text-muted)]">Vendedor</p>
+          </div>
+          <Settings className="w-4 h-4 text-[var(--text-muted)] shrink-0" />
+        </Link>
         <button
           onClick={handleLogout}
-          className="text-sm text-red-500 cursor-pointer hover:text-red-600 active:scale-95 transition"
+          className="flex items-center gap-2 text-sm text-[var(--text-muted)] cursor-pointer hover:text-[var(--status-error-text)] active:scale-95 transition w-full px-1"
         >
+          <LogOut className="w-4 h-4" />
           Sair
         </button>
       </div>
@@ -186,16 +328,7 @@ export default function DashboardLayout({
           className="p-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
           aria-label="Abrir menu"
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="h-6 w-6"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-          </svg>
+          <Menu className="h-6 w-6" />
         </button>
         <img src="/logo-dark.svg" alt="Shopping" className="h-8" />
       </div>
@@ -220,16 +353,7 @@ export default function DashboardLayout({
           className="absolute top-3 right-3 p-1 text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
           aria-label="Fechar menu"
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="h-5 w-5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-          </svg>
+          <X className="h-5 w-5" />
         </button>
         {sidebarContent}
       </aside>
