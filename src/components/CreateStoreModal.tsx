@@ -4,6 +4,9 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import dynamic from "next/dynamic";
 import { useMutation } from "@apollo/client";
 import { CREATE_STORE, UPDATE_STORE, UPLOAD_IMAGE, GET_MY_STORES } from "@/lib/graphql";
+import { Store, Briefcase, ChevronDown, HelpCircle } from "lucide-react";
+import { useTour } from "@/hooks/useTour";
+import { type DriveStep } from "driver.js";
 import "leaflet/dist/leaflet.css";
 
 const ESTADOS_BR = [
@@ -43,7 +46,7 @@ interface StoreData {
 interface CreateStoreModalProps {
   open: boolean;
   onClose: () => void;
-  onCreated?: () => void;
+  onCreated?: (storeType?: string) => void;
   store?: StoreData | null;
 }
 
@@ -81,6 +84,126 @@ function storeToForm(store: StoreData) {
   };
 }
 
+const STORE_TOUR_STEP1: DriveStep[] = [
+  {
+    popover: {
+      title: "🏪 Vamos criar sua loja!",
+      description: "São só 4 passos rápidos. Vou te guiar em cada um.",
+    },
+  },
+  {
+    element: '[data-tour="store-type-selector"]',
+    popover: {
+      title: "Que tipo de loja?",
+      description: "Produtos = loja com entrega.\nServiços = agendamentos.",
+      side: "bottom",
+      align: "center",
+    },
+  },
+  {
+    element: '[data-tour="store-images"]',
+    popover: {
+      title: "📸 Logo e banner",
+      description: "Opcional, mas ajuda clientes a reconhecerem sua loja.",
+      side: "bottom",
+      align: "start",
+    },
+  },
+  {
+    element: '[data-tour="store-name-field"]',
+    popover: {
+      title: "✏️ Nome e telefone",
+      description: "Preencha e clique Próximo.",
+      side: "top",
+      align: "start",
+    },
+  },
+];
+
+const STORE_TOUR_STEP2: DriveStep[] = [
+  {
+    element: '[data-tour="store-cep"]',
+    popover: {
+      title: "📍 Endereço — Etapa 2",
+      description: "Digite o CEP. Os campos serão preenchidos automaticamente!",
+      side: "bottom",
+      align: "start",
+    },
+  },
+  {
+    element: '[data-tour="store-address-grid"]',
+    popover: {
+      title: "Complete o endereço",
+      description: "Confira rua, número, bairro, cidade e estado. Depois clique Próximo.",
+      side: "top",
+      align: "start",
+    },
+  },
+];
+
+const STORE_TOUR_STEP3: DriveStep[] = [
+  {
+    element: '[data-tour="store-map"]',
+    popover: {
+      title: "📌 Confirme no mapa — Etapa 3",
+      description: "Arraste o pin no mapa para a posição exata da sua loja. Depois clique Confirmar.",
+      side: "top",
+      align: "center",
+    },
+  },
+];
+
+const STORE_TOUR_STEP4: DriveStep[] = [
+  {
+    element: '[data-tour="store-delivery-type"]',
+    popover: {
+      title: "🚚 Tipo de entrega — Etapa 4",
+      description: "Escolha quem faz as entregas: os entregadores do app ou os seus próprios.",
+      side: "bottom",
+      align: "center",
+    },
+  },
+];
+
+const OWN_DELIVERY_TOUR: DriveStep[] = [
+  {
+    element: '[data-tour="store-delivery-details"]',
+    popover: {
+      title: "📋 Seus entregadores",
+      description: "Como você gerencia a entrega, configure estas opções:",
+      side: "top",
+      align: "start",
+    },
+  },
+  {
+    element: '[data-tour="store-free-delivery"]',
+    popover: {
+      title: "🎁 Entrega grátis",
+      description: "Ative se quiser oferecer frete grátis. Ou defina um valor mínimo para liberar.",
+      side: "bottom",
+      align: "start",
+    },
+  },
+  {
+    element: '[data-tour="store-delivery-hours"]',
+    popover: {
+      title: "⏰ Horários de entrega",
+      description: "Defina o horário de início e fim das entregas.",
+      side: "bottom",
+      align: "start",
+    },
+  },
+  {
+    element: '[data-tour="store-delivery-time-min"]',
+    popover: {
+      title: "✅ Tempo e pedido mínimo",
+      description: "Tempo estimado de entrega em minutos e valor mínimo do pedido. Depois clique para criar sua loja!",
+      side: "top",
+      align: "start",
+    },
+  },
+];
+
 export default function CreateStoreModal({ open, onClose, onCreated, store }: CreateStoreModalProps) {
   const isEdit = !!store;
 
@@ -92,6 +215,11 @@ export default function CreateStoreModal({ open, onClose, onCreated, store }: Cr
   });
   const [uploadImage] = useMutation(UPLOAD_IMAGE);
 
+  const { startTour: startStep1Tour, hasSeenTour: hasSeenCreateTour } = useTour(isEdit ? "__skip__" : "create-store-s1", STORE_TOUR_STEP1, false);
+  const { startTour: startStep2Tour } = useTour(isEdit ? "__skip__" : "create-store-s2", STORE_TOUR_STEP2, false);
+  const { startTour: startStep3Tour } = useTour(isEdit ? "__skip__" : "create-store-s3", STORE_TOUR_STEP3, false);
+  const { startTour: startStep4Tour } = useTour(isEdit ? "__skip__" : "create-store-s4", STORE_TOUR_STEP4, false);
+  const { startTour: startOwnDeliveryTour } = useTour(isEdit ? "__skip__" : "create-store-own-delivery", OWN_DELIVERY_TOUR, false);
   const [form, setForm] = useState(emptyForm());
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [logoBase64, setLogoBase64] = useState<string | null>(null);
@@ -109,6 +237,28 @@ export default function CreateStoreModal({ open, onClose, onCreated, store }: Cr
   // Guarda o endereço original para detectar se mudou (evita geocoding desnecessário)
   const originalAddressRef = useRef<string>("");
   const savedCoordsRef = useRef<{ lat: number; lng: number } | null>(null);
+
+  // Auto-start tour for each step when modal opens (not edit mode)
+  useEffect(() => {
+    if (!open || isEdit) return;
+    const tourStarters: Record<number, () => void> = {
+      1: startStep1Tour,
+      2: startStep2Tour,
+      3: startStep3Tour,
+      4: startStep4Tour,
+    };
+    const starter = tourStarters[step];
+    if (!starter) return;
+    const timer = setTimeout(() => starter(), 800);
+    return () => clearTimeout(timer);
+  }, [open, isEdit, step, startStep1Tour, startStep2Tour, startStep3Tour, startStep4Tour]);
+
+  // Start own-delivery tour when user selects "Entregadores da empresa"
+  useEffect(() => {
+    if (!open || isEdit || step !== 4 || !form.hasOwnDelivery) return;
+    const timer = setTimeout(() => startOwnDeliveryTour(), 500);
+    return () => clearTimeout(timer);
+  }, [open, isEdit, step, form.hasOwnDelivery, startOwnDeliveryTour]);
 
   // Initialize form when store changes (edit mode) or when opening
   useEffect(() => {
@@ -146,7 +296,7 @@ export default function CreateStoreModal({ open, onClose, onCreated, store }: Cr
     if (cleaned.length === 8) {
       setFetchingCep(true);
       try {
-        const res = await fetch(`https://viacep.com.br/ws/${cleaned}/json/`);
+        const res = await fetch(`${process.env.NEXT_PUBLIC_VIACEP_URL || 'https://viacep.com.br'}/ws/${cleaned}/json/`);
         const data = await res.json();
         if (!data.erro) {
           setForm((prev) => ({
@@ -215,7 +365,7 @@ export default function CreateStoreModal({ open, onClose, onCreated, store }: Cr
       country: "Brazil",
       limit: "1",
     });
-    const res = await fetch(`https://nominatim.openstreetmap.org/search?${params}`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_NOMINATIM_URL || 'https://nominatim.openstreetmap.org'}/search?${params}`, {
       headers: { "Accept-Language": "pt-BR", "User-Agent": "bcmtech-shopping/1.0" },
     });
     const data = await res.json();
@@ -225,7 +375,7 @@ export default function CreateStoreModal({ open, onClose, onCreated, store }: Cr
 
   async function nominatimFree(query: string): Promise<{ lat: number; lng: number } | null> {
     const res = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1&countrycodes=br`,
+      `${process.env.NEXT_PUBLIC_NOMINATIM_URL || 'https://nominatim.openstreetmap.org'}/search?format=json&q=${encodeURIComponent(query)}&limit=1&countrycodes=br`,
       { headers: { "Accept-Language": "pt-BR", "User-Agent": "bcmtech-shopping/1.0" } },
     );
     const data = await res.json();
@@ -307,7 +457,7 @@ export default function CreateStoreModal({ open, onClose, onCreated, store }: Cr
         await createStore({ variables: { input } });
       }
       setSubmitting(false);
-      onCreated?.();
+      onCreated?.(form.storeType);
       onClose();
     } catch (err: any) {
       setError(err?.graphQLErrors?.[0]?.message || err?.message || (isEdit ? "Erro ao salvar." : "Erro ao criar loja."));
@@ -325,21 +475,29 @@ export default function CreateStoreModal({ open, onClose, onCreated, store }: Cr
       <div className="bg-[var(--bg-card)] rounded-2xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-[var(--border-light)]">
-          <div>
-            <h2 className="text-xl font-bold text-[var(--text-primary)]">{title}</h2>
-            <p className="text-sm text-[var(--text-secondary)]">Etapa {step} de 4</p>
+          <div className="flex items-center gap-2">
+            <div>
+              <h2 className="text-xl font-bold text-[var(--text-primary)]">{title}</h2>
+              <p className="text-sm text-[var(--text-secondary)]">Etapa {step} de 4</p>
+            </div>
+            {!isEdit && (
+              <button onClick={() => ({ 1: startStep1Tour, 2: startStep2Tour, 3: startStep3Tour, 4: startStep4Tour }[step]?.())} title="Ver tutorial" className="relative flex items-center justify-center w-6 h-6 rounded-full bg-[var(--bg-muted)] text-[var(--text-muted)] hover:bg-[var(--brand-primary-muted)] hover:text-[var(--brand-primary)] transition cursor-pointer">
+                <HelpCircle className="w-4 h-4" />
+                {!hasSeenCreateTour && <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-[var(--brand-primary)] animate-pulse" />}
+              </button>
+            )}
           </div>
           <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer text-2xl leading-none">&times;</button>
         </div>
 
         {/* Progress bar */}
         <div className="h-1 bg-[var(--bg-muted)]">
-          <div className="h-full bg-orange-500 transition-all duration-300" style={{ width: `${(step / 4) * 100}%` }} />
+          <div className="h-full bg-[var(--brand-primary)] transition-all duration-300" style={{ width: `${(step / 4) * 100}%` }} />
         </div>
 
         <div className="p-6">
           {error && (
-            <div className="bg-red-50 text-red-600 p-3 rounded-xl text-sm mb-4">{error}</div>
+            <div className="bg-[var(--status-error-bg)] text-[var(--status-error-text)] p-3 rounded-xl text-sm mb-4">{error}</div>
           )}
 
           {/* Step 1: Info básica */}
@@ -351,25 +509,21 @@ export default function CreateStoreModal({ open, onClose, onCreated, store }: Cr
               {!isEdit && (
                 <div>
                   <label className="text-sm text-[var(--text-secondary)] mb-2 block">Tipo de estabelecimento</label>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div data-tour="store-type-selector" className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <button type="button" onClick={() => setForm({ ...form, storeType: "PRODUCTS" })}
-                      className={`p-4 rounded-xl border-2 text-center cursor-pointer transition ${form.storeType === "PRODUCTS" ? "border-orange-500 bg-orange-500/10" : "border-[var(--border-color)] hover:border-[var(--border-light)]"}`}>
+                      className={`p-4 rounded-xl border-2 text-center cursor-pointer transition ${form.storeType === "PRODUCTS" ? "border-[var(--brand-primary)] bg-[var(--brand-primary-muted)]" : "border-[var(--border-color)] hover:border-[var(--border-light)]"}`}>
                       <div className="text-2xl mb-1">
-                        <svg xmlns="http://www.w3.org/2000/svg" className={`h-7 w-7 mx-auto ${form.storeType === "PRODUCTS" ? "text-orange-500" : "text-[var(--text-muted)]"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 21v-7.5a.75.75 0 01.75-.75h3a.75.75 0 01.75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349m-16.5 11.65V9.35m0 0a3.001 3.001 0 003.75-.615A2.993 2.993 0 009.75 9.75c.896 0 1.7-.393 2.25-1.016a2.993 2.993 0 002.25 1.016c.896 0 1.7-.393 2.25-1.016a3.001 3.001 0 003.75.614m-16.5 0a3.004 3.004 0 01-.621-4.72L4.318 3.44A1.5 1.5 0 015.378 3h13.243a1.5 1.5 0 011.06.44l1.19 1.189a3 3 0 01-.621 4.72m-13.5 8.65h3.75a.75.75 0 00.75-.75V13.5a.75.75 0 00-.75-.75H6.75a.75.75 0 00-.75.75v3.15c0 .415.336.75.75.75z" />
-                        </svg>
+                        <Store className={`h-7 w-7 mx-auto ${form.storeType === "PRODUCTS" ? "text-[var(--brand-primary)]" : "text-[var(--text-muted)]"}`} strokeWidth={1.5} />
                       </div>
-                      <span className={`text-sm font-semibold ${form.storeType === "PRODUCTS" ? "text-orange-500" : "text-[var(--text-secondary)]"}`}>Loja de Produtos</span>
+                      <span className={`text-sm font-semibold ${form.storeType === "PRODUCTS" ? "text-[var(--brand-primary)]" : "text-[var(--text-secondary)]"}`}>Loja de Produtos</span>
                       <p className="text-xs text-[var(--text-muted)] mt-1">Venda produtos com entrega</p>
                     </button>
                     <button type="button" onClick={() => setForm({ ...form, storeType: "SERVICES" })}
-                      className={`p-4 rounded-xl border-2 text-center cursor-pointer transition ${form.storeType === "SERVICES" ? "border-orange-500 bg-orange-500/10" : "border-[var(--border-color)] hover:border-[var(--border-light)]"}`}>
+                      className={`p-4 rounded-xl border-2 text-center cursor-pointer transition ${form.storeType === "SERVICES" ? "border-[var(--brand-primary)] bg-[var(--brand-primary-muted)]" : "border-[var(--border-color)] hover:border-[var(--border-light)]"}`}>
                       <div className="text-2xl mb-1">
-                        <svg xmlns="http://www.w3.org/2000/svg" className={`h-7 w-7 mx-auto ${form.storeType === "SERVICES" ? "text-orange-500" : "text-[var(--text-muted)]"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 00.75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 00-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0112 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 01-.673-.38m0 0A2.18 2.18 0 013 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 013.413-.387m7.5 0V5.25A2.25 2.25 0 0013.5 3h-3a2.25 2.25 0 00-2.25 2.25v.894m7.5 0a48.667 48.667 0 00-7.5 0M12 12.75h.008v.008H12v-.008z" />
-                        </svg>
+                        <Briefcase className={`h-7 w-7 mx-auto ${form.storeType === "SERVICES" ? "text-[var(--brand-primary)]" : "text-[var(--text-muted)]"}`} strokeWidth={1.5} />
                       </div>
-                      <span className={`text-sm font-semibold ${form.storeType === "SERVICES" ? "text-orange-500" : "text-[var(--text-secondary)]"}`}>Prestador de Servicos</span>
+                      <span className={`text-sm font-semibold ${form.storeType === "SERVICES" ? "text-[var(--brand-primary)]" : "text-[var(--text-secondary)]"}`}>Prestador de Servicos</span>
                       <p className="text-xs text-[var(--text-muted)] mt-1">Ofereça servicos e agendamentos</p>
                     </button>
                   </div>
@@ -377,7 +531,7 @@ export default function CreateStoreModal({ open, onClose, onCreated, store }: Cr
               )}
 
               {/* Logo + Banner */}
-              <div className="flex gap-4">
+              <div data-tour="store-images" className="flex gap-4">
                 <div>
                   <label className="text-sm text-[var(--text-secondary)] mb-1 block">Logo</label>
                   <div onClick={() => logoRef.current?.click()} className="w-20 h-20 rounded-2xl border-2 border-dashed border-[var(--border-color)] flex items-center justify-center cursor-pointer hover:border-orange-400 transition overflow-hidden">
@@ -394,17 +548,19 @@ export default function CreateStoreModal({ open, onClose, onCreated, store }: Cr
                 </div>
               </div>
 
-              <input type="text" placeholder="Nome da loja *" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
-                className="w-full px-4 py-3 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-orange-400" required />
-              <input type="text" placeholder="Descrição (opcional)" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
-                className="w-full px-4 py-3 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-orange-400" />
-              <input type="tel" placeholder="Telefone *" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                className="w-full px-4 py-3 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-orange-400" required />
+              <div data-tour="store-name-field" className="space-y-4">
+                <input type="text" placeholder="Nome da loja *" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  className="w-full px-4 py-3 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-orange-400" required />
+                <input type="text" placeholder="Descrição (opcional)" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  className="w-full px-4 py-3 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-orange-400" />
+                <input type="tel" placeholder="Telefone *" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                  className="w-full px-4 py-3 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-orange-400" required />
 
-              <button onClick={() => validateStep1() && setStep(2)}
-                className="w-full py-3 bg-orange-500 text-white rounded-xl font-bold cursor-pointer hover:bg-orange-600 active:scale-95 transition">
-                Próximo
-              </button>
+                <button onClick={() => validateStep1() && setStep(2)}
+                  className="w-full py-3 bg-[var(--brand-primary)] text-white rounded-xl font-bold cursor-pointer hover:bg-[var(--brand-primary-hover)] active:scale-[0.98] transition">
+                  Próximo
+                </button>
+              </div>
             </div>
           )}
 
@@ -413,13 +569,13 @@ export default function CreateStoreModal({ open, onClose, onCreated, store }: Cr
             <div className="space-y-4">
               <h3 className="font-semibold text-[var(--text-primary)]">Endereço</h3>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="col-span-2 relative">
+              <div data-tour="store-address-grid" className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div data-tour="store-cep" className="col-span-2 relative">
                   <input type="text" placeholder="CEP *" value={form.zipCode} onChange={(e) => handleCepChange(e.target.value)} maxLength={8}
                     className="w-full px-4 py-3 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-orange-400" required />
                   {fetchingCep && (
                     <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                      <div className="w-5 h-5 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                      <div className="w-5 h-5 border-2 border-[var(--brand-primary)] border-t-transparent rounded-full animate-spin" />
                     </div>
                   )}
                 </div>
@@ -439,16 +595,14 @@ export default function CreateStoreModal({ open, onClose, onCreated, store }: Cr
                     <span className={form.state ? "text-[var(--text-primary)]" : "text-[var(--text-muted)]"}>
                       {form.state || "Estado *"}
                     </span>
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-[var(--text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                    </svg>
+                    <ChevronDown className="h-4 w-4 text-[var(--text-muted)]" />
                   </button>
                   {showStatePicker && (
                     <div className="absolute z-50 top-full mt-1 left-0 right-0 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl shadow-xl max-h-48 overflow-y-auto">
                       {ESTADOS_BR.map((uf) => (
                         <button key={uf} type="button"
                           onClick={() => { setForm({ ...form, state: uf }); setShowStatePicker(false); }}
-                          className={`w-full px-4 py-2 text-left text-sm cursor-pointer hover:bg-orange-500/10 transition ${form.state === uf ? "bg-orange-500/20 text-orange-500 font-bold" : "text-[var(--text-primary)]"}`}>
+                          className={`w-full px-4 py-2 text-left text-sm cursor-pointer hover:bg-[var(--brand-primary-muted)] transition ${form.state === uf ? "bg-[var(--brand-primary-muted)] text-[var(--brand-primary)] font-bold" : "text-[var(--text-primary)]"}`}>
                           {uf}
                         </button>
                       ))}
@@ -463,7 +617,7 @@ export default function CreateStoreModal({ open, onClose, onCreated, store }: Cr
                   Voltar
                 </button>
                 <button onClick={geocodeAndShowMap} disabled={geocoding}
-                  className="flex-1 py-3 bg-orange-500 text-white rounded-xl font-bold cursor-pointer hover:bg-orange-600 active:scale-95 disabled:opacity-50 transition">
+                  className="flex-1 py-3 bg-[var(--brand-primary)] text-white rounded-xl font-bold cursor-pointer hover:bg-[var(--brand-primary-hover)] active:scale-[0.98] disabled:opacity-50 transition">
                   {geocoding ? "Localizando..." : "Próximo"}
                 </button>
               </div>
@@ -481,7 +635,7 @@ export default function CreateStoreModal({ open, onClose, onCreated, store }: Cr
                 Arraste o pin para ajustar a posição exata da sua loja.
               </p>
 
-              <div className="rounded-xl overflow-hidden border border-[var(--border-color)]" style={{ height: 300 }}>
+              <div data-tour="store-map" className="rounded-xl overflow-hidden border border-[var(--border-color)]" style={{ height: 300 }}>
                 <StoreLocationMap
                   lat={mapCoords.lat}
                   lng={mapCoords.lng}
@@ -495,7 +649,7 @@ export default function CreateStoreModal({ open, onClose, onCreated, store }: Cr
                   Corrigir endereço
                 </button>
                 <button onClick={() => setStep(4)}
-                  className="flex-1 py-3 bg-orange-500 text-white rounded-xl font-bold cursor-pointer hover:bg-orange-600 active:scale-95 transition">
+                  className="flex-1 py-3 bg-[var(--brand-primary)] text-white rounded-xl font-bold cursor-pointer hover:bg-[var(--brand-primary-hover)] active:scale-[0.98] transition">
                   Confirmar
                 </button>
               </div>
@@ -515,7 +669,7 @@ export default function CreateStoreModal({ open, onClose, onCreated, store }: Cr
                   <div className="flex items-center justify-between p-3 border border-[var(--border-color)] rounded-xl">
                     <span className="text-sm text-[var(--text-primary)]">Você se desloca até o cliente?</span>
                     <button type="button" onClick={() => setForm({ ...form, hasOwnDelivery: !form.hasOwnDelivery })}
-                      className={`w-12 h-6 rounded-full transition cursor-pointer ${form.hasOwnDelivery ? "bg-orange-500" : "bg-gray-300"}`}>
+                      className={`w-12 h-6 rounded-full transition cursor-pointer ${form.hasOwnDelivery ? "bg-[var(--brand-primary)]" : "bg-[var(--text-muted)]"}`}>
                       <div className={`w-5 h-5 bg-white rounded-full shadow transition-transform ${form.hasOwnDelivery ? "translate-x-6" : "translate-x-0.5"}`} />
                     </button>
                   </div>
@@ -523,7 +677,7 @@ export default function CreateStoreModal({ open, onClose, onCreated, store }: Cr
                     {form.hasOwnDelivery ? "Sim, vou até o local do cliente" : "Não, o cliente vem até mim"}
                   </p>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div data-tour="store-delivery-details" className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="text-sm text-[var(--text-secondary)] mb-1 block">Horario de atendimento (inicio)</label>
                       <input type="text" inputMode="numeric" placeholder="08:00" maxLength={5} value={form.deliveryStartTime}
@@ -549,31 +703,31 @@ export default function CreateStoreModal({ open, onClose, onCreated, store }: Cr
               ) : (
                 <>
                   {/* Products: full delivery config */}
-                  <div className="grid grid-cols-2 gap-3">
+                  <div data-tour="store-delivery-type" className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <button type="button" onClick={() => setForm({ ...form, hasOwnDelivery: false })}
-                      className={`p-4 rounded-xl border-2 text-center cursor-pointer transition ${!form.hasOwnDelivery ? "border-orange-500 bg-orange-500/10" : "border-[var(--border-color)] hover:border-[var(--border-light)]"}`}>
-                      <div className={`w-5 h-5 rounded-full border-2 mx-auto mb-2 flex items-center justify-center ${!form.hasOwnDelivery ? "border-orange-500" : "border-[var(--text-muted)]"}`}>
-                        {!form.hasOwnDelivery && <div className="w-2.5 h-2.5 rounded-full bg-orange-500" />}
+                      className={`p-4 rounded-xl border-2 text-center cursor-pointer transition ${!form.hasOwnDelivery ? "border-[var(--brand-primary)] bg-[var(--brand-primary-muted)]" : "border-[var(--border-color)] hover:border-[var(--border-light)]"}`}>
+                      <div className={`w-5 h-5 rounded-full border-2 mx-auto mb-2 flex items-center justify-center ${!form.hasOwnDelivery ? "border-[var(--brand-primary)]" : "border-[var(--text-muted)]"}`}>
+                        {!form.hasOwnDelivery && <div className="w-2.5 h-2.5 rounded-full bg-[var(--brand-primary)]" />}
                       </div>
-                      <span className={`text-sm font-semibold ${!form.hasOwnDelivery ? "text-orange-500" : "text-[var(--text-secondary)]"}`}>Entregadores do app</span>
+                      <span className={`text-sm font-semibold ${!form.hasOwnDelivery ? "text-[var(--brand-primary)]" : "text-[var(--text-secondary)]"}`}>Entregadores do app</span>
                       <p className="text-xs text-[var(--text-muted)] mt-1">A plataforma gerencia</p>
                     </button>
                     <button type="button" onClick={() => setForm({ ...form, hasOwnDelivery: true })}
-                      className={`p-4 rounded-xl border-2 text-center cursor-pointer transition ${form.hasOwnDelivery ? "border-orange-500 bg-orange-500/10" : "border-[var(--border-color)] hover:border-[var(--border-light)]"}`}>
-                      <div className={`w-5 h-5 rounded-full border-2 mx-auto mb-2 flex items-center justify-center ${form.hasOwnDelivery ? "border-orange-500" : "border-[var(--text-muted)]"}`}>
-                        {form.hasOwnDelivery && <div className="w-2.5 h-2.5 rounded-full bg-orange-500" />}
+                      className={`p-4 rounded-xl border-2 text-center cursor-pointer transition ${form.hasOwnDelivery ? "border-[var(--brand-primary)] bg-[var(--brand-primary-muted)]" : "border-[var(--border-color)] hover:border-[var(--border-light)]"}`}>
+                      <div className={`w-5 h-5 rounded-full border-2 mx-auto mb-2 flex items-center justify-center ${form.hasOwnDelivery ? "border-[var(--brand-primary)]" : "border-[var(--text-muted)]"}`}>
+                        {form.hasOwnDelivery && <div className="w-2.5 h-2.5 rounded-full bg-[var(--brand-primary)]" />}
                       </div>
-                      <span className={`text-sm font-semibold ${form.hasOwnDelivery ? "text-orange-500" : "text-[var(--text-secondary)]"}`}>Entregadores da empresa</span>
+                      <span className={`text-sm font-semibold ${form.hasOwnDelivery ? "text-[var(--brand-primary)]" : "text-[var(--text-secondary)]"}`}>Entregadores da empresa</span>
                       <p className="text-xs text-[var(--text-muted)] mt-1">Você gerencia a entrega</p>
                     </button>
                   </div>
 
                   {form.hasOwnDelivery && (
-                    <>
-                      <div className="flex items-center justify-between p-3 border border-[var(--border-color)] rounded-xl">
+                    <div data-tour="store-delivery-details" className="space-y-4">
+                      <div data-tour="store-free-delivery" className="flex items-center justify-between p-3 border border-[var(--border-color)] rounded-xl">
                         <span className="text-sm text-[var(--text-primary)]">Entrega grátis</span>
                         <button type="button" onClick={() => setForm({ ...form, freeDelivery: !form.freeDelivery })}
-                          className={`w-12 h-6 rounded-full transition cursor-pointer ${form.freeDelivery ? "bg-orange-500" : "bg-gray-300"}`}>
+                          className={`w-12 h-6 rounded-full transition cursor-pointer ${form.freeDelivery ? "bg-[var(--brand-primary)]" : "bg-[var(--text-muted)]"}`}>
                           <div className={`w-5 h-5 bg-white rounded-full shadow transition-transform ${form.freeDelivery ? "translate-x-6" : "translate-x-0.5"}`} />
                         </button>
                       </div>
@@ -583,7 +737,7 @@ export default function CreateStoreModal({ open, onClose, onCreated, store }: Cr
                           className="w-full px-4 py-3 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-orange-400" />
                       )}
 
-                      <div className="grid grid-cols-2 gap-3">
+                      <div data-tour="store-delivery-hours" className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                           <label className="text-sm text-[var(--text-secondary)] mb-1 block">Horário início</label>
                           <input type="time" value={form.deliveryStartTime} onChange={(e) => setForm({ ...form, deliveryStartTime: e.target.value })}
@@ -596,7 +750,7 @@ export default function CreateStoreModal({ open, onClose, onCreated, store }: Cr
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-3">
+                      <div data-tour="store-delivery-time-min" className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                           <label className="text-sm text-[var(--text-secondary)] mb-1 block">Tempo estimado (min)</label>
                           <input type="number" value={form.estimatedDeliveryMinutes} onChange={(e) => setForm({ ...form, estimatedDeliveryMinutes: e.target.value })}
@@ -608,7 +762,7 @@ export default function CreateStoreModal({ open, onClose, onCreated, store }: Cr
                             className="w-full px-4 py-3 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-orange-400" />
                         </div>
                       </div>
-                    </>
+                    </div>
                   )}
                 </>
               )}
@@ -619,7 +773,7 @@ export default function CreateStoreModal({ open, onClose, onCreated, store }: Cr
                   Voltar
                 </button>
                 <button onClick={handleSubmit} disabled={submitting || loading}
-                  className="flex-1 py-3 bg-orange-500 text-white rounded-xl font-bold cursor-pointer hover:bg-orange-600 active:scale-95 disabled:opacity-50 transition">
+                  className="flex-1 py-3 bg-[var(--brand-primary)] text-white rounded-xl font-bold cursor-pointer hover:bg-[var(--brand-primary-hover)] active:scale-[0.98] disabled:opacity-50 transition">
                   {submitLabel}
                 </button>
               </div>

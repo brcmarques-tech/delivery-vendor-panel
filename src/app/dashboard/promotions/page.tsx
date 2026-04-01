@@ -2,6 +2,11 @@
 
 import { useQuery, useMutation } from "@apollo/client";
 import CreateStoreModal from "@/components/CreateStoreModal";
+import PageHeader from "@/components/ui/PageHeader";
+import StatusBadge from "@/components/ui/StatusBadge";
+import { SkeletonGrid } from "@/components/ui/Skeleton";
+import EmptyState from "@/components/ui/EmptyState";
+import { Megaphone, Package, RefreshCw, Trash2, X } from "lucide-react";
 import {
   GET_MY_STORES,
   GET_MY_PLAN,
@@ -12,8 +17,40 @@ import {
   SWAP_PROMOTION_PRODUCT,
 } from "@/lib/graphql";
 import { useState, useMemo, useRef } from "react";
+import { motion } from "framer-motion";
+import { fadeIn, staggerContainer, staggerItem, scaleIn } from "@/lib/motion";
+import { useTour } from "@/hooks/useTour";
+import { type DriveStep } from "driver.js";
+
+const TOUR_STEPS: DriveStep[] = [
+  {
+    popover: {
+      title: "👋 Bem-vindo às Promoções!",
+      description: "Aqui você cria promoções para atrair mais clientes para suas lojas. Vou te mostrar como funciona.",
+    },
+  },
+  {
+    element: '[data-tour="create-promo-btn"]',
+    popover: {
+      title: "Criar promoção",
+      description: "Crie promoções por tempo limitado para atrair mais clientes. Defina desconto, validade e produtos incluídos.",
+      side: "bottom",
+      align: "start",
+    },
+  },
+  {
+    element: '[data-tour="promo-list"]',
+    popover: {
+      title: "✅ Promoções ativas",
+      description: "Veja todas as suas promoções. Promoções ativas aparecem no app para os clientes da sua região.\n\nIsso é tudo! Para rever, clique no ❓ ao lado do título 'Promoções'.",
+      side: "top",
+      align: "start",
+    },
+  },
+];
 
 export default function PromotionsPage() {
+  const { startTour, hasSeenTour } = useTour("promotions", TOUR_STEPS);
   const { data: userData } = useQuery(GET_MY_PLAN);
   const { data: storesData } = useQuery(GET_MY_STORES);
   const { data: promosData, loading, refetch } = useQuery(MY_PROMOTIONS);
@@ -196,28 +233,32 @@ export default function PromotionsPage() {
     }
   }
 
-  function getStatus(promo: any) {
+  function getStatus(promo: any): { label: string; variant: "success" | "warning" | "error" | "info" | "neutral" } {
     const now = new Date();
     const start = new Date(promo.startDate);
     const end = new Date(promo.endDate);
-    if (!promo.isPaid) return { label: "Aguardando pagamento", color: "bg-yellow-100 text-yellow-700" };
-    if (!promo.isActive) return { label: "Desativada", color: "bg-gray-100 text-gray-600" };
-    if (now < start) return { label: "Agendada", color: "bg-blue-100 text-blue-600" };
-    if (now > end) return { label: "Expirada", color: "bg-gray-100 text-gray-500" };
-    return { label: "Ativa", color: "bg-green-100 text-green-600" };
+    if (!promo.isPaid) return { label: "Aguardando pagamento", variant: "warning" };
+    if (!promo.isActive) return { label: "Desativada", variant: "error" };
+    if (now < start) return { label: "Agendada", variant: "info" };
+    if (now > end) return { label: "Expirada", variant: "error" };
+    return { label: "Ativa", variant: "success" };
   }
 
-  if (loading) return <p className="text-[var(--text-secondary)]">Carregando...</p>;
+  if (loading) return <SkeletonGrid count={3} />;
 
   if (!canPromote) {
     return (
       <div>
-        <h1 className="text-2xl font-bold text-[var(--text-primary)] mb-6">Promoções</h1>
-        <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-8 text-center">
-          <p className="text-lg text-yellow-800 font-semibold">Funcionalidade disponível apenas para planos Pro e Premium</p>
-          <p className="text-yellow-700 mt-2">Faça upgrade do seu plano para criar promoções e destacar sua loja no app.</p>
-          <a href="/dashboard/plan" className="inline-block mt-4 px-6 py-2 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition">Ver Planos</a>
-        </div>
+        <PageHeader title="Promoções" />
+        <EmptyState
+          icon={Megaphone}
+          title="Promoções"
+          description="As promoções estão disponíveis a partir do plano Pro. Faça upgrade para criar promoções e destacar sua loja no app."
+          action={{
+            label: "Ver planos",
+            onClick: () => { window.location.href = "/dashboard/plan"; },
+          }}
+        />
       </div>
     );
   }
@@ -238,7 +279,7 @@ export default function PromotionsPage() {
           <button
             type="button"
             onClick={onInc}
-            className="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 font-bold text-lg flex items-center justify-center hover:bg-orange-200 transition cursor-pointer"
+            className="w-8 h-8 rounded-lg bg-[var(--brand-primary-muted)] text-[var(--brand-primary)] font-bold text-lg flex items-center justify-center hover:bg-[var(--brand-primary-muted)] transition cursor-pointer"
           >
             +
           </button>
@@ -249,11 +290,7 @@ export default function PromotionsPage() {
   }
 
   if (!storesData) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500" />
-      </div>
-    );
+    return <SkeletonGrid count={3} />;
   }
 
   if (!stores || stores.length === 0) {
@@ -261,9 +298,9 @@ export default function PromotionsPage() {
       <>
         <CreateStoreModal open={showCreateStore} onClose={() => setShowCreateStore(false)} onCreated={() => { storesData && window.location.reload(); }} />
         <div className="text-center mt-20">
-          <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-2">Nenhuma loja cadastrada</h2>
+          <h2 className="text-xl md:text-2xl font-bold text-[var(--text-primary)] mb-2">Nenhuma loja cadastrada</h2>
           <p className="text-[var(--text-secondary)] mb-6">Crie sua primeira loja para começar a criar promoções</p>
-          <button onClick={() => setShowCreateStore(true)} className="bg-orange-500 text-white px-6 py-3 rounded-xl font-bold cursor-pointer hover:bg-orange-600 active:scale-95 transition">
+          <button onClick={() => setShowCreateStore(true)} className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white rounded-xl px-4 py-2.5 font-medium cursor-pointer active:scale-95 transition">
             Criar loja
           </button>
         </div>
@@ -272,21 +309,26 @@ export default function PromotionsPage() {
   }
 
   return (
-    <div>
+    <motion.div {...fadeIn}>
       {success && (
         <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-xl text-green-700 text-sm font-medium">
           {success}
         </div>
       )}
-      <div className="flex flex-wrap items-center justify-between mb-6 gap-3">
-        <h1 className="text-2xl font-bold text-[var(--text-primary)]">Promoções</h1>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="px-4 py-2 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition cursor-pointer"
-        >
-          {showForm ? "Cancelar" : "+ Nova Promoção"}
-        </button>
-      </div>
+      <PageHeader
+        title="Promoções"
+        onTourStart={startTour}
+        tourNotSeen={!hasSeenTour}
+        actions={
+          <button
+            data-tour="create-promo-btn"
+            onClick={() => setShowForm(!showForm)}
+            className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white rounded-xl px-4 py-2.5 font-medium transition cursor-pointer"
+          >
+            {showForm ? "Cancelar" : "+ Nova Promoção"}
+          </button>
+        }
+      />
 
       {showForm && (
         <form onSubmit={handleSubmit} className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border-color)] p-6 mb-6 space-y-4">
@@ -297,7 +339,7 @@ export default function PromotionsPage() {
                 required
                 value={form.storeId}
                 onChange={(e) => handleStoreChange(e.target.value)}
-                className="w-full border border-[var(--border-color)] rounded-xl px-4 py-2 text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-orange-500"
+                className="w-full border border-[var(--border-color)] rounded-xl px-4 py-2 text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-[var(--brand-primary)]"
               >
                 <option value="">Selecione a loja...</option>
                 {stores.map((s: any) => (
@@ -312,7 +354,7 @@ export default function PromotionsPage() {
                 value={form.productId}
                 onChange={(e) => handleProductChange(e.target.value)}
                 disabled={!form.storeId}
-                className="w-full border border-[var(--border-color)] rounded-xl px-4 py-2 text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-orange-500 disabled:opacity-50"
+                className="w-full border border-[var(--border-color)] rounded-xl px-4 py-2 text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-[var(--brand-primary)] disabled:opacity-50"
               >
                 <option value="">Selecione o produto...</option>
                 {products.map((p: any) => (
@@ -327,7 +369,7 @@ export default function PromotionsPage() {
               {selectedProduct.imageUrl ? (
                 <img src={selectedProduct.imageUrl} alt={selectedProduct.name} className="w-16 h-16 rounded-xl object-cover" />
               ) : (
-                <div className="w-16 h-16 rounded-xl bg-gray-200 flex items-center justify-center text-gray-400 text-xl">📦</div>
+                <div className="w-16 h-16 rounded-xl bg-[var(--bg-muted)] flex items-center justify-center"><Package className="w-6 h-6 text-[var(--text-muted)]" /></div>
               )}
               <div>
                 <p className="font-semibold text-[var(--text-primary)]">{selectedProduct.name}</p>
@@ -345,7 +387,7 @@ export default function PromotionsPage() {
                 value={form.title}
                 onChange={(e) => setForm({ ...form, title: e.target.value })}
                 placeholder="Ex: Picanha com 20% OFF"
-                className="w-full border border-[var(--border-color)] rounded-xl px-4 py-2 text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-orange-500"
+                className="w-full border border-[var(--border-color)] rounded-xl px-4 py-2 text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-[var(--brand-primary)]"
               />
             </div>
             <div>
@@ -358,7 +400,7 @@ export default function PromotionsPage() {
                 value={form.promotionalPrice}
                 onChange={(e) => setForm({ ...form, promotionalPrice: e.target.value })}
                 placeholder={selectedProduct ? `Original: R$ ${Number(selectedProduct.price).toFixed(2)}` : "0.00"}
-                className="w-full border border-[var(--border-color)] rounded-xl px-4 py-2 text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-orange-500"
+                className="w-full border border-[var(--border-color)] rounded-xl px-4 py-2 text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-[var(--brand-primary)]"
               />
             </div>
           </div>
@@ -369,14 +411,14 @@ export default function PromotionsPage() {
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
               placeholder="Detalhes da promoção..."
-              className="w-full border border-[var(--border-color)] rounded-xl px-4 py-2 text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-orange-500"
+              className="w-full border border-[var(--border-color)] rounded-xl px-4 py-2 text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-[var(--brand-primary)]"
               rows={2}
             />
           </div>
 
           {/* Duration counter */}
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-3">Período de exibição no app</label>
+            <label className="block text-sm font-semibold text-[var(--text-secondary)] mb-3">Período de exibição no app</label>
             <div className="bg-[var(--bg-muted)] rounded-xl p-4">
               <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6">
                 <CounterControl label="Dias" value={duration.days} onInc={() => inc("days")} onDec={() => dec("days")} />
@@ -413,7 +455,7 @@ export default function PromotionsPage() {
                           <span className="inline-block px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-semibold mb-1">{discountLabel}</span>
                         </>
                       )}
-                      <p className="text-2xl font-bold text-orange-600">R$ {finalCost.toFixed(2)}</p>
+                      <p className="text-2xl font-bold text-[var(--brand-primary)]">R$ {finalCost.toFixed(2)}</p>
                     </div>
                   </div>
                 </div>
@@ -421,12 +463,12 @@ export default function PromotionsPage() {
             </div>
           </div>
 
-          {error && <p className="text-red-500 text-sm">{error}</p>}
+          {error && <p className="text-[var(--status-error-text)] text-sm">{error}</p>}
 
           <button
             type="submit"
             disabled={creating || totalDays <= 0}
-            className="w-full py-3 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition cursor-pointer disabled:opacity-50"
+            className="w-full py-3 bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white rounded-xl font-medium transition cursor-pointer disabled:opacity-50"
           >
             {creating ? "Criando..." : totalDays > 0 && finalCost === 0 ? "Criar Promocao Gratis" : `Criar Promocao${totalDays > 0 ? ` • R$ ${finalCost.toFixed(2)}` : ""}`}
           </button>
@@ -434,12 +476,14 @@ export default function PromotionsPage() {
       )}
 
       {promotions.length === 0 ? (
-        <div className="bg-[var(--bg-muted)] border border-[var(--border-color)] rounded-2xl p-12 text-center">
-          <p className="text-[var(--text-secondary)] text-lg">Nenhuma promoção criada</p>
-          <p className="text-[var(--text-muted)] text-sm mt-2">Crie uma promoção para destacar seus produtos no app</p>
-        </div>
+        <EmptyState
+          icon={Megaphone}
+          title="Nenhuma promoção criada"
+          description="Crie uma promoção para destacar seus produtos no app"
+          action={{ label: "+ Nova Promoção", onClick: () => setShowForm(true) }}
+        />
       ) : (
-        <div className="space-y-4">
+        <motion.div data-tour="promo-list" variants={staggerContainer} initial="hidden" animate="show" className="space-y-4">
           {promotions.map((promo: any) => {
             const status = getStatus(promo);
             const imgUrl = promo.product?.imageUrl || promo.imageUrl;
@@ -449,24 +493,24 @@ export default function PromotionsPage() {
             const isExpired = new Date(promo.endDate) < new Date();
 
             return (
-              <div key={promo.id} className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border-color)] overflow-hidden">
-                <div className="p-4 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+              <motion.div key={promo.id} variants={staggerItem} className="bg-[var(--bg-card)] rounded-2xl shadow-[var(--card-shadow)] border border-[var(--border-light)] overflow-hidden hover:shadow-[var(--card-shadow-hover)] transition-shadow">
+                <div className="p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4">
                   {imgUrl ? (
                     <img src={imgUrl} alt={promo.title} className="w-20 h-20 rounded-xl object-cover flex-shrink-0" />
                   ) : (
-                    <div className="w-20 h-20 rounded-xl bg-gray-100 flex items-center justify-center text-gray-400 text-2xl flex-shrink-0">📢</div>
+                    <div className="w-20 h-20 rounded-xl bg-[var(--bg-muted)] flex items-center justify-center flex-shrink-0">
+                      <Megaphone className="w-8 h-8 text-[var(--text-muted)]" />
+                    </div>
                   )}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <h3 className="font-bold text-[var(--text-primary)] truncate">{promo.title}</h3>
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-semibold flex-shrink-0 ${status.color}`}>
-                        {status.label}
-                      </span>
+                      <StatusBadge variant={status.variant} dot>{status.label}</StatusBadge>
                     </div>
                     {promo.product && (
                       <p className="text-sm text-[var(--text-secondary)]">
                         {promo.product.name}: <span className="line-through">R$ {Number(promo.product.price).toFixed(2)}</span>{" "}
-                        <span className="text-orange-600 font-semibold">R$ {Number(promo.promotionalPrice).toFixed(2)}</span>
+                        <span className="text-[var(--brand-primary)] font-semibold">R$ {Number(promo.promotionalPrice).toFixed(2)}</span>
                       </p>
                     )}
                     <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm text-[var(--text-secondary)] mt-1">
@@ -481,24 +525,24 @@ export default function PromotionsPage() {
                     {!isExpired && (
                       <button
                         onClick={() => isSwapping ? setSwapId(null) : startSwap(promo)}
-                        className="text-orange-500 hover:text-orange-700 cursor-pointer p-2 transition text-sm font-semibold"
+                        className="text-[var(--brand-primary)] hover:text-[var(--brand-primary-hover)] cursor-pointer p-2 transition text-sm font-semibold inline-flex items-center gap-1"
                         title="Trocar produto"
                       >
-                        {isSwapping ? "✕" : "🔄 Trocar"}
+                        {isSwapping ? <X className="w-4 h-4" /> : <><RefreshCw className="w-4 h-4" /> Trocar</>}
                       </button>
                     )}
                     <button
                       onClick={() => handleDelete(promo.id)}
-                      className="text-red-400 hover:text-red-600 cursor-pointer p-2 transition"
+                      className="text-[var(--status-error-text)]/60 hover:text-[var(--status-error-text)] cursor-pointer p-2 transition"
                       title="Excluir"
                     >
-                      🗑️
+                      <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
 
                 {isSwapping && (
-                  <div className="border-t border-[var(--border-light)] bg-orange-50/50 p-4 space-y-3">
+                  <div className="border-t border-[var(--border-light)] bg-[var(--brand-primary-light)] p-4 space-y-3">
                     <p className="text-sm font-semibold text-[var(--text-primary)]">Trocar produto da promoção</p>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <div>
@@ -513,7 +557,7 @@ export default function PromotionsPage() {
                               title: p ? `${p.name} em promoção` : swapForm.title,
                             });
                           }}
-                          className="w-full border border-[var(--border-color)] rounded-xl px-3 py-2 text-[var(--text-primary)] bg-[var(--bg-input)] text-sm focus:outline-none focus:border-orange-500"
+                          className="w-full border border-[var(--border-color)] rounded-xl px-3 py-2 text-[var(--text-primary)] bg-[var(--bg-input)] text-sm focus:outline-none focus:border-[var(--brand-primary)]"
                         >
                           <option value="">Selecione...</option>
                           {promoStoreProducts.map((p: any) => (
@@ -530,7 +574,7 @@ export default function PromotionsPage() {
                           value={swapForm.promotionalPrice}
                           onChange={(e) => setSwapForm({ ...swapForm, promotionalPrice: e.target.value })}
                           placeholder={swapSelectedProduct ? `Original: R$ ${Number(swapSelectedProduct.price).toFixed(2)}` : ""}
-                          className="w-full border border-[var(--border-color)] rounded-xl px-3 py-2 text-[var(--text-primary)] bg-[var(--bg-input)] text-sm focus:outline-none focus:border-orange-500"
+                          className="w-full border border-[var(--border-color)] rounded-xl px-3 py-2 text-[var(--text-primary)] bg-[var(--bg-input)] text-sm focus:outline-none focus:border-[var(--brand-primary)]"
                         />
                       </div>
                       <div>
@@ -539,7 +583,7 @@ export default function PromotionsPage() {
                           type="text"
                           value={swapForm.title}
                           onChange={(e) => setSwapForm({ ...swapForm, title: e.target.value })}
-                          className="w-full border border-[var(--border-color)] rounded-xl px-3 py-2 text-[var(--text-primary)] bg-[var(--bg-input)] text-sm focus:outline-none focus:border-orange-500"
+                          className="w-full border border-[var(--border-color)] rounded-xl px-3 py-2 text-[var(--text-primary)] bg-[var(--bg-input)] text-sm focus:outline-none focus:border-[var(--brand-primary)]"
                         />
                       </div>
                     </div>
@@ -548,7 +592,7 @@ export default function PromotionsPage() {
                         {swapSelectedProduct.imageUrl ? (
                           <img src={swapSelectedProduct.imageUrl} alt="" className="w-10 h-10 rounded-lg object-cover" />
                         ) : (
-                          <div className="w-10 h-10 rounded-lg bg-gray-200 flex items-center justify-center text-gray-400">📦</div>
+                          <div className="w-10 h-10 rounded-lg bg-[var(--bg-muted)] flex items-center justify-center"><Package className="w-5 h-5 text-[var(--text-muted)]" /></div>
                         )}
                         <span className="text-sm text-[var(--text-primary)] font-medium">{swapSelectedProduct.name}</span>
                         <span className="text-xs text-[var(--text-secondary)]">R$ {Number(swapSelectedProduct.price).toFixed(2)}</span>
@@ -558,7 +602,7 @@ export default function PromotionsPage() {
                       <button
                         onClick={handleSwap}
                         disabled={swapping || !swapForm.productId || !swapForm.promotionalPrice}
-                        className="px-4 py-2 bg-orange-500 text-white rounded-xl text-sm font-semibold hover:bg-orange-600 transition cursor-pointer disabled:opacity-50"
+                        className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white rounded-xl px-4 py-2.5 font-medium text-sm transition cursor-pointer disabled:opacity-50"
                       >
                         {swapping ? "Trocando..." : "Confirmar troca"}
                       </button>
@@ -571,11 +615,11 @@ export default function PromotionsPage() {
                     </div>
                   </div>
                 )}
-              </div>
+              </motion.div>
             );
           })}
-        </div>
+        </motion.div>
       )}
-    </div>
+    </motion.div>
   );
 }

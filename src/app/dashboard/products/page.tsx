@@ -24,6 +24,152 @@ import {
 import { useState, useRef, useCallback, useEffect } from "react";
 import { compressImage } from "@/lib/compressImage";
 import Papa from "papaparse";
+import {
+  ImageIcon, GripVertical, ChevronDown, Pencil, Trash2, Plus, X, FileText,
+  ScanBarcode, Search, Filter, Tag, Upload, MoreVertical, ArrowRight, Package, HelpCircle,
+} from "lucide-react";
+import PageHeader from "@/components/ui/PageHeader";
+import { SkeletonGrid } from "@/components/ui/Skeleton";
+import EmptyState from "@/components/ui/EmptyState";
+import { motion } from "framer-motion";
+import { fadeIn, staggerContainer, staggerItem, scaleIn } from "@/lib/motion";
+import { useTour } from "@/hooks/useTour";
+import { type DriveStep } from "driver.js";
+
+const TOUR_STEPS: DriveStep[] = [
+  {
+    popover: {
+      title: "👋 Bem-vindo aos Produtos!",
+      description: "Aqui você gerencia todo o catálogo de produtos das suas lojas. Vou te mostrar como funciona.",
+    },
+  },
+  {
+    element: '[data-tour="product-grid"]',
+    popover: {
+      title: "✅ Catálogo de produtos",
+      description: "Todos os seus produtos aparecem aqui. Edite, ative ou desative qualquer produto a qualquer momento.",
+      side: "top",
+      align: "start",
+    },
+  },
+  {
+    element: '[data-tour="product-toolbar"]',
+    popover: {
+      title: "🛠️ Ferramentas",
+      description: "Categoria, importação CSV e lixeira ficam aqui.",
+      side: "top",
+      align: "end",
+    },
+  },
+  {
+    element: '[data-tour="add-product-btn"]',
+    popover: {
+      title: "✅ Adicionar produto",
+      description: "Clique aqui para cadastrar um novo produto! Um tutorial vai te guiar pelo formulário.\n\nIsso é tudo! Para rever, clique no ❓ ao lado do título.",
+      side: "bottom",
+      align: "start",
+    },
+  },
+];
+
+const PRODUCT_FORM_TOUR: DriveStep[] = [
+  {
+    popover: {
+      title: "👋 Novo Produto!",
+      description: "Vou te mostrar cada parte do formulário.",
+    },
+  },
+  {
+    element: '[data-tour="product-image"]',
+    popover: {
+      title: "📸 Imagem",
+      description: "Clique para adicionar uma foto. Também pode buscar imagens na internet.",
+      side: "bottom",
+      align: "start",
+    },
+  },
+  {
+    element: '[data-tour="product-name"]',
+    popover: {
+      title: "✏️ Nome do produto",
+      description: "Digite o nome. Sugestões aparecem automaticamente.",
+      side: "bottom",
+      align: "start",
+    },
+  },
+  {
+    element: '[data-tour="product-price"]',
+    popover: {
+      title: "💰 Preço",
+      description: "Valor de venda em reais.",
+      side: "bottom",
+      align: "start",
+    },
+  },
+  {
+    element: '[data-tour="product-submit"]',
+    popover: {
+      title: "✅ Adicionar",
+      description: "Preencha os campos e clique aqui para salvar o produto.\n\nIsso é tudo!",
+      side: "top",
+      align: "start",
+    },
+  },
+];
+
+const CSV_IMPORT_TOUR: DriveStep[] = [
+  {
+    popover: {
+      title: "📥 Importar produtos via CSV",
+      description: "Cadastre dezenas de produtos de uma vez usando um arquivo CSV (planilha).",
+    },
+  },
+  {
+    element: '[data-tour="csv-columns"]',
+    popover: {
+      title: "📋 Formato do arquivo",
+      description: "Seu CSV precisa ter as colunas: nome e preco (obrigatórios). Pode incluir também: descricao, unidade, estoque e codigo_barras.",
+      side: "bottom",
+      align: "start",
+    },
+  },
+  {
+    element: '[data-tour="csv-upload-btn"]',
+    popover: {
+      title: "📂 Enviar arquivo",
+      description: "Clique aqui para selecionar o arquivo CSV do seu computador. Depois você revisa os produtos antes de importar.\n\nIsso é tudo!",
+      side: "top",
+      align: "center",
+    },
+  },
+];
+
+const CSV_REVIEW_TOUR: DriveStep[] = [
+  {
+    popover: {
+      title: "📋 Revisão dos produtos",
+      description: "Seus produtos foram carregados do CSV. Revise e edite cada um antes de importar.",
+    },
+  },
+  {
+    element: '[data-tour="csv-product-card"]',
+    popover: {
+      title: "✏️ Editar produto",
+      description: "Cada produto aparece em um card. Edite nome, preço, estoque, unidade e categoria. Clique na imagem para trocar.",
+      side: "bottom",
+      align: "start",
+    },
+  },
+  {
+    element: '[data-tour="csv-import-all-btn"]',
+    popover: {
+      title: "✅ Importar tudo",
+      description: "Quando estiver tudo certo, clique aqui para importar todos os produtos de uma vez.\n\nIsso é tudo!",
+      side: "bottom",
+      align: "end",
+    },
+  },
+];
 
 // Map PT product names to EN search terms for Open Food Facts
 const PT_TO_EN: Record<string, string> = {
@@ -92,7 +238,7 @@ function ProductImage({ name, imageUrl, size = 12 }: { name: string; imageUrl?: 
     }
 
     const q = encodeURIComponent(searchTerm);
-    fetch(`https://world.openfoodfacts.org/cgi/search.pl?search_terms=${q}&search_simple=1&action=process&json=1&page_size=1`)
+    fetch(`${process.env.NEXT_PUBLIC_OPENFOODFACTS_URL || 'https://world.openfoodfacts.org'}/cgi/search.pl?search_terms=${q}&search_simple=1&action=process&json=1&page_size=1`)
       .then(r => r.json())
       .then(data => {
         if (cancelled) return;
@@ -118,15 +264,17 @@ function ProductImage({ name, imageUrl, size = 12 }: { name: string; imageUrl?: 
   }
 
   return (
-    <div className={`${sizeClass} rounded-lg bg-gray-200 flex items-center justify-center flex-shrink-0`}>
-      <svg xmlns="http://www.w3.org/2000/svg" className={`${iconSize} text-gray-400`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-      </svg>
+    <div className={`${sizeClass} rounded-lg bg-[var(--bg-muted)] flex items-center justify-center flex-shrink-0`}>
+      <ImageIcon className={`${iconSize} text-[var(--text-muted)]`} />
     </div>
   );
 }
 
 export default function ProductsPage() {
+  const { startTour, hasSeenTour } = useTour("products", TOUR_STEPS);
+  const { startTour: startProductFormTour, hasSeenTour: hasSeenFormTour } = useTour("create-product", PRODUCT_FORM_TOUR, false);
+  const { startTour: startCsvTour, hasSeenTour: hasSeenCsvTour } = useTour("import-csv", CSV_IMPORT_TOUR, false);
+  const { startTour: startCsvReviewTour, hasSeenTour: hasSeenCsvReview } = useTour("csv-review", CSV_REVIEW_TOUR, false);
   const { data: storesData, refetch, error: storesError } = useQuery(GET_MY_STORES);
   const allStores = storesData?.myStores || [];
   const stores = allStores.filter((s: any) => s.storeType === "PRODUCTS" || !s.storeType);
@@ -134,8 +282,23 @@ export default function ProductsPage() {
   const [selectedStoreId, setSelectedStoreId] = useState<string>("");
   const [activePanel, setActivePanel] = useState<"catalog" | "product" | "category" | "csv" | "trash" | null>("catalog");
   const showProductForm = activePanel === "product";
-  const showCategoryForm = activePanel === "category";
   const showBulkImport = activePanel === "csv";
+
+  // Start product form tour when form opens
+  useEffect(() => {
+    if (!showProductForm || hasSeenFormTour) return;
+    const timer = setTimeout(() => startProductFormTour(), 800);
+    return () => clearTimeout(timer);
+  }, [showProductForm, hasSeenFormTour, startProductFormTour]);
+
+  // Start CSV import tour when panel opens
+  useEffect(() => {
+    if (!showBulkImport || hasSeenCsvTour) return;
+    const timer = setTimeout(() => startCsvTour(), 800);
+    return () => clearTimeout(timer);
+  }, [showBulkImport, hasSeenCsvTour, startCsvTour]);
+
+  const showCategoryForm = activePanel === "category";
   const showTrashPanel = activePanel === "trash";
   const showCatalog = activePanel === "catalog";
   const [error, setError] = useState("");
@@ -188,6 +351,13 @@ export default function ProductsPage() {
   const [showCsvModal, setShowCsvModal] = useState(false);
   const csvFileInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const [csvWebSearchIndex, setCsvWebSearchIndex] = useState<number | null>(null);
+
+  // Start CSV review tour when review modal opens
+  useEffect(() => {
+    if (!showCsvModal || csvProducts.length === 0 || hasSeenCsvReview) return;
+    const timer = setTimeout(() => startCsvReviewTour(), 800);
+    return () => clearTimeout(timer);
+  }, [showCsvModal, csvProducts.length, hasSeenCsvReview, startCsvReviewTour]);
 
   // Images
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -699,9 +869,9 @@ export default function ProductsPage() {
 
   // ─── Status helpers ───
   function getStatusInfo(product: any) {
-    if (!product.isActive) return { label: "Oculto", color: "bg-[var(--bg-muted)] text-[var(--text-muted)]", dot: "bg-gray-400" };
-    if (!product.isAvailable) return { label: "Indisponivel", color: "bg-red-100 text-red-600", dot: "bg-red-500" };
-    return { label: "Disponivel", color: "bg-green-100 text-green-600", dot: "bg-green-500" };
+    if (!product.isActive) return { label: "Oculto", color: "bg-[var(--bg-muted)] text-[var(--text-muted)]", dot: "bg-[var(--text-muted)]" };
+    if (!product.isAvailable) return { label: "Indisponivel", color: "bg-[var(--status-error-bg)] text-[var(--status-error-text)]", dot: "bg-[var(--status-error-text)]" };
+    return { label: "Disponivel", color: "bg-[var(--status-success-bg)] text-[var(--status-success-text)]", dot: "bg-[var(--status-success-text)]" };
   }
 
   // ─── Render helpers ───
@@ -710,38 +880,31 @@ export default function ProductsPage() {
     return (
       <tr
         key={product.id}
-        className={`border-t border-gray-100 hover:bg-[var(--bg-hover)]/50 ${!product.isActive ? "opacity-50" : ""}`}
+        className={`border-t border-[var(--border-color)] hover:bg-[var(--bg-hover)]/50 ${!product.isActive ? "opacity-50" : ""}`}
       >
         <td className="pl-2 pr-0 py-4 w-8">
           <div
             draggable
             onDragStart={() => handleDragStart(product.id)}
-            className="cursor-grab active:cursor-grabbing p-1 rounded text-gray-300 hover:text-[var(--text-muted)] transition"
+            className="cursor-grab active:cursor-grabbing p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-muted)] transition"
             title="Arrastar para outra categoria"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
-              <circle cx="9" cy="5" r="1.5" /><circle cx="15" cy="5" r="1.5" />
-              <circle cx="9" cy="10" r="1.5" /><circle cx="15" cy="10" r="1.5" />
-              <circle cx="9" cy="15" r="1.5" /><circle cx="15" cy="15" r="1.5" />
-              <circle cx="9" cy="20" r="1.5" /><circle cx="15" cy="20" r="1.5" />
-            </svg>
+            <GripVertical className="h-5 w-5" />
           </div>
         </td>
         <td className="px-4 py-4">
-          <button onClick={() => startEditing(product)} className="text-left cursor-pointer hover:text-orange-600 transition flex items-center gap-3">
+          <button onClick={() => startEditing(product)} className="text-left cursor-pointer hover:text-[var(--brand-primary)] transition flex items-center gap-3">
             {product.imageUrl ? (
               <img src={product.imageUrl} alt={product.name} className="w-10 h-10 rounded-lg object-cover flex-shrink-0 hover:opacity-80 transition"
                 onClick={(e) => { e.stopPropagation(); setZoomedImage(product.imageUrl); }} />
             ) : (
               <div className="w-10 h-10 rounded-lg bg-[var(--bg-muted)] flex items-center justify-center flex-shrink-0">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
+                <ImageIcon className="h-5 w-5 text-[var(--text-muted)]" />
               </div>
             )}
             <div>
               <p className="font-medium text-[var(--text-primary)]">{product.name}</p>
-              {product.description && <p className="text-xs text-gray-400 mt-0.5">{product.description}</p>}
+              {product.description && <p className="text-xs text-[var(--text-muted)] mt-0.5">{product.description}</p>}
             </div>
           </button>
         </td>
@@ -751,11 +914,11 @@ export default function ProductsPage() {
               onChange={(e) => setInlineEdit({ ...inlineEdit, value: e.target.value })}
               onBlur={handleInlineBlurOrEnter}
               onKeyDown={(e) => { if (e.key === "Enter") handleInlineBlurOrEnter(); if (e.key === "Escape") setInlineEdit(null); }}
-              className="w-24 px-2 py-1 border border-orange-300 rounded-lg text-[var(--text-primary)] text-sm focus:ring-2 focus:ring-orange-200 outline-none" />
+              className="w-24 px-2 py-1 border border-[var(--brand-primary)] rounded-lg text-[var(--text-primary)] text-sm focus:ring-2 focus:ring-[var(--brand-primary)]/30 outline-none" />
           ) : (
             <div className="flex items-center gap-2">
               <button onClick={() => startInlineEdit(product.id, "price", Number(product.price))}
-                className="cursor-pointer hover:bg-orange-50 hover:text-orange-600 px-2 py-1 rounded-lg transition text-left">
+                className="cursor-pointer hover:bg-[var(--brand-primary)]/10 hover:text-[var(--brand-primary)] px-2 py-1 rounded-lg transition text-left">
                 R$ {Number(product.price).toFixed(2)}
               </button>
               {product.isVariableWeight && (
@@ -770,11 +933,11 @@ export default function ProductsPage() {
               onChange={(e) => setInlineEdit({ ...inlineEdit, value: e.target.value })}
               onBlur={handleInlineBlurOrEnter}
               onKeyDown={(e) => { if (e.key === "Enter") handleInlineBlurOrEnter(); if (e.key === "Escape") setInlineEdit(null); }}
-              className="w-20 px-2 py-1 border border-orange-300 rounded-lg text-[var(--text-primary)] text-sm focus:ring-2 focus:ring-orange-200 outline-none" />
+              className="w-20 px-2 py-1 border border-[var(--brand-primary)] rounded-lg text-[var(--text-primary)] text-sm focus:ring-2 focus:ring-[var(--brand-primary)]/30 outline-none" />
           ) : (
             <button onClick={() => startInlineEdit(product.id, "stock", product.stock || 0)}
-              className="cursor-pointer hover:bg-orange-50 hover:text-orange-600 px-2 py-1 rounded-lg transition text-left">
-              {product.stock > 0 ? product.stock : <span className="text-gray-400 text-xs">Ilimitado</span>}
+              className="cursor-pointer hover:bg-[var(--brand-primary)]/10 hover:text-[var(--brand-primary)] px-2 py-1 rounded-lg transition text-left">
+              {product.stock > 0 ? product.stock : <span className="text-[var(--text-muted)] text-xs">Ilimitado</span>}
             </button>
           )}
         </td>
@@ -786,9 +949,7 @@ export default function ProductsPage() {
             >
               <span className={`w-2 h-2 rounded-full ${status.dot}`} />
               {status.label}
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
+              <ChevronDown className="h-3 w-3 opacity-60" />
             </button>
             {statusMenuId === product.id && (
               <>
@@ -797,14 +958,14 @@ export default function ProductsPage() {
                   {product.isActive && (
                     <button onClick={() => handleToggleAvailability(product.id)}
                       className="w-full text-left px-4 py-2.5 text-sm text-[var(--text-primary)] font-medium cursor-pointer transition hover:bg-[var(--bg-hover)] flex items-center gap-2">
-                      <span className={`w-2 h-2 rounded-full ${product.isAvailable ? "bg-red-500" : "bg-green-500"}`} />
+                      <span className={`w-2 h-2 rounded-full ${product.isAvailable ? "bg-[var(--status-error-text)]" : "bg-[var(--status-success-text)]"}`} />
                       {product.isAvailable ? "Marcar indisponivel" : "Marcar disponivel"}
                     </button>
                   )}
-                  {product.isActive && <div className="border-t border-gray-100 my-1" />}
+                  {product.isActive && <div className="border-t border-[var(--border-color)] my-1" />}
                   <button onClick={() => handleToggleActive(product.id)}
                     className="w-full text-left px-4 py-2.5 text-sm text-[var(--text-primary)] font-medium cursor-pointer transition hover:bg-[var(--bg-hover)] flex items-center gap-2">
-                    <span className={`w-2 h-2 rounded-full ${product.isActive ? "bg-gray-400" : "bg-green-500"}`} />
+                    <span className={`w-2 h-2 rounded-full ${product.isActive ? "bg-[var(--text-muted)]" : "bg-[var(--status-success-text)]"}`} />
                     {product.isActive ? "Ocultar produto" : "Mostrar produto"}
                   </button>
                 </div>
@@ -814,15 +975,11 @@ export default function ProductsPage() {
         </td>
         <td className="px-6 py-3">
           <div className="flex items-center gap-2">
-            <button onClick={() => startEditing(product)} className="p-1.5 rounded-lg text-gray-400 hover:text-orange-500 hover:bg-orange-50 cursor-pointer transition" title="Editar">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-              </svg>
+            <button onClick={() => startEditing(product)} className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--brand-primary)] hover:bg-[var(--brand-primary)]/10 cursor-pointer transition" title="Editar">
+              <Pencil className="h-4 w-4" />
             </button>
-            <button onClick={() => handleDeleteProduct(product.id)} className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 cursor-pointer transition" title="Excluir">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
+            <button onClick={() => handleDeleteProduct(product.id)} className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--status-error-text)] hover:bg-[var(--status-error-bg)] cursor-pointer transition" title="Excluir">
+              <Trash2 className="h-4 w-4" />
             </button>
           </div>
         </td>
@@ -848,135 +1005,130 @@ export default function ProductsPage() {
   function renderProductCard(product: any) {
     const status = getStatusInfo(product);
     return (
-      <div
+      <motion.div
+        variants={staggerItem}
         key={product.id}
-        className={`bg-[var(--bg-card)] rounded-2xl shadow-sm p-4 flex flex-col gap-3 ${!product.isActive ? "opacity-50" : ""}`}
+        className={`bg-[var(--bg-card)] rounded-2xl shadow-[var(--card-shadow)] border border-[var(--border-light)] overflow-hidden hover:shadow-[var(--card-shadow-hover)] transition-shadow ${!product.isActive ? "opacity-50" : ""}`}
       >
-        {/* Top row: image + info */}
-        <div className="flex items-start gap-3">
-          {/* Thumbnail */}
-          <button
-            onClick={() => product.imageUrl && setZoomedImage(product.imageUrl)}
-            className={`flex-shrink-0 ${product.imageUrl ? "cursor-pointer" : "cursor-default"}`}
-          >
-            {product.imageUrl ? (
-              <img src={product.imageUrl} alt={product.name} className="w-14 h-14 rounded-xl object-cover" />
-            ) : (
-              <div className="w-14 h-14 rounded-xl bg-[var(--bg-muted)] flex items-center justify-center">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-              </div>
-            )}
-          </button>
+        {/* Image area */}
+        <button
+          onClick={() => product.imageUrl && setZoomedImage(product.imageUrl)}
+          className={`w-full aspect-square bg-[var(--bg-muted)] flex items-center justify-center ${product.imageUrl ? "cursor-pointer" : "cursor-default"}`}
+        >
+          {product.imageUrl ? (
+            <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
+          ) : (
+            <ImageIcon className="h-10 w-10 text-[var(--text-muted)]" />
+          )}
+        </button>
 
-          {/* Name + category + status */}
-          <div className="flex-1 min-w-0">
+        {/* Card content */}
+        <div className="p-4 space-y-2">
+          {/* Name + category */}
+          <div>
             <p className="font-semibold text-[var(--text-primary)] leading-tight">{product.name}</p>
             {product.description && (
-              <p className="text-xs text-gray-400 mt-0.5 truncate">{product.description}</p>
+              <p className="text-xs text-[var(--text-muted)] mt-0.5 truncate">{product.description}</p>
             )}
             {product.category?.name && (
-              <p className="text-xs text-gray-400 mt-0.5">{product.category.name}</p>
+              <p className="text-xs text-[var(--text-muted)] mt-0.5">{product.category.name}</p>
             )}
           </div>
 
-          {/* Status badge */}
-          <div className="relative flex-shrink-0">
-            <button
-              onClick={(e) => { e.stopPropagation(); setStatusMenuId(statusMenuId === product.id ? null : product.id); }}
-              className={`px-2.5 py-1 rounded-full text-xs font-semibold cursor-pointer transition active:scale-95 flex items-center gap-1.5 ${status.color}`}
-            >
-              <span className={`w-1.5 h-1.5 rounded-full ${status.dot}`} />
-              {status.label}
-            </button>
-            {statusMenuId === product.id && (
-              <>
-                <div className="fixed inset-0 z-30" onClick={() => setStatusMenuId(null)} />
-                <div className="absolute right-0 top-full mt-1 z-40 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl shadow-lg py-1 min-w-[200px]">
-                  {product.isActive && (
-                    <button onClick={() => handleToggleAvailability(product.id)}
-                      className="w-full text-left px-4 py-2.5 text-sm text-[var(--text-primary)] font-medium cursor-pointer transition hover:bg-[var(--bg-hover)] flex items-center gap-2">
-                      <span className={`w-2 h-2 rounded-full ${product.isAvailable ? "bg-red-500" : "bg-green-500"}`} />
-                      {product.isAvailable ? "Marcar indisponivel" : "Marcar disponivel"}
-                    </button>
-                  )}
-                  {product.isActive && <div className="border-t border-gray-100 my-1" />}
-                  <button onClick={() => handleToggleActive(product.id)}
-                    className="w-full text-left px-4 py-2.5 text-sm text-[var(--text-primary)] font-medium cursor-pointer transition hover:bg-[var(--bg-hover)] flex items-center gap-2">
-                    <span className={`w-2 h-2 rounded-full ${product.isActive ? "bg-gray-400" : "bg-green-500"}`} />
-                    {product.isActive ? "Ocultar produto" : "Mostrar produto"}
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* Price + stock row */}
-        <div className="flex items-center gap-4 px-1">
-          <div className="flex-1">
-            <p className="text-xs text-gray-400 mb-0.5">Preco</p>
+          {/* Price */}
+          <div className="flex items-center gap-2">
             {inlineEdit && inlineEdit.id === product.id && inlineEdit.field === "price" ? (
               <input type="number" step="0.01" autoFocus value={inlineEdit.value}
                 onChange={(e) => setInlineEdit({ ...inlineEdit, value: e.target.value })}
                 onBlur={handleInlineBlurOrEnter}
                 onKeyDown={(e) => { if (e.key === "Enter") handleInlineBlurOrEnter(); if (e.key === "Escape") setInlineEdit(null); }}
-                className="w-28 px-2 py-1 border border-orange-300 rounded-lg text-[var(--text-primary)] text-sm focus:ring-2 focus:ring-orange-200 outline-none" />
+                className="w-28 px-2 py-1 border border-[var(--brand-primary)] rounded-lg text-[var(--text-primary)] text-sm focus:ring-2 focus:ring-[var(--brand-primary-muted)] outline-none" />
             ) : (
-              <div className="flex items-center gap-2">
+              <>
                 <button onClick={() => startInlineEdit(product.id, "price", Number(product.price))}
-                  className="text-sm font-semibold text-[var(--text-primary)] cursor-pointer hover:text-orange-600 transition">
+                  className="text-lg font-bold text-[var(--brand-primary)] cursor-pointer hover:opacity-80 transition">
                   R$ {Number(product.price).toFixed(2)}
                 </button>
                 {product.isVariableWeight && (
                   <span className="px-1.5 py-0.5 bg-[var(--bg-muted)] text-[var(--text-muted)] text-xs rounded-full font-medium">por peso</span>
                 )}
-              </div>
+              </>
             )}
           </div>
-          <div className="flex-1">
-            <p className="text-xs text-gray-400 mb-0.5">Estoque</p>
-            {inlineEdit && inlineEdit.id === product.id && inlineEdit.field === "stock" ? (
-              <input type="number" min="0" autoFocus value={inlineEdit.value}
-                onChange={(e) => setInlineEdit({ ...inlineEdit, value: e.target.value })}
-                onBlur={handleInlineBlurOrEnter}
-                onKeyDown={(e) => { if (e.key === "Enter") handleInlineBlurOrEnter(); if (e.key === "Escape") setInlineEdit(null); }}
-                className="w-20 px-2 py-1 border border-orange-300 rounded-lg text-[var(--text-primary)] text-sm focus:ring-2 focus:ring-orange-200 outline-none" />
-            ) : (
-              <button onClick={() => startInlineEdit(product.id, "stock", product.stock || 0)}
-                className="text-sm font-semibold text-[var(--text-primary)] cursor-pointer hover:text-orange-600 transition">
-                {product.stock > 0 ? product.stock : <span className="text-gray-400 text-xs font-normal">Ilimitado</span>}
-              </button>
-            )}
-          </div>
-        </div>
 
-        {/* Action buttons */}
-        <div className="flex items-center gap-2 pt-1 border-t border-gray-100">
-          <button onClick={() => startEditing(product)}
-            className="flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-sm font-medium text-[var(--text-secondary)] bg-[var(--bg-hover)] hover:bg-orange-50 hover:text-orange-600 cursor-pointer transition active:scale-95">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-            </svg>
-            Editar
-          </button>
-          <button onClick={() => handleDeleteProduct(product.id)}
-            className="flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-sm font-medium text-[var(--text-secondary)] bg-[var(--bg-hover)] hover:bg-red-50 hover:text-red-600 cursor-pointer transition active:scale-95">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
-            Excluir
-          </button>
+          {/* Stock */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-[var(--text-muted)]">Estoque:</span>
+              {inlineEdit && inlineEdit.id === product.id && inlineEdit.field === "stock" ? (
+                <input type="number" min="0" autoFocus value={inlineEdit.value}
+                  onChange={(e) => setInlineEdit({ ...inlineEdit, value: e.target.value })}
+                  onBlur={handleInlineBlurOrEnter}
+                  onKeyDown={(e) => { if (e.key === "Enter") handleInlineBlurOrEnter(); if (e.key === "Escape") setInlineEdit(null); }}
+                  className="w-20 px-2 py-1 border border-[var(--brand-primary)] rounded-lg text-[var(--text-primary)] text-sm focus:ring-2 focus:ring-[var(--brand-primary-muted)] outline-none" />
+              ) : (
+                <button onClick={() => startInlineEdit(product.id, "stock", product.stock || 0)}
+                  className="text-sm font-medium text-[var(--text-primary)] cursor-pointer hover:text-[var(--brand-primary)] transition">
+                  {product.stock > 0 ? product.stock : <span className="text-[var(--text-muted)] text-xs font-normal">Ilimitado</span>}
+                </button>
+              )}
+            </div>
+
+            {/* Status badge */}
+            <div className="relative flex-shrink-0">
+              <button
+                onClick={(e) => { e.stopPropagation(); setStatusMenuId(statusMenuId === product.id ? null : product.id); }}
+                className={`px-2.5 py-1 rounded-full text-xs font-semibold cursor-pointer transition active:scale-95 flex items-center gap-1.5 ${status.color}`}
+              >
+                <span className={`w-1.5 h-1.5 rounded-full ${status.dot}`} />
+                {status.label}
+              </button>
+              {statusMenuId === product.id && (
+                <>
+                  <div className="fixed inset-0 z-30" onClick={() => setStatusMenuId(null)} />
+                  <div className="absolute right-0 top-full mt-1 z-40 bg-[var(--bg-card)] border border-[var(--border-light)] rounded-xl shadow-lg py-1 min-w-[200px]">
+                    {product.isActive && (
+                      <button onClick={() => handleToggleAvailability(product.id)}
+                        className="w-full text-left px-4 py-2.5 text-sm text-[var(--text-primary)] font-medium cursor-pointer transition hover:bg-[var(--bg-hover)] flex items-center gap-2">
+                        <span className={`w-2 h-2 rounded-full ${product.isAvailable ? "bg-[var(--status-error-text)]" : "bg-[var(--status-success-text)]"}`} />
+                        {product.isAvailable ? "Marcar indisponivel" : "Marcar disponivel"}
+                      </button>
+                    )}
+                    {product.isActive && <div className="border-t border-[var(--border-light)] my-1" />}
+                    <button onClick={() => handleToggleActive(product.id)}
+                      className="w-full text-left px-4 py-2.5 text-sm text-[var(--text-primary)] font-medium cursor-pointer transition hover:bg-[var(--bg-hover)] flex items-center gap-2">
+                      <span className={`w-2 h-2 rounded-full ${product.isActive ? "bg-[var(--text-muted)]" : "bg-[var(--status-success-text)]"}`} />
+                      {product.isActive ? "Ocultar produto" : "Mostrar produto"}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex items-center gap-2 pt-2 border-t border-[var(--border-light)]">
+            <button onClick={() => startEditing(product)}
+              className="flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-sm font-medium text-[var(--text-secondary)] bg-[var(--bg-hover)] hover:bg-[var(--brand-primary-muted)] hover:text-[var(--brand-primary)] cursor-pointer transition active:scale-95">
+              <Pencil className="h-4 w-4" />
+              Editar
+            </button>
+            <button onClick={() => handleDeleteProduct(product.id)}
+              className="flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-sm font-medium text-[var(--text-secondary)] bg-[var(--bg-hover)] hover:bg-[var(--status-error-bg)] hover:text-[var(--status-error-text)] cursor-pointer transition active:scale-95">
+              <Trash2 className="h-4 w-4" />
+              Excluir
+            </button>
+          </div>
         </div>
-      </div>
+      </motion.div>
     );
   }
 
   if (!storesData) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500" />
+      <div>
+        <PageHeader title="Produtos" />
+        <SkeletonGrid count={6} />
       </div>
     );
   }
@@ -985,22 +1137,21 @@ export default function ProductsPage() {
     return (
       <>
         <CreateStoreModal open={showCreateStore} onClose={() => setShowCreateStore(false)} onCreated={() => refetch()} />
-        <div className="text-center mt-20">
-          <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-2">Nenhuma loja de produtos</h2>
-          <p className="text-[var(--text-secondary)] mb-4">Para cadastrar produtos, você precisa ter uma loja do tipo "Loja de Produtos".</p>
-          <p className="text-sm text-orange-400 mb-6">Crie uma loja de produtos para começar a cadastrar seus itens.</p>
-          <button onClick={() => setShowCreateStore(true)} className="bg-orange-500 text-white px-6 py-3 rounded-xl font-bold cursor-pointer hover:bg-orange-600 active:scale-95 transition">
-            Criar loja de produtos
-          </button>
-        </div>
+        <PageHeader title="Produtos" />
+        <EmptyState
+          icon={Package}
+          title="Nenhuma loja de produtos"
+          description="Para cadastrar produtos, voce precisa ter uma loja do tipo Loja de Produtos. Crie uma para comecar."
+          action={{ label: "Criar loja de produtos", onClick: () => setShowCreateStore(true) }}
+        />
       </>
     );
   }
 
   return (
-    <div>
+    <motion.div {...fadeIn}>
       {error && (
-        <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm mb-4">
+        <div className="bg-[var(--status-error-bg)] text-[var(--status-error-text)] p-3 rounded-lg text-sm mb-4">
           {error}
         </div>
       )}
@@ -1010,39 +1161,39 @@ export default function ProductsPage() {
         <div className="flex items-center gap-3 mb-4 p-3 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl">
           <span className="text-sm font-medium text-[var(--text-secondary)]">Loja:</span>
           <select value={activeStoreId} onChange={(e) => setSelectedStoreId(e.target.value)}
-            className="flex-1 px-3 py-2 border border-[var(--border-color)] rounded-lg text-sm text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-orange-400">
+            className="flex-1 px-3 py-2 border border-[var(--border-color)] rounded-lg text-sm text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-[var(--brand-primary)]">
             {stores.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
         </div>
       )}
 
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between mb-6 gap-3">
-        <h1 className="text-2xl font-bold text-[var(--text-primary)]">Produtos {store ? `— ${store.name}` : ""}</h1>
-        <button onClick={() => { setActivePanel(activePanel === "product" ? "catalog" : "product"); setBarcodeInput(""); setBarcodeResult(null); }}
-          className={`px-5 py-2.5 rounded-xl text-sm font-bold cursor-pointer active:scale-95 transition flex items-center gap-2 ${activePanel === "product" ? "bg-orange-600 text-white" : "bg-orange-500 text-white hover:bg-orange-600"}`}>
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          Novo Produto
-        </button>
-      </div>
+      <PageHeader
+        title={`Produtos ${store ? `— ${store.name}` : ""}`}
+        onTourStart={startTour}
+        tourNotSeen={!hasSeenTour}
+        actions={
+          <button data-tour="add-product-btn" onClick={() => { setActivePanel(activePanel === "product" ? "catalog" : "product"); setBarcodeInput(""); setBarcodeResult(null); }}
+            className={`px-4 py-2.5 rounded-xl text-sm font-medium cursor-pointer active:scale-95 transition flex items-center gap-2 ${activePanel === "product" ? "bg-[var(--brand-primary-hover)] text-white" : "bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white"}`}>
+            <Plus className="h-4 w-4" />
+            Novo Produto
+          </button>
+        }
+      />
 
       {/* Category form */}
       {showCategoryForm && (
         <form onSubmit={handleCreateCategory} className="bg-[var(--bg-card)] rounded-2xl p-6 shadow-sm mb-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-bold text-[var(--text-primary)]">Nova categoria</h3>
-            <button onClick={() => setActivePanel("catalog")} className="text-gray-400 hover:text-[var(--text-secondary)] cursor-pointer">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
+            <button onClick={() => setActivePanel("catalog")} className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] cursor-pointer">
+              <X className="h-5 w-5" />
             </button>
           </div>
           <div className="flex gap-3">
             <input type="text" placeholder="Nome da categoria" value={categoryName} onChange={(e) => setCategoryName(e.target.value)}
               className="flex-1 px-4 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)]" required />
-            <button type="submit" className="px-6 py-2 bg-orange-500 text-white rounded-xl font-bold cursor-pointer hover:bg-orange-600 active:scale-95 transition">Criar</button>
+            <button type="submit" className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white rounded-xl px-4 py-2.5 font-medium cursor-pointer active:scale-95 transition">Criar</button>
           </div>
           {!categoryName && (
             <div className="mt-3">
@@ -1050,7 +1201,7 @@ export default function ProductsPage() {
               <div className="flex flex-wrap gap-2">
                 {['Bebidas', 'Doces', 'Frutas', 'Carnes', 'Padaria', 'Limpeza', 'Frios', 'Hortifruti', 'Mercearia', 'Higiene', 'Congelados', 'Lanches'].filter(s => !categories.some((c: any) => c.name.toLowerCase() === s.toLowerCase())).map(s => (
                   <button key={s} type="button" onClick={() => setCategoryName(s)}
-                    className="px-3 py-1 text-sm rounded-lg border border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-orange-50 hover:text-orange-600 hover:border-orange-300 dark:hover:bg-orange-500/10 transition cursor-pointer">
+                    className="px-3 py-1 text-sm rounded-lg border border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--brand-primary)]/10 hover:text-[var(--brand-primary)] hover:border-[var(--brand-primary)] dark:hover:bg-[var(--brand-primary)]/10 transition cursor-pointer">
                     {s}
                   </button>
                 ))}
@@ -1059,7 +1210,7 @@ export default function ProductsPage() {
           )}
           <label className="flex items-center gap-2 mt-3 cursor-pointer select-none">
             <input type="checkbox" checked={categoryAgeVerification} onChange={(e) => setCategoryAgeVerification(e.target.checked)}
-              className="w-4 h-4 rounded border-gray-300 text-orange-500 focus:ring-orange-500 accent-orange-500 cursor-pointer" />
+              className="w-4 h-4 rounded border-[var(--border-color)] text-[var(--brand-primary)] focus:ring-[var(--brand-primary)] accent-[var(--brand-primary)] cursor-pointer" />
             <span className="text-sm text-[var(--text-secondary)]">Requer verificacao de idade (+18)</span>
           </label>
         </form>
@@ -1071,22 +1222,20 @@ export default function ProductsPage() {
           <form onSubmit={handleUpdateCategory} onClick={(e) => e.stopPropagation()} className="bg-[var(--bg-card)] rounded-2xl p-6 shadow-lg w-full max-w-md mx-4">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-bold text-[var(--text-primary)]">Editar categoria</h3>
-              <button type="button" onClick={() => setEditingCategory(null)} className="text-gray-400 hover:text-[var(--text-secondary)] cursor-pointer">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+              <button type="button" onClick={() => setEditingCategory(null)} className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] cursor-pointer">
+                <X className="h-5 w-5" />
               </button>
             </div>
             <input type="text" placeholder="Nome da categoria" value={editCategoryName} onChange={(e) => setEditCategoryName(e.target.value)}
               className="w-full px-4 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] mb-3" required />
             <label className="flex items-center gap-2 mb-4 cursor-pointer select-none">
               <input type="checkbox" checked={editCategoryAgeVerification} onChange={(e) => setEditCategoryAgeVerification(e.target.checked)}
-                className="w-4 h-4 rounded border-gray-300 text-orange-500 focus:ring-orange-500 accent-orange-500 cursor-pointer" />
+                className="w-4 h-4 rounded border-[var(--border-color)] text-[var(--brand-primary)] focus:ring-[var(--brand-primary)] accent-[var(--brand-primary)] cursor-pointer" />
               <span className="text-sm text-[var(--text-secondary)]">Requer verificacao de idade (+18)</span>
             </label>
             <div className="flex justify-end gap-3">
               <button type="button" onClick={() => setEditingCategory(null)} className="px-4 py-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer transition">Cancelar</button>
-              <button type="submit" className="px-6 py-2 bg-orange-500 text-white rounded-xl font-bold cursor-pointer hover:bg-orange-600 active:scale-95 transition">Salvar</button>
+              <button type="submit" className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white rounded-xl px-4 py-2.5 font-medium cursor-pointer active:scale-95 transition">Salvar</button>
             </div>
           </form>
         </div>
@@ -1094,24 +1243,25 @@ export default function ProductsPage() {
 
       {/* CSV Import */}
       {showBulkImport && (
-        <div className="bg-[var(--bg-card)] rounded-2xl p-6 shadow-sm mb-6">
+        <div data-tour="csv-panel" className="bg-[var(--bg-card)] rounded-2xl p-6 shadow-sm mb-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-bold text-[var(--text-primary)] text-lg">Importar via CSV</h3>
-            <button onClick={() => setActivePanel("catalog")} className="text-gray-400 hover:text-[var(--text-secondary)] cursor-pointer">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
+            <div className="flex items-center gap-2">
+            <button onClick={startCsvTour} title="Ver tutorial" className="flex items-center justify-center w-6 h-6 rounded-full bg-[var(--bg-muted)] text-[var(--text-muted)] hover:bg-[var(--brand-primary-muted)] hover:text-[var(--brand-primary)] transition cursor-pointer">
+              <HelpCircle className="w-4 h-4" />
             </button>
+            <button onClick={() => setActivePanel("catalog")} className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] cursor-pointer">
+              <X className="h-5 w-5" />
+            </button>
+            </div>
           </div>
-          <p className="text-xs text-gray-400 mb-3">
+          <p data-tour="csv-columns" className="text-xs text-[var(--text-muted)] mb-3">
             Colunas: <strong>nome</strong> (ou name), <strong>preco</strong> (ou price), e opcionalmente: descricao, unidade, estoque, codigo_barras (ou barcode/ean)
           </p>
           <input type="file" ref={csvInputRef} accept=".csv" className="hidden" onChange={(e) => { if (e.target.files?.[0]) handleCsvUpload(e.target.files[0]); }} />
-          <button onClick={() => csvInputRef.current?.click()}
+          <button data-tour="csv-upload-btn" onClick={() => csvInputRef.current?.click()}
             className="px-6 py-3 border-2 border-dashed border-[var(--border-color)] rounded-xl text-[var(--text-muted)] font-semibold cursor-pointer hover:border-blue-400 hover:bg-blue-50/50 hover:text-blue-600 active:scale-95 transition w-full flex items-center justify-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
+            <FileText className="h-5 w-5" />
             Selecionar arquivo CSV
           </button>
           {csvProducts.length > 0 && !showCsvModal && (
@@ -1124,12 +1274,12 @@ export default function ProductsPage() {
             </div>
           )}
           {bulkResult && (
-            <div className={`mt-4 p-4 rounded-xl ${bulkResult.errors.length > 0 ? "bg-yellow-50 border border-yellow-200" : "bg-green-50 border border-green-200"}`}>
+            <div className={`mt-4 p-4 rounded-xl ${bulkResult.errors.length > 0 ? "bg-yellow-50 border border-yellow-200" : "bg-[var(--status-success-bg)] border border-[var(--status-success-bg)]"}`}>
               <p className="font-semibold text-[var(--text-primary)]">{bulkResult.created} produtos importados com sucesso!</p>
               {bulkResult.errors.length > 0 && (
                 <div className="mt-2">
-                  <p className="text-sm font-semibold text-red-600 mb-1">Erros:</p>
-                  {bulkResult.errors.map((err: string, i: number) => <p key={i} className="text-sm text-red-500">{err}</p>)}
+                  <p className="text-sm font-semibold text-[var(--status-error-text)] mb-1">Erros:</p>
+                  {bulkResult.errors.map((err: string, i: number) => <p key={i} className="text-sm text-[var(--status-error-text)]">{err}</p>)}
                 </div>
               )}
             </div>
@@ -1142,19 +1292,20 @@ export default function ProductsPage() {
         <form onSubmit={handleCreateProduct} className="bg-[var(--bg-card)] rounded-2xl p-6 shadow-sm mb-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-bold text-[var(--text-primary)]">Novo produto</h3>
-            <button onClick={() => setActivePanel("catalog")} className="text-gray-400 hover:text-[var(--text-secondary)] cursor-pointer">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
+            <div className="flex items-center gap-2">
+            <button onClick={startProductFormTour} title="Ver tutorial" className="flex items-center justify-center w-6 h-6 rounded-full bg-[var(--bg-muted)] text-[var(--text-muted)] hover:bg-[var(--brand-primary-muted)] hover:text-[var(--brand-primary)] transition cursor-pointer">
+              <HelpCircle className="w-4 h-4" />
             </button>
+            <button onClick={() => setActivePanel("catalog")} className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] cursor-pointer">
+              <X className="h-5 w-5" />
+            </button>
+            </div>
           </div>
           {/* Barcode scanner */}
           <div className="mb-4 p-4 bg-blue-50 rounded-xl">
             <label className="text-sm font-semibold text-blue-700 mb-2 block">Buscar por codigo de barras (EAN)</label>
             <div className="relative">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
-              </svg>
+              <ScanBarcode className="h-5 w-5 text-blue-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input type="text" placeholder="Escaneie com a pistola ou digite o EAN..."
                 value={barcodeInput} onChange={(e) => handleBarcodeInputChange(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (barcodeDebounceRef.current) clearTimeout(barcodeDebounceRef.current); doBarcodeLookup(barcodeInput); } }}
@@ -1162,51 +1313,47 @@ export default function ProductsPage() {
               {lookingUpBarcode && <div className="absolute right-3 top-1/2 -translate-y-1/2"><div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" /></div>}
             </div>
             {barcodeResult?.name && (
-              <div className="mt-3 p-3 bg-[var(--bg-card)] border border-green-200 rounded-xl flex items-center gap-3">
+              <div className="mt-3 p-3 bg-[var(--bg-card)] border border-[var(--status-success-bg)] rounded-xl flex items-center gap-3">
                 {barcodeResult.imageUrl && <img src={barcodeResult.imageUrl} alt={barcodeResult.name} className="w-12 h-12 rounded-lg object-cover" />}
                 <div className="flex-1">
                   <p className="font-semibold text-[var(--text-primary)] text-sm">{barcodeResult.name}</p>
                   {barcodeResult.brand && <p className="text-xs text-[var(--text-muted)]">{barcodeResult.brand} {barcodeResult.quantity && `- ${barcodeResult.quantity}`}</p>}
                 </div>
-                <span className="text-xs text-green-600 font-semibold">Preenchido!</span>
+                <span className="text-xs text-[var(--status-success-text)] font-semibold">Preenchido!</span>
               </div>
             )}
           </div>
           {/* Image upload */}
-          <div className="mb-4">
+          <div data-tour="product-image" className="mb-4">
             <input type="file" ref={fileInputRef} accept="image/*" className="hidden" onChange={(e) => { if (e.target.files?.[0]) handleImageSelect(e.target.files[0], "create"); }} />
             {imagePreview ? (
               <div className="flex flex-col items-center gap-3">
                 <div className="relative">
                   <img src={imagePreview} alt="Preview" className="w-36 h-36 rounded-2xl object-cover shadow-sm cursor-pointer hover:opacity-90 transition" onClick={() => fileInputRef.current?.click()} />
                   <button type="button" onClick={(e) => { e.stopPropagation(); setImagePreview(null); setImageBase64(null); }}
-                    className="absolute -top-2 -right-2 w-7 h-7 bg-red-500 text-white rounded-full flex items-center justify-center text-sm font-bold cursor-pointer hover:bg-red-600 transition shadow-md">&#10005;</button>
+                    className="absolute -top-2 -right-2 w-7 h-7 bg-[var(--status-error-text)] text-white rounded-full flex items-center justify-center text-sm font-bold cursor-pointer hover:bg-[var(--status-error-text)] transition shadow-md">&#10005;</button>
                 </div>
-                <button type="button" onClick={() => fileInputRef.current?.click()} className="text-sm text-orange-500 font-medium cursor-pointer hover:text-orange-600 transition">Trocar imagem</button>
+                <button type="button" onClick={() => fileInputRef.current?.click()} className="text-sm text-[var(--brand-primary)] font-medium cursor-pointer hover:text-[var(--brand-primary)] transition">Trocar imagem</button>
               </div>
             ) : (
               <div onClick={() => fileInputRef.current?.click()}
-                className="w-full py-6 border-2 border-dashed border-[var(--border-color)] rounded-xl flex items-center justify-center cursor-pointer hover:border-orange-400 hover:bg-orange-50/50 transition">
+                className="w-full py-6 border-2 border-dashed border-[var(--border-color)] rounded-xl flex items-center justify-center cursor-pointer hover:border-[var(--brand-primary)] hover:bg-[var(--brand-primary)]/10/50 transition">
                 <div className="text-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 mx-auto text-gray-300 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                  <p className="text-sm text-gray-400">Clique para adicionar imagem</p>
+                  <ImageIcon className="h-10 w-10 mx-auto text-[var(--text-muted)] mb-2" />
+                  <p className="text-sm text-[var(--text-muted)]">Clique para adicionar imagem</p>
                 </div>
               </div>
             )}
             {productForm.name.trim() && !imagePreview && (
               <button type="button" onClick={() => handleWebSearch("create")} disabled={searchingImages}
                 className="mt-2 w-full py-2 text-sm text-blue-600 bg-blue-50 rounded-xl font-semibold cursor-pointer hover:bg-blue-100 active:scale-95 transition disabled:opacity-50 flex items-center justify-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
+                <Search className="h-4 w-4" />
                 {searchingImages ? "Buscando..." : "Buscar imagem na internet"}
               </button>
             )}
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="relative">
+            <div data-tour="product-name" className="relative">
               <input type="text" placeholder="Nome do produto" value={productForm.name}
                 onChange={(e) => handleNameChange(e.target.value)}
                 onFocus={() => { if (nameSuggestions.length > 0) setShowNameSuggestions(true); }}
@@ -1220,15 +1367,15 @@ export default function ProductsPage() {
                       <ProductImage name={s.name} imageUrl={s.imageUrl} size={8} />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-[var(--text-primary)] truncate">{s.name}</p>
-                        <p className="text-xs text-gray-400">R$ {Number(s.price).toFixed(2)} {s.unit ? `/ ${s.unit}` : ""} {s.barcode ? `· EAN: ${s.barcode}` : ""}</p>
+                        <p className="text-xs text-[var(--text-muted)]">R$ {Number(s.price).toFixed(2)} {s.unit ? `/ ${s.unit}` : ""} {s.barcode ? `· EAN: ${s.barcode}` : ""}</p>
                       </div>
                     </button>
                   ))}
                 </div>
               )}
             </div>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-semibold text-sm">R$</span>
+            <div data-tour="product-price" className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] font-semibold text-sm">R$</span>
               <input type="number" step="0.01" placeholder="0.00" value={productForm.price} onChange={(e) => setProductForm({ ...productForm, price: e.target.value })} className="w-full pl-10 pr-4 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)]" required />
             </div>
             <input type="text" placeholder="Descricao (opcional)" value={productForm.description} onChange={(e) => setProductForm({ ...productForm, description: e.target.value })} className="px-4 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)]" />
@@ -1240,9 +1387,9 @@ export default function ProductsPage() {
                   <input type="text" autoFocus placeholder="Nome da categoria" value={inlineCategoryName}
                     onChange={(e) => setInlineCategoryName(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleInlineCreateCategory("product"); } if (e.key === "Escape") { setInlineNewCategory(null); setInlineCategoryName(""); } }}
-                    className="flex-1 px-4 py-2 border border-orange-300 rounded-xl text-[var(--text-primary)] focus:ring-2 focus:ring-orange-200 outline-none" />
-                  <button type="button" onClick={() => handleInlineCreateCategory("product")} className="px-4 py-2 bg-orange-500 text-white rounded-xl font-bold cursor-pointer hover:bg-orange-600 active:scale-95 transition text-sm">Criar</button>
-                  <button type="button" onClick={() => { setInlineNewCategory(null); setInlineCategoryName(""); }} className="px-3 py-2 text-gray-400 hover:text-[var(--text-secondary)] cursor-pointer">&#10005;</button>
+                    className="flex-1 px-4 py-2 border border-[var(--brand-primary)] rounded-xl text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--brand-primary)]/30 outline-none" />
+                  <button type="button" onClick={() => handleInlineCreateCategory("product")} className="px-4 py-2 bg-[var(--brand-primary)] text-white rounded-xl font-bold cursor-pointer hover:bg-[var(--brand-primary-hover)] active:scale-95 transition text-sm">Criar</button>
+                  <button type="button" onClick={() => { setInlineNewCategory(null); setInlineCategoryName(""); }} className="px-3 py-2 text-[var(--text-muted)] hover:text-[var(--text-secondary)] cursor-pointer">&#10005;</button>
                 </div>
                 {PRODUCT_CATEGORY_SUGGESTIONS.filter(s => !categories.some((c: any) => c.name.toLowerCase() === s.toLowerCase())).length > 0 && (
                   <div className="mt-2">
@@ -1250,7 +1397,7 @@ export default function ProductsPage() {
                     <div className="grid grid-cols-5 gap-1 mt-1">
                       {PRODUCT_CATEGORY_SUGGESTIONS.filter(s => !categories.some((c: any) => c.name.toLowerCase() === s.toLowerCase())).map(s => (
                         <button key={s} type="button" onClick={() => setInlineCategoryName(s)}
-                          className="px-1 py-1 text-xs rounded-full bg-orange-100 text-orange-700 hover:bg-orange-200 cursor-pointer transition text-center">{s}</button>
+                          className="px-1 py-1 text-xs rounded-full bg-[var(--brand-primary)]/20 text-[var(--brand-primary)] hover:bg-[var(--brand-primary)]/30 cursor-pointer transition text-center">{s}</button>
                       ))}
                     </div>
                   </div>
@@ -1264,12 +1411,12 @@ export default function ProductsPage() {
               </select>
             )}
             <label className="flex items-center gap-3 col-span-1 md:col-span-2 cursor-pointer">
-              <div className={`relative w-11 h-6 rounded-full transition ${productForm.isVariableWeight ? 'bg-orange-500' : 'bg-gray-200'}`} onClick={() => setProductForm({...productForm, isVariableWeight: !productForm.isVariableWeight, unit: !productForm.isVariableWeight ? 'kg' : productForm.unit})}>
+              <div className={`relative w-11 h-6 rounded-full transition ${productForm.isVariableWeight ? 'bg-[var(--brand-primary)]' : 'bg-[var(--bg-muted)]'}`} onClick={() => setProductForm({...productForm, isVariableWeight: !productForm.isVariableWeight, unit: !productForm.isVariableWeight ? 'kg' : productForm.unit})}>
                 <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-[var(--bg-card)] rounded-full shadow transition-transform ${productForm.isVariableWeight ? 'translate-x-5' : ''}`} />
               </div>
               <span className="text-sm text-[var(--text-secondary)]">Produto vendido por peso (preco por kg)</span>
             </label>
-            <button type="submit" disabled={uploading} className="md:col-span-2 px-6 py-2 bg-orange-500 text-white rounded-xl font-bold cursor-pointer hover:bg-orange-600 active:scale-95 transition disabled:opacity-50">
+            <button data-tour="product-submit" type="submit" disabled={uploading} className="md:col-span-2 bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white rounded-xl px-4 py-2.5 font-medium cursor-pointer active:scale-95 transition disabled:opacity-50">
               {uploading ? "Enviando..." : "Adicionar produto"}
             </button>
           </div>
@@ -1279,16 +1426,12 @@ export default function ProductsPage() {
       {/* Catalog search */}
       {showCatalog && <div className="bg-[var(--bg-card)] rounded-2xl p-5 shadow-sm mb-6">
         <div className="flex items-center gap-2 mb-3">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
+          <Search className="h-5 w-5 text-purple-500" />
           <h3 className="font-bold text-[var(--text-primary)]">Cadastro rapido</h3>
-          <span className="text-xs text-gray-400">Busque no catalogo da plataforma e adicione com um clique</span>
+          <span className="text-xs text-[var(--text-muted)]">Busque no catalogo da plataforma e adicione com um clique</span>
         </div>
         <div className="relative">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400 absolute left-4 top-1/2 -translate-y-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
+          <Search className="h-5 w-5 text-[var(--text-muted)] absolute left-4 top-1/2 -translate-y-1/2" />
           <input type="text" placeholder="Digite o nome do produto ou codigo de barras..."
             value={catalogQuery} onChange={(e) => handleCatalogQueryChange(e.target.value)}
             className="w-full pl-12 pr-4 py-3 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] focus:border-purple-400 focus:ring-2 focus:ring-purple-100 outline-none transition" />
@@ -1301,12 +1444,12 @@ export default function ProductsPage() {
                 <ProductImage name={product.name} imageUrl={product.imageUrl} />
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-[var(--text-primary)] truncate">{product.name}</p>
-                  <div className="flex items-center gap-2 text-xs text-gray-400">
+                  <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
                     <span>R$ {Number(product.price).toFixed(2)}</span>
                     {product.unit && <span>/ {product.unit}</span>}
                     {product.barcode && <span>EAN: {product.barcode}</span>}
                   </div>
-                  {product.store?.name && <p className="text-xs text-gray-300 mt-0.5">de: {product.store.name}</p>}
+                  {product.store?.name && <p className="text-xs text-[var(--text-muted)] mt-0.5">de: {product.store.name}</p>}
                 </div>
                 <button onClick={() => handleAddFromCatalog(product)}
                   className="px-4 py-2 bg-purple-500 text-white rounded-xl text-sm font-bold cursor-pointer hover:bg-purple-600 active:scale-95 transition flex-shrink-0">
@@ -1325,42 +1468,36 @@ export default function ProductsPage() {
           ? trashItems.filter((p: any) => p.name.toLowerCase().includes(trashSearch.toLowerCase()))
           : trashItems;
         return (
-        <div className="bg-[var(--bg-card)] rounded-2xl p-5 shadow-sm mb-6 border border-red-100">
+        <div className="bg-[var(--bg-card)] rounded-2xl p-5 shadow-sm mb-6 border border-[var(--status-error-bg)]">
           <div className="flex items-center gap-2 mb-3">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
+            <Trash2 className="h-5 w-5 text-[var(--status-error-text)]" />
             <h3 className="font-bold text-[var(--text-primary)]">Produtos excluidos</h3>
-            <span className="text-xs text-gray-400 flex-1">Restaure ou busque produtos removidos</span>
-            <button onClick={() => setActivePanel("catalog")} className="text-gray-400 hover:text-[var(--text-secondary)] cursor-pointer">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
+            <span className="text-xs text-[var(--text-muted)] flex-1">Restaure ou busque produtos removidos</span>
+            <button onClick={() => setActivePanel("catalog")} className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] cursor-pointer">
+              <X className="h-5 w-5" />
             </button>
           </div>
           {trashItems.length > 0 && (
             <div className="relative mb-3">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
+              <Search className="h-4 w-4 text-[var(--text-muted)] absolute left-3 top-1/2 -translate-y-1/2" />
               <input type="text" placeholder="Buscar nos excluidos..." value={trashSearch} onChange={(e) => setTrashSearch(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 border border-[var(--border-color)] rounded-lg text-sm text-[var(--text-primary)] focus:border-red-300 focus:ring-1 focus:ring-red-100 outline-none transition" />
+                className="w-full pl-9 pr-4 py-2 border border-[var(--border-color)] rounded-lg text-sm text-[var(--text-primary)] focus:border-[var(--status-error-text)] focus:ring-1 focus:ring-[var(--status-error-bg)] outline-none transition" />
             </div>
           )}
           {loadingDeleted ? (
-            <p className="text-gray-400 text-sm">Carregando...</p>
+            <p className="text-[var(--text-muted)] text-sm">Carregando...</p>
           ) : trashItems.length === 0 ? (
-            <p className="text-gray-400 text-sm">Nenhum produto na lixeira.</p>
+            <p className="text-[var(--text-muted)] text-sm">Nenhum produto na lixeira.</p>
           ) : filtered.length === 0 ? (
-            <p className="text-gray-400 text-sm">Nenhum resultado para &quot;{trashSearch}&quot;</p>
+            <p className="text-[var(--text-muted)] text-sm">Nenhum resultado para &quot;{trashSearch}&quot;</p>
           ) : (
             <div className="space-y-2 max-h-80 overflow-y-auto">
               {filtered.map((p: any) => (
-                <div key={p.id} className="flex items-center gap-3 p-3 bg-red-50/50 rounded-xl">
+                <div key={p.id} className="flex items-center gap-3 p-3 bg-[var(--status-error-bg)]/50 rounded-xl">
                   <ProductImage name={p.name} imageUrl={p.imageUrl} />
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-[var(--text-secondary)] truncate">{p.name}</p>
-                    <div className="flex items-center gap-2 text-xs text-gray-400">
+                    <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
                       <span>R$ {Number(p.price).toFixed(2)}</span>
                       {p.unit && <span>/ {p.unit}</span>}
                       {p.category?.name && <span>· {p.category.name}</span>}
@@ -1368,7 +1505,7 @@ export default function ProductsPage() {
                     </div>
                   </div>
                   <button onClick={() => setRestoreModal({ ...p, editPrice: String(p.price), editStock: String(p.stock || 0), editName: p.name })}
-                    className="px-4 py-2 bg-green-500 text-white rounded-xl text-sm font-bold cursor-pointer hover:bg-green-600 active:scale-95 transition flex-shrink-0">
+                    className="px-4 py-2 bg-[var(--status-success-text)] text-white rounded-xl text-sm font-bold cursor-pointer hover:bg-[var(--status-success-text)] active:scale-95 transition flex-shrink-0">
                     Restaurar
                   </button>
                 </div>
@@ -1385,35 +1522,33 @@ export default function ProductsPage() {
           <div className="bg-[var(--bg-card)] rounded-2xl p-6 w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-bold text-[var(--text-primary)] text-lg">Restaurar produto</h3>
-              <button onClick={() => setRestoreModal(null)} className="text-gray-400 hover:text-[var(--text-secondary)] cursor-pointer">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+              <button onClick={() => setRestoreModal(null)} className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] cursor-pointer">
+                <X className="h-5 w-5" />
               </button>
             </div>
             <div className="flex items-center gap-3 mb-5 p-3 bg-[var(--bg-hover)] rounded-xl">
               <ProductImage name={restoreModal.name} imageUrl={restoreModal.imageUrl} />
               <div>
                 <p className="font-semibold text-[var(--text-primary)]">{restoreModal.name}</p>
-                {restoreModal.category?.name && <p className="text-xs text-gray-400">{restoreModal.category.name}</p>}
+                {restoreModal.category?.name && <p className="text-xs text-[var(--text-muted)]">{restoreModal.category.name}</p>}
               </div>
             </div>
             <div className="space-y-3 mb-5">
               <div>
                 <label className="text-xs font-medium text-[var(--text-muted)] mb-1 block">Nome</label>
                 <input type="text" value={restoreModal.editName} onChange={(e) => setRestoreModal({ ...restoreModal, editName: e.target.value })}
-                  className="w-full px-3 py-2 border border-[var(--border-color)] rounded-lg text-sm text-[var(--text-primary)] focus:border-green-400 outline-none" />
+                  className="w-full px-3 py-2 border border-[var(--border-color)] rounded-lg text-sm text-[var(--text-primary)] focus:border-[var(--status-success-text)] outline-none" />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-medium text-[var(--text-muted)] mb-1 block">Preco (R$)</label>
                   <input type="number" step="0.01" value={restoreModal.editPrice} onChange={(e) => setRestoreModal({ ...restoreModal, editPrice: e.target.value })}
-                    className="w-full px-3 py-2 border border-[var(--border-color)] rounded-lg text-sm text-[var(--text-primary)] focus:border-green-400 outline-none" />
+                    className="w-full px-3 py-2 border border-[var(--border-color)] rounded-lg text-sm text-[var(--text-primary)] focus:border-[var(--status-success-text)] outline-none" />
                 </div>
                 <div>
                   <label className="text-xs font-medium text-[var(--text-muted)] mb-1 block">Estoque</label>
                   <input type="number" min="0" value={restoreModal.editStock} onChange={(e) => setRestoreModal({ ...restoreModal, editStock: e.target.value })}
-                    className="w-full px-3 py-2 border border-[var(--border-color)] rounded-lg text-sm text-[var(--text-primary)] focus:border-green-400 outline-none" />
+                    className="w-full px-3 py-2 border border-[var(--border-color)] rounded-lg text-sm text-[var(--text-primary)] focus:border-[var(--status-success-text)] outline-none" />
                 </div>
               </div>
             </div>
@@ -1438,7 +1573,7 @@ export default function ProductsPage() {
                   fetchDeleted({ variables: { storeId: activeStoreId } });
                 } catch (err: any) { setError(err.message); }
               }}
-                className="flex-1 px-4 py-2.5 bg-green-500 text-white rounded-xl text-sm font-bold cursor-pointer hover:bg-green-600 active:scale-95 transition">
+                className="flex-1 px-4 py-2.5 bg-[var(--status-success-text)] text-white rounded-xl text-sm font-bold cursor-pointer hover:bg-[var(--status-success-text)] active:scale-95 transition">
                 Restaurar
               </button>
             </div>
@@ -1460,27 +1595,23 @@ export default function ProductsPage() {
                     <div className="relative">
                       <img src={editImagePreview} alt="Preview" className="w-36 h-36 rounded-2xl object-cover shadow-sm cursor-pointer hover:opacity-90 transition" onClick={() => editFileInputRef.current?.click()} />
                       <button type="button" onClick={(e) => { e.stopPropagation(); setEditImagePreview(null); setEditImageBase64(null); }}
-                        className="absolute -top-2 -right-2 w-7 h-7 bg-red-500 text-white rounded-full flex items-center justify-center text-sm font-bold cursor-pointer hover:bg-red-600 transition shadow-md">&#10005;</button>
+                        className="absolute -top-2 -right-2 w-7 h-7 bg-[var(--status-error-text)] text-white rounded-full flex items-center justify-center text-sm font-bold cursor-pointer hover:bg-[var(--status-error-text)] transition shadow-md">&#10005;</button>
                     </div>
-                    <button type="button" onClick={() => editFileInputRef.current?.click()} className="text-sm text-orange-500 font-medium cursor-pointer hover:text-orange-600 transition">Trocar imagem</button>
+                    <button type="button" onClick={() => editFileInputRef.current?.click()} className="text-sm text-[var(--brand-primary)] font-medium cursor-pointer hover:text-[var(--brand-primary)] transition">Trocar imagem</button>
                   </div>
                 ) : (
                   <div onClick={() => editFileInputRef.current?.click()}
-                    className="w-full py-6 border-2 border-dashed border-[var(--border-color)] rounded-xl flex items-center justify-center cursor-pointer hover:border-orange-400 hover:bg-orange-50/50 transition">
+                    className="w-full py-6 border-2 border-dashed border-[var(--border-color)] rounded-xl flex items-center justify-center cursor-pointer hover:border-[var(--brand-primary)] hover:bg-[var(--brand-primary)]/10/50 transition">
                     <div className="text-center">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 mx-auto text-gray-300 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                      <p className="text-sm text-gray-400">Clique para adicionar imagem</p>
+                      <ImageIcon className="h-10 w-10 mx-auto text-[var(--text-muted)] mb-2" />
+                      <p className="text-sm text-[var(--text-muted)]">Clique para adicionar imagem</p>
                     </div>
                   </div>
                 )}
                 {editForm.name.trim() && !editImagePreview && (
                   <button type="button" onClick={() => handleWebSearch("edit")} disabled={searchingImages}
                     className="mt-2 w-full py-2 text-sm text-blue-600 bg-blue-50 rounded-xl font-semibold cursor-pointer hover:bg-blue-100 active:scale-95 transition disabled:opacity-50 flex items-center justify-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
+                    <Search className="h-4 w-4" />
                     {searchingImages ? "Buscando..." : "Buscar imagem na internet"}
                   </button>
                 )}
@@ -1492,7 +1623,7 @@ export default function ProductsPage() {
                 <input type="text" placeholder="Unidade: kg, un, lt (opcional)" value={editForm.unit} onChange={(e) => setEditForm({ ...editForm, unit: e.target.value })} className="w-full px-4 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)]" disabled={editForm.isVariableWeight} />
                 <input type="number" min="0" placeholder="Estoque (0 = ilimitado)" value={editForm.stock} onChange={(e) => setEditForm({ ...editForm, stock: e.target.value })} className="w-full px-4 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)]" />
                 <label className="flex items-center gap-3 cursor-pointer">
-                  <div className={`relative w-11 h-6 rounded-full transition ${editForm.isVariableWeight ? 'bg-orange-500' : 'bg-gray-200'}`} onClick={() => setEditForm({...editForm, isVariableWeight: !editForm.isVariableWeight, unit: !editForm.isVariableWeight ? 'kg' : editForm.unit})}>
+                  <div className={`relative w-11 h-6 rounded-full transition ${editForm.isVariableWeight ? 'bg-[var(--brand-primary)]' : 'bg-[var(--bg-muted)]'}`} onClick={() => setEditForm({...editForm, isVariableWeight: !editForm.isVariableWeight, unit: !editForm.isVariableWeight ? 'kg' : editForm.unit})}>
                     <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-[var(--bg-card)] rounded-full shadow transition-transform ${editForm.isVariableWeight ? 'translate-x-5' : ''}`} />
                   </div>
                   <span className="text-sm text-[var(--text-secondary)]">Produto vendido por peso (preco por kg)</span>
@@ -1503,9 +1634,9 @@ export default function ProductsPage() {
                       <input type="text" autoFocus placeholder="Nome da categoria" value={inlineCategoryName}
                         onChange={(e) => setInlineCategoryName(e.target.value)}
                         onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleInlineCreateCategory("edit"); } if (e.key === "Escape") { setInlineNewCategory(null); setInlineCategoryName(""); } }}
-                        className="flex-1 px-4 py-2 border border-orange-300 rounded-xl text-[var(--text-primary)] focus:ring-2 focus:ring-orange-200 outline-none" />
-                      <button type="button" onClick={() => handleInlineCreateCategory("edit")} className="px-4 py-2 bg-orange-500 text-white rounded-xl font-bold cursor-pointer hover:bg-orange-600 active:scale-95 transition text-sm">Criar</button>
-                      <button type="button" onClick={() => { setInlineNewCategory(null); setInlineCategoryName(""); }} className="px-3 py-2 text-gray-400 hover:text-[var(--text-secondary)] cursor-pointer">&#10005;</button>
+                        className="flex-1 px-4 py-2 border border-[var(--brand-primary)] rounded-xl text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--brand-primary)]/30 outline-none" />
+                      <button type="button" onClick={() => handleInlineCreateCategory("edit")} className="px-4 py-2 bg-[var(--brand-primary)] text-white rounded-xl font-bold cursor-pointer hover:bg-[var(--brand-primary-hover)] active:scale-95 transition text-sm">Criar</button>
+                      <button type="button" onClick={() => { setInlineNewCategory(null); setInlineCategoryName(""); }} className="px-3 py-2 text-[var(--text-muted)] hover:text-[var(--text-secondary)] cursor-pointer">&#10005;</button>
                     </div>
                     {PRODUCT_CATEGORY_SUGGESTIONS.filter(s => !categories.some((c: any) => c.name.toLowerCase() === s.toLowerCase())).length > 0 && (
                       <div>
@@ -1513,7 +1644,7 @@ export default function ProductsPage() {
                         <div className="grid grid-cols-5 gap-1 mt-1">
                           {PRODUCT_CATEGORY_SUGGESTIONS.filter(s => !categories.some((c: any) => c.name.toLowerCase() === s.toLowerCase())).map(s => (
                             <button key={s} type="button" onClick={() => setInlineCategoryName(s)}
-                              className="px-1 py-1 text-xs rounded-full bg-orange-100 text-orange-700 hover:bg-orange-200 cursor-pointer transition text-center">{s}</button>
+                              className="px-1 py-1 text-xs rounded-full bg-[var(--brand-primary)]/20 text-[var(--brand-primary)] hover:bg-[var(--brand-primary)]/30 cursor-pointer transition text-center">{s}</button>
                           ))}
                         </div>
                       </div>
@@ -1529,7 +1660,7 @@ export default function ProductsPage() {
               </div>
               <div className="flex gap-3 mt-6">
                 <button type="button" onClick={() => setEditingProduct(null)} className="flex-1 px-4 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-secondary)] font-semibold cursor-pointer hover:bg-[var(--bg-hover)] transition">Cancelar</button>
-                <button type="submit" disabled={uploading} className="flex-1 px-4 py-2 bg-orange-500 text-white rounded-xl font-bold cursor-pointer hover:bg-orange-600 active:scale-95 transition disabled:opacity-50">
+                <button type="submit" disabled={uploading} className="flex-1 bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white rounded-xl px-4 py-2.5 font-medium cursor-pointer active:scale-95 transition disabled:opacity-50">
                   {uploading ? "Enviando..." : "Salvar"}
                 </button>
               </div>
@@ -1543,33 +1674,29 @@ export default function ProductsPage() {
       <div className="relative inline-block">
         <button onClick={() => setShowFilterDropdown(!showFilterDropdown)}
           className="flex items-center gap-2 px-4 py-2.5 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl text-sm font-semibold text-[var(--text-primary)] cursor-pointer hover:bg-[var(--bg-hover)] active:scale-95 transition shadow-sm">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-          </svg>
+          <Filter className="h-4 w-4 text-[var(--text-muted)]" />
           {categoryFilter === "ALL" ? "Todas as categorias" : categoryFilter === "NONE" ? "Sem categoria" : categories.find((c: any) => c.id === categoryFilter)?.name || "Filtrar"}
-          {categoryFilter !== "ALL" && <span className="ml-1 w-2 h-2 rounded-full bg-orange-500" />}
-          <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 text-gray-400 transition ${showFilterDropdown ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
+          {categoryFilter !== "ALL" && <span className="ml-1 w-2 h-2 rounded-full bg-[var(--brand-primary)]" />}
+          <ChevronDown className={`h-4 w-4 text-[var(--text-muted)] transition ${showFilterDropdown ? "rotate-180" : ""}`} />
         </button>
         {showFilterDropdown && (
           <>
             <div className="fixed inset-0 z-10" onClick={() => setShowFilterDropdown(false)} />
             <div className="absolute left-0 top-full mt-1 z-20 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl shadow-lg py-1 min-w-[220px]">
               <button onClick={() => { setCategoryFilter("ALL"); setShowFilterDropdown(false); }}
-                className={`w-full text-left px-4 py-2.5 text-sm cursor-pointer transition ${categoryFilter === "ALL" ? "bg-orange-50 text-orange-600 font-semibold" : "text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"}`}>
+                className={`w-full text-left px-4 py-2.5 text-sm cursor-pointer transition ${categoryFilter === "ALL" ? "bg-[var(--brand-primary)]/10 text-[var(--brand-primary)] font-semibold" : "text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"}`}>
                 Todas as categorias
               </button>
               {categories.map((c: any) => (
                 <button key={c.id} onClick={() => { setCategoryFilter(c.id); setShowFilterDropdown(false); }}
-                  className={`w-full text-left px-4 py-2.5 text-sm cursor-pointer transition flex items-center gap-2 ${categoryFilter === c.id ? "bg-orange-50 text-orange-600 font-semibold" : "text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"}`}>
+                  className={`w-full text-left px-4 py-2.5 text-sm cursor-pointer transition flex items-center gap-2 ${categoryFilter === c.id ? "bg-[var(--brand-primary)]/10 text-[var(--brand-primary)] font-semibold" : "text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"}`}>
                   {c.name}
-                  {c.requiresAgeVerification && <span className="px-1.5 py-0.5 text-[10px] font-bold bg-red-100 text-red-600 rounded-md">+18</span>}
+                  {c.requiresAgeVerification && <span className="px-1.5 py-0.5 text-[10px] font-bold bg-[var(--status-error-bg)] text-[var(--status-error-text)] rounded-md">+18</span>}
                 </button>
               ))}
-              <div className="border-t border-gray-100 my-1" />
+              <div className="border-t border-[var(--border-color)] my-1" />
               <button onClick={() => { setCategoryFilter("NONE"); setShowFilterDropdown(false); }}
-                className={`w-full text-left px-4 py-2.5 text-sm cursor-pointer transition ${categoryFilter === "NONE" ? "bg-orange-50 text-orange-600 font-semibold" : "text-[var(--text-muted)] hover:bg-[var(--bg-hover)]"}`}>
+                className={`w-full text-left px-4 py-2.5 text-sm cursor-pointer transition ${categoryFilter === "NONE" ? "bg-[var(--brand-primary)]/10 text-[var(--brand-primary)] font-semibold" : "text-[var(--text-muted)] hover:bg-[var(--bg-hover)]"}`}>
                 Sem categoria
               </button>
             </div>
@@ -1577,29 +1704,23 @@ export default function ProductsPage() {
         )}
       </div>
 
-      <div className="flex items-center gap-1 bg-[var(--bg-hover)] rounded-lg p-1">
-        <button onClick={() => setActivePanel(activePanel === "category" ? "catalog" : "category")}
-          className={`px-3 py-1.5 rounded-md text-xs font-medium cursor-pointer transition flex items-center gap-1.5 ${activePanel === "category" ? "bg-[var(--bg-card)] text-orange-600 shadow-sm" : "text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)]/60"}`}
+      <div data-tour="product-toolbar" className="flex items-center gap-1 bg-[var(--bg-hover)] rounded-lg p-1">
+        <button data-tour="product-category-btn" onClick={() => setActivePanel(activePanel === "category" ? "catalog" : "category")}
+          className={`px-3 py-1.5 rounded-md text-xs font-medium cursor-pointer transition flex items-center gap-1.5 ${activePanel === "category" ? "bg-[var(--bg-card)] text-[var(--brand-primary)] shadow-sm" : "text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)]/60"}`}
           title="Nova categoria">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-          </svg>
+          <Tag className="h-3.5 w-3.5" />
           Categoria
         </button>
-        <button onClick={() => { setActivePanel(activePanel === "csv" ? "catalog" : "csv"); setCsvProducts([]); setBulkResult(null); }}
+        <button data-tour="product-import-btn" onClick={() => { setActivePanel(activePanel === "csv" ? "catalog" : "csv"); setCsvProducts([]); setBulkResult(null); }}
           className={`px-3 py-1.5 rounded-md text-xs font-medium cursor-pointer transition flex items-center gap-1.5 ${activePanel === "csv" ? "bg-[var(--bg-card)] text-blue-600 shadow-sm" : "text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)]/60"}`}
           title="Importar CSV">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-          </svg>
+          <Upload className="h-3.5 w-3.5" />
           Importar
         </button>
-        <button onClick={() => { setActivePanel(activePanel === "trash" ? "catalog" : "trash"); if (activePanel !== "trash" && activeStoreId) fetchDeleted({ variables: { storeId: activeStoreId } }); }}
-          className={`px-3 py-1.5 rounded-md text-xs font-medium cursor-pointer transition flex items-center gap-1.5 ${activePanel === "trash" ? "bg-[var(--bg-card)] text-red-500 shadow-sm" : "text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)]/60"}`}
+        <button data-tour="product-trash-btn" onClick={() => { setActivePanel(activePanel === "trash" ? "catalog" : "trash"); if (activePanel !== "trash" && activeStoreId) fetchDeleted({ variables: { storeId: activeStoreId } }); }}
+          className={`px-3 py-1.5 rounded-md text-xs font-medium cursor-pointer transition flex items-center gap-1.5 ${activePanel === "trash" ? "bg-[var(--bg-card)] text-[var(--status-error-text)] shadow-sm" : "text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)]/60"}`}
           title="Lixeira">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-          </svg>
+          <Trash2 className="h-3.5 w-3.5" />
           Lixeira
         </button>
       </div>
@@ -1607,11 +1728,15 @@ export default function ProductsPage() {
       </div>
 
       {/* Products table */}
+      <div data-tour="product-grid">
       {categoryFilter === "ALL" && groupedProducts ? (
         groupedProducts.length === 0 ? (
-          <div className="bg-[var(--bg-card)] rounded-2xl shadow-sm">
-            <p className="text-center py-12 text-[var(--text-muted)]">Nenhum produto cadastrado</p>
-          </div>
+          <EmptyState
+            icon={Package}
+            title="Nenhum produto cadastrado"
+            description="Adicione seu primeiro produto para comecar a vender."
+            action={{ label: "Novo Produto", onClick: () => setActivePanel("product") }}
+          />
         ) : (
           groupedProducts.map(([key, group]) => (
             <div key={key} className="mb-6"
@@ -1622,15 +1747,13 @@ export default function ProductsPage() {
               <div className="flex items-center gap-2 mb-2 px-1">
                 <h3 className="text-sm font-bold text-[var(--text-muted)] uppercase tracking-wide">{group.name} ({group.products.length})</h3>
                 {categories.find((c: any) => c.id === key)?.requiresAgeVerification && (
-                  <span className="px-1.5 py-0.5 text-[10px] font-bold bg-red-100 text-red-600 rounded-md">+18</span>
+                  <span className="px-1.5 py-0.5 text-[10px] font-bold bg-[var(--status-error-bg)] text-[var(--status-error-text)] rounded-md">+18</span>
                 )}
                 {key !== "sem-categoria" && (
                   <div className="relative">
                     <button onClick={() => setCategoryMenuId(categoryMenuId === key ? null : key)}
-                      className="p-1 rounded-lg text-gray-400 hover:text-[var(--text-secondary)] hover:bg-[var(--bg-muted)] cursor-pointer transition">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
-                        <circle cx="12" cy="5" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="12" cy="19" r="2" />
-                      </svg>
+                      className="p-1 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-muted)] cursor-pointer transition">
+                      <MoreVertical className="h-4 w-4" />
                     </button>
                     {categoryMenuId === key && (
                       <>
@@ -1638,16 +1761,12 @@ export default function ProductsPage() {
                         <div className="absolute left-0 top-full mt-1 z-20 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl shadow-lg py-1 min-w-[160px]">
                           <button onClick={() => startEditingCategory(categories.find((c: any) => c.id === key))}
                             className="w-full text-left px-4 py-2.5 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-hover)] cursor-pointer transition flex items-center gap-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                            </svg>
+                            <Pencil className="h-4 w-4" />
                             Editar categoria
                           </button>
                           <button onClick={() => handleDeleteCategory(key)}
-                            className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 cursor-pointer transition flex items-center gap-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
+                            className="w-full text-left px-4 py-2.5 text-sm text-[var(--status-error-text)] hover:bg-[var(--status-error-bg)] cursor-pointer transition flex items-center gap-2">
+                            <Trash2 className="h-4 w-4" />
                             Excluir categoria
                           </button>
                         </div>
@@ -1657,9 +1776,9 @@ export default function ProductsPage() {
                 )}
               </div>
               {/* Mobile cards */}
-              <div className="md:hidden space-y-3">
+              <motion.div variants={staggerContainer} initial="hidden" animate="show" className="md:hidden grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
                 {group.products.map((product: any) => renderProductCard(product))}
-              </div>
+              </motion.div>
 
               {/* Desktop table */}
               <div className={`hidden md:block bg-[var(--bg-card)] rounded-2xl shadow-sm transition-all overflow-x-auto ${dragOverCategory === key ? "ring-2 ring-purple-400 ring-offset-2" : ""}`}>
@@ -1676,11 +1795,15 @@ export default function ProductsPage() {
           {/* Mobile cards */}
           <div className="md:hidden">
             {filteredProducts.length === 0 ? (
-              <div className="bg-[var(--bg-card)] rounded-2xl shadow-sm p-12 text-center text-[var(--text-muted)]">Nenhum produto nesta categoria</div>
+              <EmptyState
+                icon={Package}
+                title="Nenhum produto nesta categoria"
+                description="Tente outro filtro ou adicione produtos a esta categoria."
+              />
             ) : (
-              <div className="space-y-3">
+              <motion.div variants={staggerContainer} initial="hidden" animate="show" className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
                 {filteredProducts.map((product: any) => renderProductCard(product))}
-              </div>
+              </motion.div>
             )}
           </div>
 
@@ -1699,25 +1822,24 @@ export default function ProductsPage() {
           </div>
         </>
       )}
+      </div>
 
       {/* Inline edit confirmation modal */}
       {confirmInline && (
         <>
           <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setConfirmInline(null)} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="bg-[var(--bg-card)] rounded-2xl p-6 shadow-xl w-full max-w-sm">
+            <motion.div {...scaleIn} className="bg-[var(--bg-card)] rounded-2xl p-6 shadow-xl w-full max-w-sm">
               <h3 className="font-bold text-[var(--text-primary)] mb-3 text-lg">Confirmar alteracao</h3>
               <p className="text-[var(--text-secondary)] mb-1">
                 {confirmInline.field === "price" ? "Preco" : "Estoque"}:
               </p>
               <div className="flex items-center gap-3 mb-6">
-                <span className="text-gray-400 line-through">
+                <span className="text-[var(--text-muted)] line-through">
                   {confirmInline.field === "price" ? `R$ ${parseFloat(confirmInline.original).toFixed(2)}` : confirmInline.original}
                 </span>
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                </svg>
-                <span className="text-orange-600 font-bold text-lg">
+                <ArrowRight className="h-4 w-4 text-[var(--text-muted)]" />
+                <span className="text-[var(--brand-primary)] font-bold text-lg">
                   {confirmInline.field === "price" ? `R$ ${parseFloat(confirmInline.value).toFixed(2)}` : confirmInline.value}
                 </span>
               </div>
@@ -1727,11 +1849,11 @@ export default function ProductsPage() {
                   Cancelar
                 </button>
                 <button onClick={confirmInlineEdit}
-                  className="flex-1 px-4 py-2 bg-orange-500 text-white rounded-xl font-bold cursor-pointer hover:bg-orange-600 active:scale-95 transition">
+                  className="flex-1 px-4 py-2 bg-[var(--brand-primary)] text-white rounded-xl font-bold cursor-pointer hover:bg-[var(--brand-primary-hover)] active:scale-95 transition">
                   Confirmar
                 </button>
               </div>
-            </div>
+            </motion.div>
           </div>
         </>
       )}
@@ -1741,14 +1863,12 @@ export default function ProductsPage() {
         <>
           <div className="fixed inset-0 bg-black/50 z-[60]" onClick={() => { setShowWebSearch(null); setWebImageResults([]); }} />
           <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-            <div className="bg-[var(--bg-card)] rounded-2xl shadow-xl w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col">
-              <div className="p-5 border-b border-gray-100">
+            <motion.div {...scaleIn} className="bg-[var(--bg-card)] rounded-2xl shadow-xl w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col">
+              <div className="p-5 border-b border-[var(--border-color)]">
                 <div className="flex items-center justify-between mb-1">
                   <h3 className="font-bold text-[var(--text-primary)] text-lg">Buscar imagem</h3>
-                  <button onClick={() => { setShowWebSearch(null); setWebImageResults([]); }} className="text-gray-400 hover:text-[var(--text-secondary)] cursor-pointer">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
+                  <button onClick={() => { setShowWebSearch(null); setWebImageResults([]); }} className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] cursor-pointer">
+                    <X className="h-5 w-5" />
                   </button>
                 </div>
                 <p className="text-sm text-[var(--text-muted)]">Resultados para &quot;{webSearchQuery}&quot;</p>
@@ -1757,17 +1877,17 @@ export default function ProductsPage() {
                 {searchingImages ? (
                   <div className="flex items-center justify-center py-12">
                     <div className="text-center">
-                      <div className="w-8 h-8 border-3 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-                      <p className="text-sm text-gray-400">Buscando imagens...</p>
+                      <div className="w-8 h-8 border-3 border-[var(--brand-primary)] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                      <p className="text-sm text-[var(--text-muted)]">Buscando imagens...</p>
                     </div>
                   </div>
                 ) : webImageResults.length === 0 ? (
-                  <p className="text-center text-gray-400 py-12">Nenhuma imagem encontrada</p>
+                  <p className="text-center text-[var(--text-muted)] py-12">Nenhuma imagem encontrada</p>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {webImageResults.map((url, i) => (
                       <button key={i} onClick={() => handleSelectWebImage(url)} disabled={savingWebImage}
-                        className="relative group rounded-xl overflow-hidden border-2 border-transparent hover:border-orange-500 cursor-pointer transition disabled:opacity-50">
+                        className="relative group rounded-xl overflow-hidden border-2 border-transparent hover:border-[var(--brand-primary)] cursor-pointer transition disabled:opacity-50">
                         <img src={url} alt={`Resultado ${i + 1}`} className="w-full h-36 object-cover" />
                         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition flex items-center justify-center">
                           <span className="text-white text-sm font-bold opacity-0 group-hover:opacity-100 transition">{savingWebImage ? "Salvando..." : "Usar esta"}</span>
@@ -1777,7 +1897,7 @@ export default function ProductsPage() {
                   </div>
                 )}
               </div>
-            </div>
+            </motion.div>
           </div>
         </>
       )}
@@ -1787,33 +1907,34 @@ export default function ProductsPage() {
         <>
           <div className="fixed inset-0 bg-black/50 z-50" onClick={() => setShowCsvModal(false)} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="bg-[var(--bg-card)] rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col">
-              <div className="p-5 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
+            <motion.div {...scaleIn} className="bg-[var(--bg-card)] rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col">
+              <div data-tour="csv-review-header" className="p-5 border-b border-[var(--border-color)] flex items-center justify-between flex-shrink-0">
                 <div>
                   <h3 className="font-bold text-[var(--text-primary)] text-lg">Revisar importacao</h3>
-                  <p className="text-sm text-gray-400">{csvProducts.length} produtos - edite antes de importar</p>
+                  <p className="text-sm text-[var(--text-muted)]">{csvProducts.length} produtos - edite antes de importar</p>
                 </div>
                 <div className="flex items-center gap-3">
-                  <button onClick={handleBulkImport} disabled={bulkImporting}
-                    className="px-5 py-2 bg-green-500 text-white rounded-xl text-sm font-bold cursor-pointer hover:bg-green-600 active:scale-95 transition disabled:opacity-50">
+                  <button onClick={startCsvReviewTour} title="Ver tutorial" className="flex items-center justify-center w-7 h-7 rounded-full bg-[var(--bg-muted)] text-[var(--text-muted)] hover:bg-[var(--brand-primary-muted)] hover:text-[var(--brand-primary)] transition cursor-pointer">
+                    <HelpCircle className="w-4 h-4" />
+                  </button>
+                  <button data-tour="csv-import-all-btn" onClick={handleBulkImport} disabled={bulkImporting}
+                    className="px-5 py-2 bg-[var(--status-success-text)] text-white rounded-xl text-sm font-bold cursor-pointer hover:bg-[var(--status-success-text)] active:scale-95 transition disabled:opacity-50">
                     {bulkImporting ? "Importando..." : `Importar ${csvProducts.length}`}
                   </button>
-                  <button onClick={() => setShowCsvModal(false)} className="text-gray-400 hover:text-[var(--text-secondary)] cursor-pointer">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
+                  <button onClick={() => setShowCsvModal(false)} className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] cursor-pointer">
+                    <X className="h-5 w-5" />
                   </button>
                 </div>
               </div>
               {bulkResult && (
-                <div className={`mx-5 mt-4 p-3 rounded-xl text-sm ${bulkResult.errors.length > 0 ? "bg-yellow-50 border border-yellow-200" : "bg-green-50 border border-green-200"}`}>
+                <div className={`mx-5 mt-4 p-3 rounded-xl text-sm ${bulkResult.errors.length > 0 ? "bg-yellow-50 border border-yellow-200" : "bg-[var(--status-success-bg)] border border-[var(--status-success-bg)]"}`}>
                   <p className="font-semibold text-[var(--text-primary)]">{bulkResult.created} produtos importados!</p>
-                  {bulkResult.errors.length > 0 && bulkResult.errors.map((err, i) => <p key={i} className="text-red-500 text-xs mt-1">{err}</p>)}
+                  {bulkResult.errors.length > 0 && bulkResult.errors.map((err, i) => <p key={i} className="text-[var(--status-error-text)] text-xs mt-1">{err}</p>)}
                 </div>
               )}
               <div className="flex-1 overflow-y-auto p-5 space-y-4">
                 {csvProducts.map((p, i) => (
-                  <div key={i} className="border border-[var(--border-color)] rounded-xl p-4 hover:border-[var(--border-color)] transition">
+                  <div key={i} {...(i === 0 ? { 'data-tour': 'csv-product-card' } : {})} className="border border-[var(--border-color)] rounded-xl p-4 hover:border-[var(--border-color)] transition">
                     <div className="flex gap-4">
                       {/* Image */}
                       <div className="flex-shrink-0 flex flex-col gap-1.5">
@@ -1821,21 +1942,17 @@ export default function ProductsPage() {
                           ref={(el) => { csvFileInputRefs.current[i] = el; }}
                           onChange={(e) => { if (e.target.files?.[0]) handleCsvImageSelect(e.target.files[0], i); }} />
                         <div onClick={() => csvFileInputRefs.current[i]?.click()}
-                          className="w-20 h-20 border-2 border-dashed border-[var(--border-color)] rounded-xl flex items-center justify-center cursor-pointer hover:border-orange-400 hover:bg-orange-50/50 transition overflow-hidden">
+                          className="w-20 h-20 border-2 border-dashed border-[var(--border-color)] rounded-xl flex items-center justify-center cursor-pointer hover:border-[var(--brand-primary)] hover:bg-[var(--brand-primary)]/10/50 transition overflow-hidden">
                           {p.imageUrl ? (
                             <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover rounded-xl" />
                           ) : (
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                            </svg>
+                            <ImageIcon className="h-6 w-6 text-[var(--text-muted)]" />
                           )}
                         </div>
                         {p.name.trim() && !p.imageUrl && (
                           <button type="button" onClick={() => handleWebSearch("csv", i)}
                             className="w-20 py-1 text-[10px] text-blue-600 bg-blue-50 rounded-lg font-semibold cursor-pointer hover:bg-blue-100 active:scale-95 transition flex items-center justify-center gap-1">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                            </svg>
+                            <Search className="h-3 w-3" />
                             Buscar
                           </button>
                         )}
@@ -1868,17 +1985,17 @@ export default function ProductsPage() {
                               <input type="text" autoFocus placeholder="Nome" value={inlineCategoryName}
                                 onChange={(e) => setInlineCategoryName(e.target.value)}
                                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleInlineCreateCategory("csv"); } if (e.key === "Escape") { setInlineNewCategory(null); setInlineCategoryName(""); } }}
-                                className="flex-1 px-2 py-1.5 border border-orange-300 rounded-lg text-sm text-[var(--text-primary)] outline-none" />
-                              <button type="button" onClick={() => handleInlineCreateCategory("csv")} className="px-2 py-1.5 bg-orange-500 text-white rounded-lg text-xs font-bold cursor-pointer">OK</button>
-                              <button type="button" onClick={() => { setInlineNewCategory(null); setInlineCategoryName(""); }} className="px-1 text-gray-400 cursor-pointer">&#10005;</button>
+                                className="flex-1 px-2 py-1.5 border border-[var(--brand-primary)] rounded-lg text-sm text-[var(--text-primary)] outline-none" />
+                              <button type="button" onClick={() => handleInlineCreateCategory("csv")} className="px-2 py-1.5 bg-[var(--brand-primary)] text-white rounded-lg text-xs font-bold cursor-pointer">OK</button>
+                              <button type="button" onClick={() => { setInlineNewCategory(null); setInlineCategoryName(""); }} className="px-1 text-[var(--text-muted)] cursor-pointer">&#10005;</button>
                             </div>
                           ) : (
                             <select value={p.categoryId || ""}
                               onChange={(e) => { if (e.target.value === "__new__") { setInlineNewCategory("csv"); setInlineCategoryName(""); return; } updateCsvProduct(i, "categoryId", e.target.value); }}
-                              className="w-full px-3 py-1.5 border border-[var(--border-color)] rounded-lg text-sm text-[var(--text-primary)] focus:border-blue-400 outline-none">
-                              <option value="">Sem categoria</option>
-                              {categories.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                              <option value="__new__">+ Criar categoria</option>
+                              className="w-full px-3 py-1.5 border border-[var(--border-color)] rounded-lg text-sm text-[var(--text-primary)] bg-[var(--bg-input)] focus:border-blue-400 outline-none">
+                              <option value="" className="bg-[var(--bg-card)] text-[var(--text-primary)]">Sem categoria</option>
+                              {categories.map((c: any) => <option key={c.id} value={c.id} className="bg-[var(--bg-card)] text-[var(--text-primary)]">{c.name}</option>)}
+                              <option value="__new__" className="bg-[var(--bg-card)] text-[var(--text-primary)]">+ Criar categoria</option>
                             </select>
                           )}
                         </div>
@@ -1890,26 +2007,24 @@ export default function ProductsPage() {
                       </div>
                       {/* Remove button */}
                       <button onClick={() => removeCsvProduct(i)}
-                        className="flex-shrink-0 self-start p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 cursor-pointer transition">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
+                        className="flex-shrink-0 self-start p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--status-error-text)] hover:bg-[var(--status-error-bg)] cursor-pointer transition">
+                        <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
                   </div>
                 ))}
               </div>
-              <div className="p-4 border-t border-gray-100 flex items-center justify-between flex-shrink-0">
+              <div className="p-4 border-t border-[var(--border-color)] flex items-center justify-between flex-shrink-0">
                 <button onClick={() => { setCsvProducts([]); setShowCsvModal(false); }}
-                  className="px-4 py-2 text-sm text-red-500 font-semibold cursor-pointer hover:bg-red-50 rounded-xl transition">
+                  className="px-4 py-2 text-sm text-[var(--status-error-text)] font-semibold cursor-pointer hover:bg-[var(--status-error-bg)] rounded-xl transition">
                   Descartar tudo
                 </button>
                 <button onClick={handleBulkImport} disabled={bulkImporting}
-                  className="px-6 py-2.5 bg-green-500 text-white rounded-xl font-bold cursor-pointer hover:bg-green-600 active:scale-95 transition disabled:opacity-50">
+                  className="px-6 py-2.5 bg-[var(--status-success-text)] text-white rounded-xl font-bold cursor-pointer hover:bg-[var(--status-success-text)] active:scale-95 transition disabled:opacity-50">
                   {bulkImporting ? "Importando..." : `Importar ${csvProducts.length} produtos`}
                 </button>
               </div>
-            </div>
+            </motion.div>
           </div>
         </>
       )}
@@ -1918,13 +2033,11 @@ export default function ProductsPage() {
       {zoomedImage && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center" onClick={() => setZoomedImage(null)}>
           <button onClick={() => setZoomedImage(null)} className="absolute top-6 right-6 text-white/80 hover:text-white cursor-pointer transition">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <X className="h-8 w-8" />
           </button>
           <img src={zoomedImage} alt="Produto ampliado" className="max-w-[90vw] max-h-[85vh] object-contain rounded-2xl shadow-2xl" onClick={(e) => e.stopPropagation()} />
         </div>
       )}
-    </div>
+    </motion.div>
   );
 }

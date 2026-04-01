@@ -361,10 +361,39 @@ export const SWAP_PROMOTION_PRODUCT = gql`
 `;
 
 export const CREATE_PLAN_UPGRADE = gql`
-  mutation CreatePlanUpgrade($plan: VendorPlan!, $billingPeriod: String) {
-    createPlanUpgrade(plan: $plan, billingPeriod: $billingPeriod) {
-      id checkoutUrl status
+  mutation CreatePlanUpgrade($plan: VendorPlan!, $billingPeriod: String, $cardToken: String, $paymentMethod: String) {
+    createPlanUpgrade(plan: $plan, billingPeriod: $billingPeriod, cardToken: $cardToken, paymentMethod: $paymentMethod) {
+      id status
     }
+  }
+`;
+
+export const MY_SUBSCRIPTION = gql`
+  query MySubscription {
+    mySubscription {
+      id plan billingPeriod status amount installments
+      currentPeriodStart currentPeriodEnd
+      canceledAt cancelAtPeriodEnd
+      createdAt updatedAt
+    }
+  }
+`;
+
+export const CANCEL_SUBSCRIPTION = gql`
+  mutation CancelSubscription {
+    cancelSubscription
+  }
+`;
+
+export const UPDATE_SUBSCRIPTION_CARD = gql`
+  mutation UpdateSubscriptionCard($cardToken: String!) {
+    updateSubscriptionCard(cardToken: $cardToken)
+  }
+`;
+
+export const REACTIVATE_SUBSCRIPTION = gql`
+  mutation ReactivateSubscription {
+    reactivateSubscription
   }
 `;
 
@@ -565,15 +594,6 @@ export const REQUEST_PASSWORD_RESET = gql`
 export const RESET_PASSWORD = gql`
   mutation ResetPassword($token: String!, $newPassword: String!) {
     resetPassword(token: $token, newPassword: $newPassword, type: "vendor")
-  }
-`;
-
-export const SESSION_KICKED_SUB = gql`
-  subscription SessionKicked($userId: String!, $userType: String) {
-    sessionKicked(userId: $userId, userType: $userType) {
-      userId
-      userType
-    }
   }
 `;
 
