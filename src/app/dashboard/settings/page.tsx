@@ -127,45 +127,6 @@ function StoreLinkSection({
   );
 }
 
-// ===== STORE LINK SECTION =====
-function StoreLinkSection({ storeId, slug, isCopied, showQr, onCopy, onToggleQr }: {
-  storeId: string; slug?: string; isCopied: boolean; showQr: boolean;
-  onCopy: () => void; onToggleQr: () => void;
-}) {
-  const publicUrl = `https://loja.bcmtech.com.br/loja/${slug || storeId}`;
-  return (
-    <div className="px-4 pb-4 border-t border-[var(--border-light)] pt-3">
-      <p className="text-xs text-[var(--text-muted)] mb-1.5">Link público da loja</p>
-      <div className="flex items-center gap-2">
-        <input
-          readOnly
-          value={publicUrl}
-          className="flex-1 text-xs bg-[var(--bg-muted)] border border-[var(--border-color)] rounded-lg px-3 py-2 text-[var(--text-secondary)] truncate"
-        />
-        <button
-          onClick={onCopy}
-          className="w-8 h-8 flex items-center justify-center rounded-lg bg-[var(--bg-muted)] hover:bg-[var(--bg-hover)] transition"
-          title="Copiar link"
-        >
-          {isCopied ? <Check size={14} className="text-green-500" /> : <Copy size={14} className="text-[var(--text-muted)]" />}
-        </button>
-        <button
-          onClick={onToggleQr}
-          className="w-8 h-8 flex items-center justify-center rounded-lg bg-[var(--bg-muted)] hover:bg-[var(--bg-hover)] transition"
-          title="Ver QR Code"
-        >
-          <QrCode size={14} className="text-[var(--text-muted)]" />
-        </button>
-      </div>
-      {showQr && (
-        <div className="mt-3 flex justify-center p-4 bg-white rounded-xl border border-[var(--border-color)]">
-          <QRCodeSVG value={publicUrl} size={160} />
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ===== STORES SECTION =====
 function StoresSection() {
   const { data, loading, refetch } = useQuery(GET_MY_STORES);
