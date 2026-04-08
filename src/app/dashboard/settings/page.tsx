@@ -464,7 +464,7 @@ function StoresSection() {
               />
               <div className="col-span-2">
                 <label className="text-sm font-medium text-[var(--text-secondary)] mb-1.5 block">
-                  WhatsApp do agente IA{" "}
+                  Meu WhatsApp (para gestão via agente){" "}
                   <span className="text-[var(--text-muted)] font-normal">
                     (opcional)
                   </span>
@@ -479,8 +479,7 @@ function StoresSection() {
                   className="w-full px-4 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-[var(--brand-primary)]"
                 />
                 <p className="text-xs text-[var(--text-muted)] mt-1">
-                  Número com DDI (ex: 5511999999999). Clientes que mandarem
-                  mensagem neste número serão atendidos pelo agente IA.
+                  Número com DDI (ex: 5511999999999). Cadastre seu próprio número para gerenciar pedidos pelo WhatsApp via agente IA.
                 </p>
               </div>
             </div>
