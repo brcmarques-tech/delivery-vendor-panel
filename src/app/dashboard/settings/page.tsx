@@ -18,15 +18,7 @@ import { compressImage } from "@/lib/compressImage";
 import CreateStoreModal from "@/components/CreateStoreModal";
 import PageHeader from "@/components/ui/PageHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
-import {
-  Award,
-  Medal,
-  Gem,
-  RotateCcw,
-  Copy,
-  Check,
-  QrCode,
-} from "lucide-react";
+import { Award, Medal, Gem, RotateCcw, Copy, Check, QrCode } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useRouter } from "next/navigation";
 
@@ -117,6 +109,45 @@ function StoreLinkSection({
           ) : (
             <Copy size={14} className="text-[var(--text-muted)]" />
           )}
+        </button>
+        <button
+          onClick={onToggleQr}
+          className="w-8 h-8 flex items-center justify-center rounded-lg bg-[var(--bg-muted)] hover:bg-[var(--bg-hover)] transition"
+          title="Ver QR Code"
+        >
+          <QrCode size={14} className="text-[var(--text-muted)]" />
+        </button>
+      </div>
+      {showQr && (
+        <div className="mt-3 flex justify-center p-4 bg-white rounded-xl border border-[var(--border-color)]">
+          <QRCodeSVG value={publicUrl} size={160} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ===== STORE LINK SECTION =====
+function StoreLinkSection({ storeId, slug, isCopied, showQr, onCopy, onToggleQr }: {
+  storeId: string; slug?: string; isCopied: boolean; showQr: boolean;
+  onCopy: () => void; onToggleQr: () => void;
+}) {
+  const publicUrl = `https://loja.bcmtech.com.br/loja/${slug || storeId}`;
+  return (
+    <div className="px-4 pb-4 border-t border-[var(--border-light)] pt-3">
+      <p className="text-xs text-[var(--text-muted)] mb-1.5">Link público da loja</p>
+      <div className="flex items-center gap-2">
+        <input
+          readOnly
+          value={publicUrl}
+          className="flex-1 text-xs bg-[var(--bg-muted)] border border-[var(--border-color)] rounded-lg px-3 py-2 text-[var(--text-secondary)] truncate"
+        />
+        <button
+          onClick={onCopy}
+          className="w-8 h-8 flex items-center justify-center rounded-lg bg-[var(--bg-muted)] hover:bg-[var(--bg-hover)] transition"
+          title="Copiar link"
+        >
+          {isCopied ? <Check size={14} className="text-green-500" /> : <Copy size={14} className="text-[var(--text-muted)]" />}
         </button>
         <button
           onClick={onToggleQr}
@@ -324,41 +355,23 @@ function StoresSection() {
           ) : (
             <div className="space-y-3 mb-4">
               {stores.map((store: any) => (
-                <div
-                  key={store.id}
-                  className="border border-[var(--border-light)] rounded-xl overflow-hidden"
-                >
+                <div key={store.id} className="border border-[var(--border-light)] rounded-xl overflow-hidden">
                   <div className="flex items-center gap-4 p-4 hover:bg-[var(--bg-hover)] transition">
                     {store.logoUrl ? (
-                      <img
-                        src={store.logoUrl}
-                        alt=""
-                        className="w-12 h-12 rounded-xl object-cover shrink-0"
-                      />
+                      <img src={store.logoUrl} alt="" className="w-12 h-12 rounded-xl object-cover shrink-0" />
                     ) : (
                       <div className="w-12 h-12 rounded-xl bg-[color-mix(in_srgb,var(--brand-primary)_10%,transparent)] flex items-center justify-center shrink-0">
-                        <span className="text-[var(--brand-primary)] text-xl font-bold">
-                          {store.name?.[0]}
-                        </span>
+                        <span className="text-[var(--brand-primary)] text-xl font-bold">{store.name?.[0]}</span>
                       </div>
                     )}
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-[var(--text-primary)] truncate">
-                        {store.name}
-                      </p>
-                      <p className="text-sm text-[var(--text-muted)] truncate">
-                        {store.city} - {store.state}
-                      </p>
+                      <p className="font-semibold text-[var(--text-primary)] truncate">{store.name}</p>
+                      <p className="text-sm text-[var(--text-muted)] truncate">{store.city} - {store.state}</p>
                     </div>
-                    <span
-                      className={`px-2 py-1 rounded-full text-xs font-semibold ${store.isOpen ? "bg-[var(--status-success-bg)] text-[var(--status-success-text)]" : "bg-[var(--bg-muted)] text-[var(--text-secondary)]"}`}
-                    >
+                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${store.isOpen ? "bg-[var(--status-success-bg)] text-[var(--status-success-text)]" : "bg-[var(--bg-muted)] text-[var(--text-secondary)]"}`}>
                       {store.isOpen ? "Aberta" : "Fechada"}
                     </span>
-                    <button
-                      onClick={() => startEdit(store)}
-                      className="px-4 py-2 text-sm font-semibold text-[var(--brand-primary)] hover:bg-[var(--bg-hover)] rounded-xl transition cursor-pointer"
-                    >
+                    <button onClick={() => startEdit(store)} className="px-4 py-2 text-sm font-semibold text-[var(--brand-primary)] hover:bg-[var(--bg-hover)] rounded-xl transition cursor-pointer">
                       Editar
                     </button>
                   </div>
@@ -373,9 +386,7 @@ function StoresSection() {
                       setCopiedStoreId(store.id);
                       setTimeout(() => setCopiedStoreId(null), 2000);
                     }}
-                    onToggleQr={() =>
-                      setQrStoreId(qrStoreId === store.id ? null : store.id)
-                    }
+                    onToggleQr={() => setQrStoreId(qrStoreId === store.id ? null : store.id)}
                   />
                 </div>
               ))}

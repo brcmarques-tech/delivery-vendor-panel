@@ -81,63 +81,15 @@ export const CONFIRM_EMAIL_VERIFICATION = gql`
 export const GET_MY_STORES = gql`
   query MyStores {
     myStores {
-      id
-      name
-      description
-      isOpen
-      hasOwnDelivery
-      freeDelivery
-      deliveryFee
-      estimatedDeliveryMinutes
-      minimumOrder
-      deliveryStartTime
-      deliveryEndTime
-      freeDeliveryAbove
-      phone
-      whatsappNumber
-      street
-      number
-      complement
-      neighborhood
-      city
-      state
-      zipCode
-      logoUrl
-      bannerUrl
-      latitude
-      longitude
-      storeType
-      slug
-      verificationLevel
-      verificationScore
-      totalSales
-      totalProducts
-      createdAt
-      badgeClaimCount
-      lastClaimedScore
-      freePromoDaysCredit
-      commissionReductionPercent
-      commissionReductionExpiresAt
-      products {
-        id
-        name
-        price
-        isAvailable
-        isActive
-        stock
-        imageUrl
-        barcode
-        isVariableWeight
-        category {
-          id
-          name
-        }
-      }
-      categories {
-        id
-        name
-        requiresAgeVerification
-      }
+      id name description isOpen hasOwnDelivery freeDelivery deliveryFee
+      estimatedDeliveryMinutes minimumOrder deliveryStartTime deliveryEndTime freeDeliveryAbove
+      phone whatsappNumber street number complement neighborhood city state zipCode
+      logoUrl bannerUrl latitude longitude storeType slug
+      verificationLevel verificationScore totalSales totalProducts createdAt
+      badgeClaimCount lastClaimedScore freePromoDaysCredit
+      commissionReductionPercent commissionReductionExpiresAt
+      products { id name price isAvailable isActive stock imageUrl barcode isVariableWeight category { id name } }
+      categories { id name requiresAgeVerification }
     }
   }
 `;
