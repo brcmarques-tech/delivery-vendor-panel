@@ -1,10 +1,17 @@
-import { gql } from '@apollo/client';
+import { gql } from "@apollo/client";
 
 export const LOGIN = gql`
   mutation LoginVendor($input: LoginInput!, $forceLogin: Boolean) {
     loginVendor(input: $input, forceLogin: $forceLogin) {
       accessToken
-      user { id name email role emailVerified phoneVerified }
+      user {
+        id
+        name
+        email
+        role
+        emailVerified
+        phoneVerified
+      }
     }
   }
 `;
@@ -13,14 +20,32 @@ export const REGISTER = gql`
   mutation RegisterVendor($input: RegisterVendorInput!) {
     registerVendor(input: $input) {
       accessToken
-      user { id name email role cpf emailVerified phoneVerified }
+      user {
+        id
+        name
+        email
+        role
+        cpf
+        emailVerified
+        phoneVerified
+      }
     }
   }
 `;
 
 export const VALIDATE_REGISTRATION = gql`
-  mutation ValidateRegistration($email: String!, $cpf: String!, $phone: String!, $userType: String) {
-    validateRegistration(email: $email, cpf: $cpf, phone: $phone, userType: $userType) {
+  mutation ValidateRegistration(
+    $email: String!
+    $cpf: String!
+    $phone: String!
+    $userType: String
+  ) {
+    validateRegistration(
+      email: $email
+      cpf: $cpf
+      phone: $phone
+      userType: $userType
+    ) {
       valid
       emailError
       cpfError
@@ -56,15 +81,63 @@ export const CONFIRM_EMAIL_VERIFICATION = gql`
 export const GET_MY_STORES = gql`
   query MyStores {
     myStores {
-      id name description isOpen hasOwnDelivery freeDelivery deliveryFee
-      estimatedDeliveryMinutes minimumOrder deliveryStartTime deliveryEndTime freeDeliveryAbove
-      phone street number complement neighborhood city state zipCode
-      logoUrl bannerUrl latitude longitude storeType slug
-      verificationLevel verificationScore totalSales totalProducts createdAt
-      badgeClaimCount lastClaimedScore freePromoDaysCredit
-      commissionReductionPercent commissionReductionExpiresAt
-      products { id name price isAvailable isActive stock imageUrl barcode isVariableWeight category { id name } }
-      categories { id name requiresAgeVerification }
+      id
+      name
+      description
+      isOpen
+      hasOwnDelivery
+      freeDelivery
+      deliveryFee
+      estimatedDeliveryMinutes
+      minimumOrder
+      deliveryStartTime
+      deliveryEndTime
+      freeDeliveryAbove
+      phone
+      whatsappNumber
+      street
+      number
+      complement
+      neighborhood
+      city
+      state
+      zipCode
+      logoUrl
+      bannerUrl
+      latitude
+      longitude
+      storeType
+      slug
+      verificationLevel
+      verificationScore
+      totalSales
+      totalProducts
+      createdAt
+      badgeClaimCount
+      lastClaimedScore
+      freePromoDaysCredit
+      commissionReductionPercent
+      commissionReductionExpiresAt
+      products {
+        id
+        name
+        price
+        isAvailable
+        isActive
+        stock
+        imageUrl
+        barcode
+        isVariableWeight
+        category {
+          id
+          name
+        }
+      }
+      categories {
+        id
+        name
+        requiresAgeVerification
+      }
     }
   }
 `;
@@ -72,9 +145,31 @@ export const GET_MY_STORES = gql`
 export const UPDATE_STORE = gql`
   mutation UpdateStore($input: UpdateStoreInput!) {
     updateStore(input: $input) {
-      id name description phone street number complement neighborhood city state zipCode
-      hasOwnDelivery freeDelivery deliveryFee estimatedDeliveryMinutes minimumOrder
-      deliveryStartTime deliveryEndTime freeDeliveryAbove logoUrl bannerUrl latitude longitude storeType
+      id
+      name
+      description
+      phone
+      whatsappNumber
+      street
+      number
+      complement
+      neighborhood
+      city
+      state
+      zipCode
+      hasOwnDelivery
+      freeDelivery
+      deliveryFee
+      estimatedDeliveryMinutes
+      minimumOrder
+      deliveryStartTime
+      deliveryEndTime
+      freeDeliveryAbove
+      logoUrl
+      bannerUrl
+      latitude
+      longitude
+      storeType
     }
   }
 `;
@@ -82,19 +177,66 @@ export const UPDATE_STORE = gql`
 export const GET_STORE_ORDERS = gql`
   query StoreOrders($storeId: String!) {
     storeOrders(storeId: $storeId) {
-      id orderNumber status total subtotal discount couponCode createdAt updatedAt vendorConfirmedPickupAt
-      store { id name }
-      customer { id name phone avatarUrl }
-      items { id quantity weightGrams unitPrice totalPrice product { name price promotionalPrice isVariableWeight imageUrl } }
-      deliveryAddress deliveryLatitude deliveryLongitude
-      delivery { id currentLatitude currentLongitude deliverer { name phone profilePhotoUrl } }
+      id
+      orderNumber
+      status
+      total
+      subtotal
+      discount
+      couponCode
+      createdAt
+      updatedAt
+      vendorConfirmedPickupAt
+      store {
+        id
+        name
+      }
+      customer {
+        id
+        name
+        phone
+        avatarUrl
+      }
+      items {
+        id
+        quantity
+        weightGrams
+        unitPrice
+        totalPrice
+        product {
+          name
+          price
+          promotionalPrice
+          isVariableWeight
+          imageUrl
+        }
+      }
+      deliveryAddress
+      deliveryLatitude
+      deliveryLongitude
+      delivery {
+        id
+        currentLatitude
+        currentLongitude
+        deliverer {
+          name
+          phone
+          profilePhotoUrl
+        }
+      }
     }
   }
 `;
 
 export const ADJUST_ORDER_ITEM_WEIGHT = gql`
-  mutation AdjustOrderItemWeight($orderItemId: String!, $actualWeightGrams: Int!) {
-    adjustOrderItemWeight(orderItemId: $orderItemId, actualWeightGrams: $actualWeightGrams) {
+  mutation AdjustOrderItemWeight(
+    $orderItemId: String!
+    $actualWeightGrams: Int!
+  ) {
+    adjustOrderItemWeight(
+      orderItemId: $orderItemId
+      actualWeightGrams: $actualWeightGrams
+    ) {
       id
       subtotal
       total
@@ -104,7 +246,11 @@ export const ADJUST_ORDER_ITEM_WEIGHT = gql`
         weightGrams
         unitPrice
         totalPrice
-        product { id name isVariableWeight }
+        product {
+          id
+          name
+          isVariableWeight
+        }
       }
     }
   }
@@ -112,25 +258,57 @@ export const ADJUST_ORDER_ITEM_WEIGHT = gql`
 
 export const CREATE_STORE = gql`
   mutation CreateStore($input: CreateStoreInput!) {
-    createStore(input: $input) { id name }
+    createStore(input: $input) {
+      id
+      name
+    }
   }
 `;
 
 export const CREATE_PRODUCT = gql`
   mutation CreateProduct($input: CreateProductInput!) {
-    createProduct(input: $input) { id name price isVariableWeight }
+    createProduct(input: $input) {
+      id
+      name
+      price
+      isVariableWeight
+    }
   }
 `;
 
 export const CREATE_CATEGORY = gql`
-  mutation CreateCategory($name: String!, $storeId: String!, $requiresAgeVerification: Boolean) {
-    createCategory(name: $name, storeId: $storeId, requiresAgeVerification: $requiresAgeVerification) { id name requiresAgeVerification }
+  mutation CreateCategory(
+    $name: String!
+    $storeId: String!
+    $requiresAgeVerification: Boolean
+  ) {
+    createCategory(
+      name: $name
+      storeId: $storeId
+      requiresAgeVerification: $requiresAgeVerification
+    ) {
+      id
+      name
+      requiresAgeVerification
+    }
   }
 `;
 
 export const UPDATE_CATEGORY = gql`
-  mutation UpdateCategory($id: String!, $name: String, $requiresAgeVerification: Boolean) {
-    updateCategory(id: $id, name: $name, requiresAgeVerification: $requiresAgeVerification) { id name requiresAgeVerification }
+  mutation UpdateCategory(
+    $id: String!
+    $name: String
+    $requiresAgeVerification: Boolean
+  ) {
+    updateCategory(
+      id: $id
+      name: $name
+      requiresAgeVerification: $requiresAgeVerification
+    ) {
+      id
+      name
+      requiresAgeVerification
+    }
   }
 `;
 
@@ -161,33 +339,61 @@ export const DELETE_PRODUCT = gql`
 export const GET_DELETED_PRODUCTS = gql`
   query DeletedProductsByStore($storeId: String!) {
     deletedProductsByStore(storeId: $storeId) {
-      id name price unit imageUrl barcode deletedAt
-      category { id name }
+      id
+      name
+      price
+      unit
+      imageUrl
+      barcode
+      deletedAt
+      category {
+        id
+        name
+      }
     }
   }
 `;
 
 export const RESTORE_PRODUCT = gql`
   mutation RestoreProduct($id: String!) {
-    restoreProduct(id: $id) { id name }
+    restoreProduct(id: $id) {
+      id
+      name
+    }
   }
 `;
 
 export const UPDATE_PRODUCT = gql`
   mutation UpdateProduct($input: UpdateProductInput!) {
-    updateProduct(input: $input) { id name price description unit imageUrl stock isVariableWeight }
+    updateProduct(input: $input) {
+      id
+      name
+      price
+      description
+      unit
+      imageUrl
+      stock
+      isVariableWeight
+    }
   }
 `;
 
 export const TOGGLE_PRODUCT_AVAILABILITY = gql`
   mutation ToggleProductAvailability($id: String!) {
-    toggleProductAvailability(id: $id) { id isAvailable }
+    toggleProductAvailability(id: $id) {
+      id
+      isAvailable
+    }
   }
 `;
 
 export const TOGGLE_PRODUCT_ACTIVE = gql`
   mutation ToggleProductActive($id: String!) {
-    toggleProductActive(id: $id) { id isActive isAvailable }
+    toggleProductActive(id: $id) {
+      id
+      isActive
+      isAvailable
+    }
   }
 `;
 
@@ -199,19 +405,28 @@ export const DELETE_CATEGORY = gql`
 
 export const UPDATE_ORDER_STATUS = gql`
   mutation UpdateOrderStatus($id: String!, $status: OrderStatus!) {
-    updateOrderStatus(id: $id, status: $status) { id status }
+    updateOrderStatus(id: $id, status: $status) {
+      id
+      status
+    }
   }
 `;
 
 export const REJECT_ORDER = gql`
   mutation RejectOrder($orderId: String!, $reason: String!) {
-    rejectOrder(orderId: $orderId, reason: $reason) { id status }
+    rejectOrder(orderId: $orderId, reason: $reason) {
+      id
+      status
+    }
   }
 `;
 
 export const VENDOR_CANCEL_ORDER = gql`
   mutation VendorCancelOrder($orderId: String!, $reason: String!) {
-    vendorCancelOrder(orderId: $orderId, reason: $reason) { id status }
+    vendorCancelOrder(orderId: $orderId, reason: $reason) {
+      id
+      status
+    }
   }
 `;
 
@@ -226,13 +441,19 @@ export const REQUEST_CANCEL_DISPUTE = gql`
 
 export const VENDOR_CONFIRM_PICKUP = gql`
   mutation VendorConfirmPickup($orderId: String!) {
-    vendorConfirmPickup(orderId: $orderId) { id status }
+    vendorConfirmPickup(orderId: $orderId) {
+      id
+      status
+    }
   }
 `;
 
 export const TOGGLE_STORE_OPEN = gql`
   mutation ToggleStoreOpen($id: String!) {
-    toggleStoreOpen(id: $id) { id isOpen }
+    toggleStoreOpen(id: $id) {
+      id
+      isOpen
+    }
   }
 `;
 
@@ -245,10 +466,19 @@ export const REQUEST_VENDOR_STORE_DELETE = gql`
 export const GET_MY_PLAN = gql`
   query MeVendor {
     meVendor {
-      id name cpf vendorPlan planExpiresAt paymentConnected
-      acceptedTermsAt acceptedSubscriptionTermsAt
-      emailVerified phoneVerified
-      stores { id }
+      id
+      name
+      cpf
+      vendorPlan
+      planExpiresAt
+      paymentConnected
+      acceptedTermsAt
+      acceptedSubscriptionTermsAt
+      emailVerified
+      phoneVerified
+      stores {
+        id
+      }
     }
   }
 `;
@@ -256,15 +486,37 @@ export const GET_MY_PLAN = gql`
 export const GET_MY_PROFILE = gql`
   query MyVendorProfile {
     meVendor {
-      id name email phone vendorPlan emailVerified googleId
+      id
+      name
+      email
+      phone
+      vendorPlan
+      emailVerified
+      googleId
     }
   }
 `;
 
 export const UPDATE_PROFILE = gql`
-  mutation UpdateVendorProfile($name: String, $phone: String, $currentPassword: String, $newPassword: String, $email: String) {
-    updateVendorProfile(name: $name, phone: $phone, currentPassword: $currentPassword, newPassword: $newPassword, email: $email) {
-      id name phone email emailVerified
+  mutation UpdateVendorProfile(
+    $name: String
+    $phone: String
+    $currentPassword: String
+    $newPassword: String
+    $email: String
+  ) {
+    updateVendorProfile(
+      name: $name
+      phone: $phone
+      currentPassword: $currentPassword
+      newPassword: $newPassword
+      email: $email
+    ) {
+      id
+      name
+      phone
+      email
+      emailVerified
     }
   }
 `;
@@ -273,16 +525,36 @@ export const GOOGLE_AUTH_VENDOR = gql`
   mutation GoogleAuthVendor($idToken: String!, $forceLogin: Boolean) {
     googleAuthVendor(idToken: $idToken, forceLogin: $forceLogin) {
       accessToken
-      user { id name email role cpf emailVerified phoneVerified }
+      user {
+        id
+        name
+        email
+        role
+        cpf
+        emailVerified
+        phoneVerified
+      }
     }
   }
 `;
 
 export const REGISTER_VENDOR_WITH_GOOGLE = gql`
-  mutation RegisterVendorWithGoogle($idToken: String!, $phone: String!, $cpf: String!) {
+  mutation RegisterVendorWithGoogle(
+    $idToken: String!
+    $phone: String!
+    $cpf: String!
+  ) {
     registerVendorWithGoogle(idToken: $idToken, phone: $phone, cpf: $cpf) {
       accessToken
-      user { id name email role cpf emailVerified phoneVerified }
+      user {
+        id
+        name
+        email
+        role
+        cpf
+        emailVerified
+        phoneVerified
+      }
     }
   }
 `;
@@ -295,13 +567,19 @@ export const GET_CONTRACT_CONTENT = gql`
 
 export const ACCEPT_TERMS = gql`
   mutation AcceptVendorTerms {
-    acceptVendorTerms { id acceptedTermsAt }
+    acceptVendorTerms {
+      id
+      acceptedTermsAt
+    }
   }
 `;
 
 export const ACCEPT_SUBSCRIPTION_TERMS = gql`
   mutation AcceptSubscriptionTerms {
-    acceptSubscriptionTerms { id acceptedSubscriptionTermsAt }
+    acceptSubscriptionTerms {
+      id
+      acceptedSubscriptionTermsAt
+    }
   }
 `;
 
@@ -314,27 +592,59 @@ export const DISCONNECT_PAYMENT = gql`
 export const GET_AVAILABLE_PLANS = gql`
   query AvailablePlans {
     availablePlans {
-      plan maxStores monthlyPrice quarterlyPrice semiannualPrice annualPrice
-      commissionPercent freePromosPerWeek maxProductsPerStore maxEmailsPerMonth
-      listingPriority highlightDaysPerMonth canUseCoupons hasAnalytics
-      supportLevel isContactSales
+      plan
+      maxStores
+      monthlyPrice
+      quarterlyPrice
+      semiannualPrice
+      annualPrice
+      commissionPercent
+      freePromosPerWeek
+      maxProductsPerStore
+      maxEmailsPerMonth
+      listingPriority
+      highlightDaysPerMonth
+      canUseCoupons
+      hasAnalytics
+      supportLevel
+      isContactSales
     }
   }
 `;
 
 export const CREATE_PROMOTION = gql`
   mutation CreatePromotion($input: CreatePromotionInput!) {
-    createPromotion(input: $input) { id title checkoutUrl }
+    createPromotion(input: $input) {
+      id
+      title
+      checkoutUrl
+    }
   }
 `;
 
 export const MY_PROMOTIONS = gql`
   query MyPromotions {
     myPromotions {
-      id title description imageUrl startDate endDate isActive isPaid
-      promotionalPrice adCost
-      store { id name }
-      product { id name imageUrl price }
+      id
+      title
+      description
+      imageUrl
+      startDate
+      endDate
+      isActive
+      isPaid
+      promotionalPrice
+      adCost
+      store {
+        id
+        name
+      }
+      product {
+        id
+        name
+        imageUrl
+        price
+      }
     }
   }
 `;
@@ -352,18 +662,47 @@ export const DELETE_PROMOTION = gql`
 `;
 
 export const SWAP_PROMOTION_PRODUCT = gql`
-  mutation SwapPromotionProduct($id: String!, $productId: String!, $promotionalPrice: Float!, $title: String!) {
-    swapPromotionProduct(id: $id, productId: $productId, promotionalPrice: $promotionalPrice, title: $title) {
-      id title promotionalPrice imageUrl
-      product { id name imageUrl price }
+  mutation SwapPromotionProduct(
+    $id: String!
+    $productId: String!
+    $promotionalPrice: Float!
+    $title: String!
+  ) {
+    swapPromotionProduct(
+      id: $id
+      productId: $productId
+      promotionalPrice: $promotionalPrice
+      title: $title
+    ) {
+      id
+      title
+      promotionalPrice
+      imageUrl
+      product {
+        id
+        name
+        imageUrl
+        price
+      }
     }
   }
 `;
 
 export const CREATE_PLAN_UPGRADE = gql`
-  mutation CreatePlanUpgrade($plan: VendorPlan!, $billingPeriod: String, $cardToken: String, $paymentMethod: String) {
-    createPlanUpgrade(plan: $plan, billingPeriod: $billingPeriod, cardToken: $cardToken, paymentMethod: $paymentMethod) {
-      id status
+  mutation CreatePlanUpgrade(
+    $plan: VendorPlan!
+    $billingPeriod: String
+    $cardToken: String
+    $paymentMethod: String
+  ) {
+    createPlanUpgrade(
+      plan: $plan
+      billingPeriod: $billingPeriod
+      cardToken: $cardToken
+      paymentMethod: $paymentMethod
+    ) {
+      id
+      status
     }
   }
 `;
@@ -371,10 +710,18 @@ export const CREATE_PLAN_UPGRADE = gql`
 export const MY_SUBSCRIPTION = gql`
   query MySubscription {
     mySubscription {
-      id plan billingPeriod status amount installments
-      currentPeriodStart currentPeriodEnd
-      canceledAt cancelAtPeriodEnd
-      createdAt updatedAt
+      id
+      plan
+      billingPeriod
+      status
+      amount
+      installments
+      currentPeriodStart
+      currentPeriodEnd
+      canceledAt
+      cancelAtPeriodEnd
+      createdAt
+      updatedAt
     }
   }
 `;
@@ -402,8 +749,21 @@ export const REACTIVATE_SUBSCRIPTION = gql`
 export const GET_STORE_COUPONS = gql`
   query StoreCoupons($storeId: String!) {
     storeCoupons(storeId: $storeId) {
-      id code discountType discountValue minimumOrder maxDiscount maxUses usesCount isActive expiresAt createdAt
-      store { id name }
+      id
+      code
+      discountType
+      discountValue
+      minimumOrder
+      maxDiscount
+      maxUses
+      usesCount
+      isActive
+      expiresAt
+      createdAt
+      store {
+        id
+        name
+      }
     }
   }
 `;
@@ -411,7 +771,15 @@ export const GET_STORE_COUPONS = gql`
 export const CREATE_COUPON = gql`
   mutation CreateCoupon($input: CreateCouponInput!) {
     createCoupon(input: $input) {
-      id code discountType discountValue minimumOrder maxDiscount maxUses isActive expiresAt
+      id
+      code
+      discountType
+      discountValue
+      minimumOrder
+      maxDiscount
+      maxUses
+      isActive
+      expiresAt
     }
   }
 `;
@@ -419,14 +787,25 @@ export const CREATE_COUPON = gql`
 export const UPDATE_COUPON = gql`
   mutation UpdateCoupon($input: UpdateCouponInput!) {
     updateCoupon(input: $input) {
-      id code discountType discountValue minimumOrder maxDiscount maxUses isActive expiresAt
+      id
+      code
+      discountType
+      discountValue
+      minimumOrder
+      maxDiscount
+      maxUses
+      isActive
+      expiresAt
     }
   }
 `;
 
 export const TOGGLE_COUPON_ACTIVE = gql`
   mutation ToggleCouponActive($id: String!) {
-    toggleCouponActive(id: $id) { id isActive }
+    toggleCouponActive(id: $id) {
+      id
+      isActive
+    }
   }
 `;
 
@@ -441,7 +820,12 @@ export const DELETE_COUPON = gql`
 export const LOOKUP_BARCODE = gql`
   query LookupBarcode($barcode: String!) {
     lookupBarcode(barcode: $barcode) {
-      barcode name description imageUrl brand quantity
+      barcode
+      name
+      description
+      imageUrl
+      brand
+      quantity
     }
   }
 `;
@@ -449,8 +833,17 @@ export const LOOKUP_BARCODE = gql`
 export const SEARCH_CATALOG = gql`
   query SearchCatalog($query: String!, $limit: Int) {
     searchCatalog(query: $query, limit: $limit) {
-      id name description price imageUrl unit barcode
-      store { id name }
+      id
+      name
+      description
+      price
+      imageUrl
+      unit
+      barcode
+      store {
+        id
+        name
+      }
     }
   }
 `;
@@ -458,7 +851,8 @@ export const SEARCH_CATALOG = gql`
 export const BULK_CREATE_PRODUCTS = gql`
   mutation BulkCreateProducts($input: BulkCreateProductsInput!) {
     bulkCreateProducts(input: $input) {
-      created errors
+      created
+      errors
     }
   }
 `;
@@ -466,9 +860,14 @@ export const BULK_CREATE_PRODUCTS = gql`
 export const CLAIM_BADGE_REWARD = gql`
   mutation ClaimBadgeReward($storeId: String!, $level: String!) {
     claimBadgeReward(storeId: $storeId, level: $level) {
-      id verificationLevel verificationScore
-      badgeClaimCount lastClaimedScore freePromoDaysCredit
-      commissionReductionPercent commissionReductionExpiresAt
+      id
+      verificationLevel
+      verificationScore
+      badgeClaimCount
+      lastClaimedScore
+      freePromoDaysCredit
+      commissionReductionPercent
+      commissionReductionExpiresAt
     }
   }
 `;
@@ -500,9 +899,23 @@ export const GET_BADGE_CONFIG = gql`
 export const ORDER_CREATED_SUB = gql`
   subscription OrderCreated($storeId: String) {
     orderCreated(storeId: $storeId) {
-      id orderNumber status total createdAt
-      customer { name phone }
-      items { id quantity totalPrice product { name } }
+      id
+      orderNumber
+      status
+      total
+      createdAt
+      customer {
+        name
+        phone
+      }
+      items {
+        id
+        quantity
+        totalPrice
+        product {
+          name
+        }
+      }
     }
   }
 `;
@@ -510,11 +923,36 @@ export const ORDER_CREATED_SUB = gql`
 export const ORDER_UPDATED_SUB = gql`
   subscription OrderUpdated($storeId: String) {
     orderUpdated(storeId: $storeId) {
-      id orderNumber status total createdAt
-      customer { name phone }
-      items { id quantity totalPrice product { name } }
-      deliveryAddress deliveryLatitude deliveryLongitude
-      delivery { id currentLatitude currentLongitude deliverer { name phone profilePhotoUrl } }
+      id
+      orderNumber
+      status
+      total
+      createdAt
+      customer {
+        name
+        phone
+      }
+      items {
+        id
+        quantity
+        totalPrice
+        product {
+          name
+        }
+      }
+      deliveryAddress
+      deliveryLatitude
+      deliveryLongitude
+      delivery {
+        id
+        currentLatitude
+        currentLongitude
+        deliverer {
+          name
+          phone
+          profilePhotoUrl
+        }
+      }
     }
   }
 `;
@@ -522,7 +960,10 @@ export const ORDER_UPDATED_SUB = gql`
 export const STORE_UPDATED_SUB = gql`
   subscription StoreUpdated($storeId: String) {
     storeUpdated(storeId: $storeId) {
-      id name isOpen isActive
+      id
+      name
+      isOpen
+      isActive
     }
   }
 `;
@@ -530,8 +971,16 @@ export const STORE_UPDATED_SUB = gql`
 export const PRODUCT_UPDATED_SUB = gql`
   subscription ProductUpdated($storeId: String) {
     productUpdated(storeId: $storeId) {
-      id name price isAvailable stock imageUrl
-      category { id name }
+      id
+      name
+      price
+      isAvailable
+      stock
+      imageUrl
+      category {
+        id
+        name
+      }
     }
   }
 `;
@@ -602,8 +1051,19 @@ export const RESET_PASSWORD = gql`
 export const CREATE_SERVICE = gql`
   mutation CreateService($input: CreateServiceInput!) {
     createService(input: $input) {
-      id name description price estimatedDuration imageUrl isAvailable isActive requiresQuote
-      category { id name }
+      id
+      name
+      description
+      price
+      estimatedDuration
+      imageUrl
+      isAvailable
+      isActive
+      requiresQuote
+      category {
+        id
+        name
+      }
     }
   }
 `;
@@ -611,8 +1071,19 @@ export const CREATE_SERVICE = gql`
 export const UPDATE_SERVICE = gql`
   mutation UpdateService($input: UpdateServiceInput!) {
     updateService(input: $input) {
-      id name description price estimatedDuration imageUrl isAvailable isActive requiresQuote
-      category { id name }
+      id
+      name
+      description
+      price
+      estimatedDuration
+      imageUrl
+      isAvailable
+      isActive
+      requiresQuote
+      category {
+        id
+        name
+      }
     }
   }
 `;
@@ -626,8 +1097,19 @@ export const DELETE_SERVICE = gql`
 export const SERVICES_BY_STORE = gql`
   query AllServicesByStore($storeId: String!) {
     allServicesByStore(storeId: $storeId) {
-      id name description price estimatedDuration imageUrl isAvailable isActive requiresQuote
-      category { id name }
+      id
+      name
+      description
+      price
+      estimatedDuration
+      imageUrl
+      isAvailable
+      isActive
+      requiresQuote
+      category {
+        id
+        name
+      }
     }
   }
 `;
@@ -637,7 +1119,11 @@ export const SERVICES_BY_STORE = gql`
 export const SET_SCHEDULE = gql`
   mutation SetSchedule($input: SetScheduleInput!) {
     setSchedule(input: $input) {
-      id dayOfWeek startTime endTime isActive
+      id
+      dayOfWeek
+      startTime
+      endTime
+      isActive
     }
   }
 `;
@@ -645,7 +1131,11 @@ export const SET_SCHEDULE = gql`
 export const STORE_SCHEDULE = gql`
   query StoreSchedule($storeId: String!) {
     storeSchedule(storeId: $storeId) {
-      id dayOfWeek startTime endTime isActive
+      id
+      dayOfWeek
+      startTime
+      endTime
+      isActive
     }
   }
 `;
@@ -653,7 +1143,11 @@ export const STORE_SCHEDULE = gql`
 // ─── Appointments ─────────────────────────────────────
 
 export const STORE_APPOINTMENTS = gql`
-  query StoreAppointments($storeId: String!, $date: String, $status: AppointmentStatus) {
+  query StoreAppointments(
+    $storeId: String!
+    $date: String
+    $status: AppointmentStatus
+  ) {
     storeAppointments(storeId: $storeId, date: $date, status: $status) {
       id
       appointmentNumber
@@ -684,32 +1178,47 @@ export const STORE_APPOINTMENTS = gql`
 
 export const CONFIRM_APPOINTMENT = gql`
   mutation ConfirmAppointment($id: String!) {
-    confirmAppointment(id: $id) { id status }
+    confirmAppointment(id: $id) {
+      id
+      status
+    }
   }
 `;
 
 export const VENDOR_CANCEL_APPOINTMENT = gql`
   mutation VendorCancelAppointment($id: String!) {
-    vendorCancelAppointment(id: $id) { id status }
+    vendorCancelAppointment(id: $id) {
+      id
+      status
+    }
   }
 `;
 
 export const COMPLETE_APPOINTMENT = gql`
   mutation CompleteAppointment($id: String!) {
-    completeAppointment(id: $id) { id status }
+    completeAppointment(id: $id) {
+      id
+      status
+    }
   }
 `;
 
 export const MARK_NO_SHOW = gql`
   mutation MarkNoShow($id: String!) {
-    markNoShow(id: $id) { id status }
+    markNoShow(id: $id) {
+      id
+      status
+    }
   }
 `;
 
 export const RESPOND_QUOTE = gql`
   mutation RespondQuote($id: String!, $price: Float!, $response: String!) {
     respondQuote(id: $id, price: $price, response: $response) {
-      id status price quoteResponse
+      id
+      status
+      price
+      quoteResponse
     }
   }
 `;
@@ -722,8 +1231,14 @@ export const SERVICE_RATINGS = gql`
       comment
       photoUrls
       createdAt
-      customer { id name }
-      service { id name }
+      customer {
+        id
+        name
+      }
+      service {
+        id
+        name
+      }
     }
   }
 `;
