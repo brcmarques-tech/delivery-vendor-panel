@@ -15,7 +15,8 @@ import { compressImage } from "@/lib/compressImage";
 import CreateStoreModal from "@/components/CreateStoreModal";
 import PageHeader from "@/components/ui/PageHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { Award, Medal, Gem, RotateCcw } from "lucide-react";
+import { Award, Medal, Gem, RotateCcw, Copy, Check, QrCode } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 import { useRouter } from "next/navigation";
 
 function Section({ title, children, "data-tour": dataTour }: { title: string; children: React.ReactNode; "data-tour"?: string }) {
@@ -42,6 +43,45 @@ function Toggle({ value, onChange, label }: { value: boolean; onChange: () => vo
   );
 }
 
+// ===== STORE LINK SECTION =====
+function StoreLinkSection({ storeId, slug, isCopied, showQr, onCopy, onToggleQr }: {
+  storeId: string; slug?: string; isCopied: boolean; showQr: boolean;
+  onCopy: () => void; onToggleQr: () => void;
+}) {
+  const publicUrl = `https://loja.bcmtech.com.br/loja/${slug || storeId}`;
+  return (
+    <div className="px-4 pb-4 border-t border-[var(--border-light)] pt-3">
+      <p className="text-xs text-[var(--text-muted)] mb-1.5">Link público da loja</p>
+      <div className="flex items-center gap-2">
+        <input
+          readOnly
+          value={publicUrl}
+          className="flex-1 text-xs bg-[var(--bg-muted)] border border-[var(--border-color)] rounded-lg px-3 py-2 text-[var(--text-secondary)] truncate"
+        />
+        <button
+          onClick={onCopy}
+          className="w-8 h-8 flex items-center justify-center rounded-lg bg-[var(--bg-muted)] hover:bg-[var(--bg-hover)] transition"
+          title="Copiar link"
+        >
+          {isCopied ? <Check size={14} className="text-green-500" /> : <Copy size={14} className="text-[var(--text-muted)]" />}
+        </button>
+        <button
+          onClick={onToggleQr}
+          className="w-8 h-8 flex items-center justify-center rounded-lg bg-[var(--bg-muted)] hover:bg-[var(--bg-hover)] transition"
+          title="Ver QR Code"
+        >
+          <QrCode size={14} className="text-[var(--text-muted)]" />
+        </button>
+      </div>
+      {showQr && (
+        <div className="mt-3 flex justify-center p-4 bg-white rounded-xl border border-[var(--border-color)]">
+          <QRCodeSVG value={publicUrl} size={160} />
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ===== STORES SECTION =====
 function StoresSection() {
   const { data, loading, refetch } = useQuery(GET_MY_STORES);
@@ -60,6 +100,8 @@ function StoresSection() {
   const logoRef = useRef<HTMLInputElement>(null);
   const bannerRef = useRef<HTMLInputElement>(null);
   const [msg, setMsg] = useState("");
+  const [copiedStoreId, setCopiedStoreId] = useState<string | null>(null);
+  const [qrStoreId, setQrStoreId] = useState<string | null>(null);
 
   const stores = data?.myStores || [];
 
@@ -182,7 +224,8 @@ function StoresSection() {
           ) : (
             <div className="space-y-3 mb-4">
               {stores.map((store: any) => (
-                <div key={store.id} className="flex items-center gap-4 p-4 border border-[var(--border-light)] rounded-xl hover:bg-[var(--bg-hover)] transition">
+                <div key={store.id} className="border border-[var(--border-light)] rounded-xl overflow-hidden">
+                <div className="flex items-center gap-4 p-4 hover:bg-[var(--bg-hover)] transition">
                   {store.logoUrl ? (
                     <img src={store.logoUrl} alt="" className="w-12 h-12 rounded-xl object-cover shrink-0" />
                   ) : (
@@ -203,6 +246,20 @@ function StoresSection() {
                   >
                     Editar
                   </button>
+                </div>
+                <StoreLinkSection
+                  storeId={store.id}
+                  slug={store.slug}
+                  isCopied={copiedStoreId === store.id}
+                  showQr={qrStoreId === store.id}
+                  onCopy={async () => {
+                    const url = `https://loja.bcmtech.com.br/loja/${store.slug || store.id}`;
+                    await navigator.clipboard.writeText(url);
+                    setCopiedStoreId(store.id);
+                    setTimeout(() => setCopiedStoreId(null), 2000);
+                  }}
+                  onToggleQr={() => setQrStoreId(qrStoreId === store.id ? null : store.id)}
+                />
                 </div>
               ))}
             </div>
