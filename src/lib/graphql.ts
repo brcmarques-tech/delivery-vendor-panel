@@ -59,7 +59,7 @@ export const GET_MY_STORES = gql`
       id name description isOpen hasOwnDelivery freeDelivery deliveryFee
       estimatedDeliveryMinutes minimumOrder deliveryStartTime deliveryEndTime freeDeliveryAbove
       phone street number complement neighborhood city state zipCode
-      logoUrl bannerUrl latitude longitude storeType
+      logoUrl bannerUrl latitude longitude storeType slug
       verificationLevel verificationScore totalSales totalProducts createdAt
       badgeClaimCount lastClaimedScore freePromoDaysCredit
       commissionReductionPercent commissionReductionExpiresAt

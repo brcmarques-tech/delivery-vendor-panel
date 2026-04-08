@@ -20,9 +20,9 @@ export const metadata: Metadata = {
   title: "Painel do Vendedor - Shopping",
   description: "Gerencie sua loja, produtos e pedidos",
   icons: {
-    icon: '/icon.png',
-    shortcut: '/icon.png',
-    apple: '/icon.png',
+    icon: '/favicon.svg',
+    shortcut: '/favicon.svg',
+    apple: '/favicon.svg',
   },
 };
 
