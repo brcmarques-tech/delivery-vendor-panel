@@ -6,7 +6,23 @@ import { GraphQLWsLink } from '@apollo/client/link/subscriptions';
 import { getMainDefinition } from '@apollo/client/utilities';
 import { createClient } from 'graphql-ws';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/graphql';
+// KAN-258: o fallback silencioso para localhost era um risco real de deploy —
+// se `NEXT_PUBLIC_API_URL` nao fosse injetada no build, o painel chamaria
+// `localhost:3000` em producao e simplesmente nao carregaria nada, sem nenhuma
+// pista de que a causa foi configuracao. Em producao agora falha ruidosamente
+// no console e cai no dominio publico. (Mesma correcao ja aplicada no
+// storefront.)
+const API_URL = (() => {
+  const fromEnv = process.env.NEXT_PUBLIC_API_URL;
+  if (fromEnv) return fromEnv;
+  if (process.env.NODE_ENV === 'production') {
+    console.error(
+      '[apollo] NEXT_PUBLIC_API_URL nao definida em producao — usando o dominio publico como fallback. Configure a variavel no deploy.',
+    );
+    return 'https://api.bcmtech.com.br/graphql';
+  }
+  return 'http://localhost:3000/graphql';
+})();
 const WS_URL = API_URL.replace(/^http/, 'ws');
 
 const httpLink = createHttpLink({

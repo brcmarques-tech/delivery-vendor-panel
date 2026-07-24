@@ -177,7 +177,7 @@ export default function CouponsPage() {
   if (stores.length === 0) {
     return (
       <>
-        <CreateStoreModal open={showCreateStore} onClose={() => setShowCreateStore(false)} onCreated={() => { storesData && window.location.reload(); }} />
+        <CreateStoreModal open={showCreateStore} onClose={() => setShowCreateStore(false)} onCreated={() => window.location.reload()} />
         <div className="text-center mt-20">
           <h2 className="text-xl md:text-2xl font-bold text-[var(--text-primary)] mb-2">Nenhuma loja cadastrada</h2>
           <p className="text-[var(--text-secondary)] mb-6">Crie sua primeira loja para começar a criar cupons</p>

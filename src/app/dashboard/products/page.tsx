@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useLazyQuery } from "@apollo/client";
+import { devLog } from "@/lib/devLog"; // KAN-256
 import CreateStoreModal from "@/components/CreateStoreModal";
 import {
   GET_MY_STORES,
@@ -218,7 +219,102 @@ const PT_TO_EN: Record<string, string> = {
   'Desodorante': 'deodorant', 'Absorvente': 'sanitary pads', 'Fralda': 'diapers',
 };
 
-const imageCache: Record<string, string | null> = {};
+// KAN-256: busca de imagem no OpenFoodFacts.
+//
+// Antes: cada <ProductImage> sem imageUrl disparava um `fetch` externo direto
+// no efeito, sem debounce, sem limite de concorrencia, sem dedup e sem timeout.
+// Numa busca de catalogo isso viravam N requisicoes cross-origin em paralelo a
+// cada tecla digitada, e o cache (so em memoria) se perdia a cada reload.
+//
+// Agora: cache persistido em localStorage, deduplicacao de chamadas iguais em
+// voo, no maximo 3 requisicoes simultaneas, timeout de 8s e um debounce curto
+// no componente (item que some da lista enquanto digita nem chega a buscar).
+const IMAGE_CACHE_KEY = "productImageCache";
+const MAX_CONCURRENT_IMAGE_FETCHES = 3;
+
+function loadImageCache(): Record<string, string | null> {
+  if (typeof window === "undefined") return {};
+  try {
+    return JSON.parse(localStorage.getItem(IMAGE_CACHE_KEY) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+const imageCache: Record<string, string | null> = loadImageCache();
+const inFlightImages = new Map<string, Promise<string | null>>();
+let activeImageFetches = 0;
+const imageFetchQueue: (() => void)[] = [];
+
+function persistImageCache() {
+  try {
+    localStorage.setItem(IMAGE_CACHE_KEY, JSON.stringify(imageCache));
+  } catch {
+    // cota cheia / modo privado — cache em memoria ainda funciona
+  }
+}
+
+function acquireImageSlot(): Promise<void> {
+  if (activeImageFetches < MAX_CONCURRENT_IMAGE_FETCHES) {
+    activeImageFetches++;
+    return Promise.resolve();
+  }
+  return new Promise((resolve) => {
+    imageFetchQueue.push(() => {
+      activeImageFetches++;
+      resolve();
+    });
+  });
+}
+
+function releaseImageSlot() {
+  activeImageFetches--;
+  imageFetchQueue.shift()?.();
+}
+
+async function fetchProductImage(name: string): Promise<string | null> {
+  if (name in imageCache) return imageCache[name];
+
+  const pending = inFlightImages.get(name);
+  if (pending) return pending; // dedup: mesma busca ja esta em voo
+
+  const request = (async (): Promise<string | null> => {
+    await acquireImageSlot();
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
+    try {
+      let searchTerm = name;
+      for (const [pt, en] of Object.entries(PT_TO_EN)) {
+        if (name.includes(pt)) { searchTerm = en; break; }
+      }
+      const q = encodeURIComponent(searchTerm);
+      const base = process.env.NEXT_PUBLIC_OPENFOODFACTS_URL || "https://world.openfoodfacts.org";
+      const res = await fetch(
+        `${base}/cgi/search.pl?search_terms=${q}&search_simple=1&action=process&json=1&page_size=1`,
+        { signal: controller.signal },
+      );
+      const data = await res.json();
+      const img =
+        data?.products?.[0]?.image_front_small_url ||
+        data?.products?.[0]?.image_front_url ||
+        null;
+      imageCache[name] = img;
+      persistImageCache();
+      return img;
+    } catch {
+      imageCache[name] = null; // negativo tambem e cacheado: nao re-tenta em loop
+      persistImageCache();
+      return null;
+    } finally {
+      clearTimeout(timer);
+      releaseImageSlot();
+      inFlightImages.delete(name);
+    }
+  })();
+
+  inFlightImages.set(name, request);
+  return request;
+}
 
 function ProductImage({ name, imageUrl, size = 12 }: { name: string; imageUrl?: string; size?: number }) {
   const [src, setSrc] = useState<string | null>(imageUrl || null);
@@ -226,30 +322,22 @@ function ProductImage({ name, imageUrl, size = 12 }: { name: string; imageUrl?: 
 
   useEffect(() => {
     if (imageUrl) { setSrc(imageUrl); setLoading(false); return; }
-    if (imageCache[name] !== undefined) { setSrc(imageCache[name]); setLoading(false); return; }
+    if (name in imageCache) { setSrc(imageCache[name]); setLoading(false); return; }
 
     let cancelled = false;
     setLoading(true);
 
-    // Find english search term
-    let searchTerm = name;
-    for (const [pt, en] of Object.entries(PT_TO_EN)) {
-      if (name.includes(pt)) { searchTerm = en; break; }
-    }
-
-    const q = encodeURIComponent(searchTerm);
-    fetch(`${process.env.NEXT_PUBLIC_OPENFOODFACTS_URL || 'https://world.openfoodfacts.org'}/cgi/search.pl?search_terms=${q}&search_simple=1&action=process&json=1&page_size=1`)
-      .then(r => r.json())
-      .then(data => {
+    // Debounce: enquanto o usuario digita, itens entram e saem da lista. Sem
+    // isso, cada render intermediario disparava uma busca externa.
+    const debounce = setTimeout(() => {
+      fetchProductImage(name).then((img) => {
         if (cancelled) return;
-        const img = data?.products?.[0]?.image_front_small_url || data?.products?.[0]?.image_front_url || null;
-        imageCache[name] = img;
         setSrc(img);
         setLoading(false);
-      })
-      .catch(() => { if (!cancelled) { imageCache[name] = null; setSrc(null); setLoading(false); } });
+      });
+    }, 300);
 
-    return () => { cancelled = true; };
+    return () => { cancelled = true; clearTimeout(debounce); };
   }, [name, imageUrl]);
 
   const sizeClass = size === 8 ? "w-8 h-8" : "w-12 h-12";
@@ -544,9 +632,9 @@ export default function ProductsPage() {
       if (product.unit) input.unit = product.unit;
       if (product.barcode) input.barcode = product.barcode;
 
-      console.log("Adding from catalog:", input);
+      devLog("Adding from catalog:", input);
       const result = await createProduct({ variables: { input } });
-      console.log("Create result:", result);
+      devLog("Create result:", result);
       setCatalogResults((prev) => prev.filter((p) => p.id !== product.id));
       await refetch();
     } catch (err: any) {

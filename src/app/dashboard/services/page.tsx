@@ -204,28 +204,38 @@ export default function ServicesPage() {
   });
   const services = servicesData?.allServicesByStore || [];
 
-  const [fetchSchedule] = useLazyQuery(STORE_SCHEDULE, {
+  // KAN-256: era `useLazyQuery(..., { onCompleted })` setando estado local.
+  // O Apollo 3.14 emite um aviso alto em TODO build por causa disso, e o
+  // motivo e real: `onCompleted` em lazy query nao dispara de forma confiavel
+  // (ex.: quando a resposta vem do cache), entao o horario da loja podia
+  // simplesmente nao carregar, sem erro. A recomendacao oficial e derivar do
+  // `data` retornado pelo hook — foi o que passou a ser feito no useEffect
+  // abaixo.
+  const [fetchSchedule, { data: scheduleData }] = useLazyQuery(STORE_SCHEDULE, {
     fetchPolicy: "network-only",
-    onCompleted: (data) => {
-      if (data?.storeSchedule?.length > 0) {
-        const loaded = defaultSchedule();
-        for (const item of data.storeSchedule) {
-          const idx = loaded.findIndex((d) => d.dayOfWeek === item.dayOfWeek);
-          if (idx !== -1) {
-            loaded[idx] = {
-              dayOfWeek: item.dayOfWeek,
-              startTime: item.startTime || loaded[idx].startTime,
-              endTime: item.endTime || loaded[idx].endTime,
-              isActive: item.isActive,
-            };
-          }
-        }
-        setSchedule(loaded);
-      } else {
-        setSchedule(defaultSchedule());
-      }
-    },
   });
+
+  useEffect(() => {
+    if (!scheduleData) return;
+    const rows = scheduleData.storeSchedule;
+    if (rows?.length > 0) {
+      const loaded = defaultSchedule();
+      for (const item of rows) {
+        const idx = loaded.findIndex((d) => d.dayOfWeek === item.dayOfWeek);
+        if (idx !== -1) {
+          loaded[idx] = {
+            dayOfWeek: item.dayOfWeek,
+            startTime: item.startTime || loaded[idx].startTime,
+            endTime: item.endTime || loaded[idx].endTime,
+            isActive: item.isActive,
+          };
+        }
+      }
+      setSchedule(loaded);
+    } else {
+      setSchedule(defaultSchedule());
+    }
+  }, [scheduleData]);
 
   // Mutations
   const [createService] = useMutation(CREATE_SERVICE);

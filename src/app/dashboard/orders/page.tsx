@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useSubscription } from "@apollo/client";
+import { devLog } from "@/lib/devLog"; // KAN-256
 import { useTour } from "@/hooks/useTour";
 import { type DriveStep } from "driver.js";
 import { GET_MY_STORES, GET_STORE_ORDERS, UPDATE_ORDER_STATUS, ORDER_CREATED_SUB, ORDER_UPDATED_SUB, ADJUST_ORDER_ITEM_WEIGHT, REJECT_ORDER, VENDOR_CANCEL_ORDER, VENDOR_CONFIRM_PICKUP, REQUEST_CANCEL_DISPUTE } from "@/lib/graphql";
@@ -111,31 +112,47 @@ const TOUR_STEPS: DriveStep[] = [
   },
 ];
 
-function playNotificationSound() {
-  const ctx = new AudioContext();
+// KAN-243: um unico AudioContext reutilizado.
+//
+// Antes cada pedido novo fazia `new AudioContext()` e nunca chamava close().
+// Navegadores limitam ~6 AudioContext simultaneos por pagina, entao numa loja
+// movimentada com a aba de pedidos aberta o dia todo o som simplesmente parava
+// de tocar ("Failed to construct 'AudioContext': number of hardware contexts
+// reached maximum") — justamente o alerta que o lojista usa para nao perder
+// pedido.
+let audioCtx: AudioContext | null = null;
+
+function getAudioContext(): AudioContext | null {
+  if (typeof window === "undefined") return null;
+  const Ctor = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  if (!Ctor) return null;
+  if (!audioCtx) audioCtx = new Ctor();
+  // Navegadores iniciam o contexto suspenso ate haver interacao do usuario.
+  if (audioCtx.state === "suspended") audioCtx.resume().catch(() => {});
+  return audioCtx;
+}
+
+function beep(ctx: AudioContext, frequency: number, startAt: number) {
   const oscillator = ctx.createOscillator();
   const gain = ctx.createGain();
   oscillator.connect(gain);
   gain.connect(ctx.destination);
-  oscillator.frequency.value = 880;
+  oscillator.frequency.value = frequency;
   oscillator.type = "sine";
-  gain.gain.setValueAtTime(0.3, ctx.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
-  oscillator.start(ctx.currentTime);
-  oscillator.stop(ctx.currentTime + 0.5);
+  gain.gain.setValueAtTime(0.3, startAt);
+  gain.gain.exponentialRampToValueAtTime(0.01, startAt + 0.5);
+  oscillator.start(startAt);
+  oscillator.stop(startAt + 0.5);
+}
 
-  setTimeout(() => {
-    const osc2 = ctx.createOscillator();
-    const gain2 = ctx.createGain();
-    osc2.connect(gain2);
-    gain2.connect(ctx.destination);
-    osc2.frequency.value = 1100;
-    osc2.type = "sine";
-    gain2.gain.setValueAtTime(0.3, ctx.currentTime);
-    gain2.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
-    osc2.start(ctx.currentTime);
-    osc2.stop(ctx.currentTime + 0.5);
-  }, 200);
+function playNotificationSound() {
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  // Agenda os dois tons pelo relogio do audio (mais preciso que setTimeout, e
+  // evita o bug antigo de ler ctx.currentTime ja adiantado dentro do timeout).
+  const now = ctx.currentTime;
+  beep(ctx, 880, now);
+  beep(ctx, 1100, now + 0.2);
 }
 
 function getDateRange(filter: DateFilter): Date | null {
@@ -184,16 +201,27 @@ function PendingTimer({ createdAt, onExpired }: { createdAt: string | number; on
 
   const [remaining, setRemaining] = useState(getRemaining);
 
+  // KAN-256: o intervalo capturava o `onExpired` do render em que o efeito
+  // rodou. Hoje isso é inofensivo (o callback é `() => refetch()` e o `refetch`
+  // do Apollo é estável), mas é frágil: no dia em que esse callback fechar
+  // sobre algum estado, o timer chamaria a versão velha silenciosamente.
+  // O ref garante que sempre dispara a mais recente — e é o motivo honesto pelo
+  // qual `onExpired` não precisa estar nas deps.
+  const onExpiredRef = useRef(onExpired);
+  onExpiredRef.current = onExpired;
+
   useEffect(() => {
     const interval = setInterval(() => {
       const r = getRemaining();
       setRemaining(r);
       if (r <= 0) {
         clearInterval(interval);
-        onExpired?.();
+        onExpiredRef.current?.();
       }
     }, 1000);
     return () => clearInterval(interval);
+    // `getRemaining` fecha apenas sobre `createdAt`, então re-rodar por ele basta.
+
   }, [createdAt]);
 
   if (remaining <= 0) {
@@ -239,7 +267,7 @@ export default function OrdersPage() {
     onData: ({ data: subData }) => {
       if (subData?.data?.orderCreated) {
         const o = subData.data.orderCreated;
-        console.log(`[VENDOR-SUB] orderCreated: #${o.orderNumber}, status=${o.status}, id=${o.id}`);
+        devLog(`[VENDOR-SUB] orderCreated: #${o.orderNumber}, status=${o.status}, id=${o.id}`);
         playNotificationSound();
         setNotification(`Novo pedido #${o.orderNumber}!`);
         setTimeout(() => setNotification(null), 5000);
@@ -253,7 +281,7 @@ export default function OrdersPage() {
     skip: !selectedStore,
     onData: ({ data: subData }) => {
       const o = subData?.data?.orderUpdated;
-      console.log(`[VENDOR-SUB] orderUpdated: #${o?.orderNumber || '?'}, status=${o?.status || '?'}, id=${o?.id || '?'}`);
+      devLog(`[VENDOR-SUB] orderUpdated: #${o?.orderNumber || '?'}, status=${o?.status || '?'}, id=${o?.id || '?'}`);
       refetch();
     },
   });
@@ -303,6 +331,30 @@ export default function OrdersPage() {
 
   const allOrders = ordersData?.storeOrders || [];
 
+  // KAN-256: poda o checklist de separação de pedidos que já saíram de
+  // ACCEPTED/PREPARING. Antes nada era removido: ao longo de meses de operação
+  // o objeto acumulava uma entrada por orderId já processado, inchando o
+  // localStorage e deixando o JSON.parse do mount cada vez mais lento.
+  useEffect(() => {
+    const activeIds = new Set(
+      allOrders
+        .filter((o: any) => o.status === "ACCEPTED" || o.status === "PREPARING")
+        .map((o: any) => o.id),
+    );
+    setSeparatedItems((prev) => {
+      const entries = Object.entries(prev);
+      const kept = entries.filter(([orderId]) => activeIds.has(orderId));
+      if (kept.length === entries.length) return prev; // nada a podar
+      const next = Object.fromEntries(kept);
+      try {
+        localStorage.setItem("separatedItems", JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+    // Depende do resultado da query (referência estável por resposta), não do
+    // array recriado a cada render.
+  }, [ordersData]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Filter orders by tab and date
   const filteredOrders = useMemo(() => {
     let statusList: string[];
@@ -335,11 +387,11 @@ export default function OrdersPage() {
   async function handleAdvanceStatus(orderId: string, currentStatus: string) {
     const next = nextStatus[currentStatus];
     if (!next) return;
-    console.log(`[VENDOR-ADVANCE] orderId=${orderId}, ${currentStatus} -> ${next}`);
+    devLog(`[VENDOR-ADVANCE] orderId=${orderId}, ${currentStatus} -> ${next}`);
 
     // M5: For PENDING->ACCEPTED (payment capture) and READY->vendor confirm, require confirmation
     if (currentStatus === "PENDING") {
-      console.log(`[VENDOR-ADVANCE] Showing confirm dialog for PENDING->ACCEPTED`);
+      devLog(`[VENDOR-ADVANCE] Showing confirm dialog for PENDING->ACCEPTED`);
       setConfirmAction({ orderId, action: "advance", label: "Aceitar este pedido? Isso ira capturar o pagamento do cliente." });
       return;
     }
@@ -352,14 +404,14 @@ export default function OrdersPage() {
     if (!next) return;
     // Block if already advancing this order
     if (advancingOrders.has(orderId)) return;
-    console.log(`[VENDOR-ADVANCE] Executing: orderId=${orderId}, ${currentStatus} -> ${next}`);
+    devLog(`[VENDOR-ADVANCE] Executing: orderId=${orderId}, ${currentStatus} -> ${next}`);
     // M6: per-order advancing
     setAdvancingOrders((prev) => new Set(prev).add(orderId));
     setStatusError(null);
     setConfirmAction(null);
     try {
       await updateStatus({ variables: { id: orderId, status: next } });
-      console.log(`[VENDOR-ADVANCE] SUCCESS: orderId=${orderId}, now ${next}`);
+      devLog(`[VENDOR-ADVANCE] SUCCESS: orderId=${orderId}, now ${next}`);
       await refetch();
     } catch (err: any) {
       console.error(`[VENDOR-ADVANCE] FAILED: orderId=${orderId}, ${currentStatus} -> ${next}:`, err.message);
@@ -377,12 +429,12 @@ export default function OrdersPage() {
 
   async function handleRejectOrder(orderId: string, reason: string) {
     if (!reason.trim()) return;
-    console.log(`[VENDOR-REJECT] orderId=${orderId}, reason="${reason.trim()}"`);
+    devLog(`[VENDOR-REJECT] orderId=${orderId}, reason="${reason.trim()}"`);
     // L7: per-operation loading
     setRejectingOrders((prev) => new Set(prev).add(orderId));
     try {
       await rejectOrderMut({ variables: { orderId, reason: reason.trim() } });
-      console.log(`[VENDOR-REJECT] SUCCESS: orderId=${orderId}`);
+      devLog(`[VENDOR-REJECT] SUCCESS: orderId=${orderId}`);
       setRejectState(null);
       refetch();
     } catch (err: any) {
@@ -397,11 +449,11 @@ export default function OrdersPage() {
 
   async function handleVendorCancelOrder(orderId: string, reason: string) {
     if (!reason.trim()) return;
-    console.log(`[VENDOR-CANCEL] orderId=${orderId}, reason="${reason.trim()}"`);
+    devLog(`[VENDOR-CANCEL] orderId=${orderId}, reason="${reason.trim()}"`);
     setCancellingOrders((prev) => new Set(prev).add(orderId));
     try {
       await vendorCancelOrderMut({ variables: { orderId, reason: reason.trim() } });
-      console.log(`[VENDOR-CANCEL] SUCCESS: orderId=${orderId}`);
+      devLog(`[VENDOR-CANCEL] SUCCESS: orderId=${orderId}`);
       setCancelState(null);
       refetch();
     } catch (err: any) {
@@ -414,19 +466,19 @@ export default function OrdersPage() {
   }
 
   async function handleVendorConfirmPickup(orderId: string) {
-    console.log(`[VENDOR-PICKUP] Showing confirm dialog: orderId=${orderId}`);
+    devLog(`[VENDOR-PICKUP] Showing confirm dialog: orderId=${orderId}`);
     // M5: confirmation dialog for pickup
     setConfirmAction({ orderId, action: "pickup", label: "Confirmar entrega ao entregador?" });
   }
 
   async function doVendorConfirmPickup(orderId: string) {
-    console.log(`[VENDOR-PICKUP] Executing: orderId=${orderId}`);
+    devLog(`[VENDOR-PICKUP] Executing: orderId=${orderId}`);
     // L7: per-operation loading
     setPickupOrders((prev) => new Set(prev).add(orderId));
     setConfirmAction(null);
     try {
       await vendorConfirmPickupMut({ variables: { orderId } });
-      console.log(`[VENDOR-PICKUP] SUCCESS: orderId=${orderId}`);
+      devLog(`[VENDOR-PICKUP] SUCCESS: orderId=${orderId}`);
       refetch();
     } catch (err: any) {
       console.error(`[VENDOR-PICKUP] FAILED: orderId=${orderId}:`, err.message);
@@ -441,12 +493,12 @@ export default function OrdersPage() {
   async function handleAdjustWeight(itemId: string, grams: string) {
     const parsed = parseInt(grams);
     if (!parsed || parsed <= 0) return;
-    console.log(`[VENDOR-WEIGHT] itemId=${itemId}, grams=${parsed}`);
+    devLog(`[VENDOR-WEIGHT] itemId=${itemId}, grams=${parsed}`);
     // L7: per-operation loading
     setWeightAdjusting((prev) => new Set(prev).add(itemId));
     try {
       await adjustWeight({ variables: { orderItemId: itemId, actualWeightGrams: parsed } });
-      console.log(`[VENDOR-WEIGHT] SUCCESS: itemId=${itemId}`);
+      devLog(`[VENDOR-WEIGHT] SUCCESS: itemId=${itemId}`);
       setWeightEdit(null);
       refetch();
     } catch (err: any) {
@@ -470,7 +522,7 @@ export default function OrdersPage() {
   if (stores.length === 0) {
     return (
       <>
-        <CreateStoreModal open={showCreateStore} onClose={() => setShowCreateStore(false)} onCreated={() => { storesData && window.location.reload(); }} />
+        <CreateStoreModal open={showCreateStore} onClose={() => setShowCreateStore(false)} onCreated={() => window.location.reload()} />
         <div className="text-center mt-20">
           <h2 className="text-xl md:text-2xl font-bold text-[var(--text-primary)] mb-2">Nenhuma loja cadastrada</h2>
           <p className="text-[var(--text-secondary)] mb-6">Crie sua primeira loja para começar a receber pedidos</p>
