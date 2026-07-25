@@ -139,42 +139,63 @@ function PlanContent() {
   // H4: Track plan at mount to verify payment status
   const [planAtMount, setPlanAtMount] = useState<string | null>(null);
   const [paymentVerified, setPaymentVerified] = useState(false);
+  // Concessão do plano agora é assíncrona (só no webhook invoice.paid). No cartão
+  // o webhook chega em segundos; enquanto isso ficamos "confirmando" em vez de
+  // cravar sucesso/pendência na hora.
+  const [confirming, setConfirming] = useState(false);
 
   // Show card form inside confirm modal
   const [showCardInModal, setShowCardInModal] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'credit_card' | 'pix'>('credit_card');
 
-  // H4: When status=success, refetch plan and verify it actually changed
+  // H4: When status=success, poll the plan until the invoice.paid webhook grants
+  // it (cartão: segundos). Só marca sucesso quando o vendorPlan realmente muda
+  // para um plano pago — isso também barra um ?status=success forjado na URL,
+  // que nunca concede plano de verdade.
   useEffect(() => {
-    if (paymentStatus === "success") {
-      const currentPlanAtMount = userData?.meVendor?.vendorPlan || "FREE";
-      if (!planAtMount) {
-        setPlanAtMount(currentPlanAtMount);
+    if (paymentStatus !== "success") return;
+    // Baseline = plano no momento em que a confirmação começou.
+    const baseline = planAtMount ?? (userData?.meVendor?.vendorPlan || "FREE");
+    if (planAtMount == null) setPlanAtMount(baseline);
+
+    let cancelled = false;
+    let attempts = 0;
+    const MAX_ATTEMPTS = 8; // ~24s cobre a chegada do webhook do cartão
+    setConfirming(true);
+    setPaymentVerified(false);
+
+    const poll = async () => {
+      attempts++;
+      const { data } = await refetchPlan();
+      if (cancelled) return;
+      const newPlan = data?.meVendor?.vendorPlan || "FREE";
+      if (newPlan !== "FREE" && newPlan !== baseline) {
+        setPaymentVerified(true);
+        setConfirming(false);
+        return;
       }
-      refetchPlan().then(({ data }) => {
-        const newPlan = data?.meVendor?.vendorPlan || "FREE";
-        // Only show success if plan actually changed or is not FREE
-        if (newPlan !== "FREE" && newPlan !== planAtMount) {
-          setPaymentVerified(true);
-        } else if (planAtMount && newPlan === planAtMount) {
-          // Plan didn't change — payment may not have been processed yet or URL was spoofed
-          setPaymentVerified(false);
-        } else {
-          setPaymentVerified(true);
-        }
-      });
-    }
+      if (attempts >= MAX_ATTEMPTS) {
+        // Ainda não confirmou (PIX aguardando pagamento, ou webhook atrasado).
+        // Não é falha — fica pendente e o plano ativa assim que o pagamento cair.
+        setConfirming(false);
+        return;
+      }
+      setTimeout(poll, 3000);
+    };
+    poll();
+    return () => { cancelled = true; };
   }, [paymentStatus]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Clear URL params after 10 seconds to prevent stale banners
+  // Limpa os params da URL, mas só depois de confirmar (senão o banner sumia no
+  // meio da confirmação). Enquanto "confirming", mantém a URL.
   useEffect(() => {
-    if (paymentStatus) {
+    if (paymentStatus && !confirming) {
       const timer = setTimeout(() => {
         router.replace("/dashboard/plan", { scroll: false });
       }, 10000);
       return () => clearTimeout(timer);
     }
-  }, [paymentStatus, router]);
+  }, [paymentStatus, confirming, router]);
 
   if (loadingUser || loadingPlans) {
     return <SkeletonGrid count={4} />;
@@ -257,15 +278,18 @@ function PlanContent() {
       });
       setConfirmModal(null);
       setShowCardInModal(false);
-      refetchPlan();
       setPlanError("");
-      // Show success inline
-      setPaymentVerified(true);
+      // A concessão do plano é assíncrona (webhook invoice.paid). Não cravamos
+      // sucesso aqui: o efeito de ?status=success faz polling até o plano mudar.
+      setPlanAtMount(user?.vendorPlan || "FREE");
       router.replace("/dashboard/plan?status=success", { scroll: false });
     } catch (err: any) {
       setPlanError(err.message || "Erro ao criar assinatura.");
-      setUpgrading(null);
     } finally {
+      // Antes o reset de `upgrading` só rodava no catch: após um upgrade com
+      // sucesso os botões ficavam presos em "Processando..." (disabled) até dar
+      // reload. No finally, limpa nos dois caminhos.
+      setUpgrading(null);
       processingRef.current = false; // H1: reset guard
     }
   }
@@ -479,7 +503,7 @@ function PlanContent() {
         </div>
       )}
 
-      {/* H4: Only show success banner if payment was verified */}
+      {/* H4: Só mostra sucesso quando o plano foi verificado (webhook concedeu) */}
       {paymentStatus === "success" && paymentVerified && (
         <div className="bg-[var(--status-success-bg)] border border-[var(--status-success-text)]/20 rounded-2xl p-4 mb-6">
           <p className="text-green-800 font-semibold">
@@ -487,10 +511,18 @@ function PlanContent() {
           </p>
         </div>
       )}
-      {paymentStatus === "success" && !paymentVerified && (
+      {paymentStatus === "success" && !paymentVerified && confirming && (
+        <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 mb-6 flex items-center gap-3">
+          <span className="inline-block w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+          <p className="text-blue-800 font-semibold">
+            Confirmando seu pagamento... isso leva alguns segundos.
+          </p>
+        </div>
+      )}
+      {paymentStatus === "success" && !paymentVerified && !confirming && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-4 mb-6">
           <p className="text-yellow-800 font-semibold">
-            Pagamento pendente de confirmacao. Aguarde a verificacao do seu plano.
+            Pagamento pendente de confirmacao. Assim que for aprovado seu plano sera ativado automaticamente (no PIX pode levar mais alguns minutos).
           </p>
         </div>
       )}

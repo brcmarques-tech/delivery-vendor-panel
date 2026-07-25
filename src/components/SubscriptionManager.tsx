@@ -131,8 +131,11 @@ export default function SubscriptionManager() {
             <p className="font-semibold text-[var(--text-primary)]">
               {sub.installments > 1
                 ? `${sub.installments}x de R$ ${(sub.amount / sub.installments).toFixed(2)}`
-                : `R$ ${Number(sub.amount).toFixed(2)}/mês`
+                : `R$ ${Number(sub.amount).toFixed(2)}`
               }
+              {/* Sem "/mês" fixo: sub.amount é o valor do período inteiro; num
+                  plano anual pago à vista isso mostrava "/mês" ~12x menor que a
+                  realidade. O ciclo já aparece na linha "Período" ao lado. */}
             </p>
           </div>
           <div>

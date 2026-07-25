@@ -74,7 +74,14 @@ const statusLabels: Record<string, { label: string; variant: BadgeVariant }> = {
 type TabKey = "today" | "week" | "all" | "quotes";
 
 function getDateStr(date: Date): string {
-  return date.toISOString().split("T")[0];
+  // Usa a data LOCAL, não UTC. Com toISOString() um vendedor no BR (UTC-3) via,
+  // das ~21h até a meia-noite, a aba "Hoje" e a contagem já mostrando o dia
+  // seguinte (e a janela "Semana" deslocada), porque scheduledDate é comparado
+  // como string YYYY-MM-DD do calendário local.
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 
 function getWeekDates(): { start: string; end: string } {

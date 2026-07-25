@@ -425,6 +425,9 @@ export default function ProductsPage() {
   const [barcodeResult, setBarcodeResult] = useState<any>(null);
   const barcodeDebounceRef = useRef<NodeJS.Timeout | null>(null);
   const barcodeLastInputTime = useRef<number>(0);
+  // Guard de double-click no "+ Adicionar" do catálogo: sem isto, dois cliques
+  // rápidos criavam o produto duas vezes (a remoção da lista só ocorre após o await).
+  const addingCatalogRef = useRef<Set<string>>(new Set());
 
   // Catalog search (always visible)
   const [catalogQuery, setCatalogQuery] = useState("");
@@ -619,6 +622,8 @@ export default function ProductsPage() {
       setError("Nenhuma loja encontrada. Crie uma loja primeiro.");
       return;
     }
+    if (addingCatalogRef.current.has(product.id)) return;
+    addingCatalogRef.current.add(product.id);
     setError("");
     try {
       const input: any = {
@@ -640,6 +645,8 @@ export default function ProductsPage() {
     } catch (err: any) {
       console.error("Add from catalog error:", err);
       setError(err.message || "Erro ao adicionar produto");
+    } finally {
+      addingCatalogRef.current.delete(product.id);
     }
   }
 
@@ -690,8 +697,13 @@ export default function ProductsPage() {
           },
         },
       });
-      setBulkResult(data.bulkCreateProducts);
-      if (data.bulkCreateProducts.errors.length === 0) {
+      const res = data?.bulkCreateProducts;
+      if (!res) {
+        setError("Falha na importacao: resposta vazia do servidor.");
+        return;
+      }
+      setBulkResult(res);
+      if ((res.errors?.length ?? 0) === 0) {
         setCsvProducts([]);
         setShowCsvModal(false);
       }

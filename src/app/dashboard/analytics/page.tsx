@@ -84,7 +84,10 @@ function PodiumChart({ title, items, valueLabel }: {
   if (items.length === 0) return null;
   const count = Math.min(items.length, 5);
   // Reorder for podium: [4th, 2nd, 1st, 3rd, 5th]
-  const podiumSlots = PODIUM_ORDER.slice(0, count).filter((i) => i < count);
+  // FILTRAR antes, não fatiar: `slice(0,count)` cortava a ordem de exibição e
+  // depois o filtro descartava os índices válidos — com poucos itens o pódio
+  // sumia ou omitia o 1º colocado (1 item -> vazio; 2 -> só o 2º; 3 -> sem o 3º).
+  const podiumSlots = PODIUM_ORDER.filter((i) => i < count);
 
   return (
     <div className="bg-[var(--bg-card)] rounded-2xl shadow-[var(--card-shadow)] border border-[var(--border-light)] p-6">
