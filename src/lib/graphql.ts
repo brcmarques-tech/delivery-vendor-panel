@@ -442,6 +442,7 @@ export const GET_MY_PROFILE = gql`
       name
       email
       phone
+      cpf
       vendorPlan
       emailVerified
       googleId
@@ -456,6 +457,7 @@ export const UPDATE_PROFILE = gql`
     $currentPassword: String
     $newPassword: String
     $email: String
+    $cpf: String
   ) {
     updateVendorProfile(
       name: $name
@@ -463,11 +465,13 @@ export const UPDATE_PROFILE = gql`
       currentPassword: $currentPassword
       newPassword: $newPassword
       email: $email
+      cpf: $cpf
     ) {
       id
       name
       phone
       email
+      cpf
       emailVerified
     }
   }
@@ -655,6 +659,10 @@ export const CREATE_PLAN_UPGRADE = gql`
     ) {
       id
       status
+      amount
+      qrCode
+      qrCodeUrl
+      pixExpiresAt
     }
   }
 `;

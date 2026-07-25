@@ -41,7 +41,7 @@ function ProfileSection() {
   const [updateProfile, { loading: saving }] = useMutation(UPDATE_PROFILE);
   const [sendEmailVerification] = useMutation(SEND_EMAIL_VERIFICATION);
   const [confirmEmailVerification] = useMutation(CONFIRM_EMAIL_VERIFICATION);
-  const [form, setForm] = useState({ name: "", phone: "", email: "" });
+  const [form, setForm] = useState({ name: "", phone: "", email: "", cpf: "" });
   const [passForm, setPassForm] = useState({ current: "", new: "", confirm: "" });
   const [msg, setMsg] = useState("");
   const [showEmailVerify, setShowEmailVerify] = useState(false);
@@ -53,7 +53,7 @@ function ProfileSection() {
 
   useEffect(() => {
     if (data?.meVendor) {
-      setForm({ name: data.meVendor.name || "", phone: data.meVendor.phone || "", email: data.meVendor.email || "" });
+      setForm({ name: data.meVendor.name || "", phone: data.meVendor.phone || "", email: data.meVendor.email || "", cpf: "" });
     }
   }, [data]);
 
@@ -61,6 +61,8 @@ function ProfileSection() {
     try {
       const vars: any = { name: form.name, phone: form.phone };
       if (form.email !== data?.meVendor?.email) vars.email = form.email;
+      // CPF só pode ser preenchido quando ainda está vazio (necessário p/ PIX).
+      if (!data?.meVendor?.cpf && form.cpf.trim()) vars.cpf = form.cpf.trim();
       await updateProfile({ variables: vars });
       setMsg("Perfil atualizado!");
       refetch();
@@ -159,6 +161,29 @@ function ProfileSection() {
         <div>
           <label className="text-sm font-medium text-[var(--text-secondary)] mb-1.5 block">Telefone</label>
           <input type="text" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="w-full mt-1 px-4 py-2 border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-[var(--brand-primary)]" />
+        </div>
+        <div>
+          <label className="text-sm font-medium text-[var(--text-secondary)] mb-1.5 block">CPF</label>
+          {data?.meVendor?.cpf ? (
+            <input
+              type="text"
+              readOnly
+              value={data.meVendor.cpf.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, "$1.$2.$3-$4")}
+              className="w-full mt-1 px-4 py-2 border border-[var(--border-light)] rounded-xl text-[var(--text-muted)] bg-[var(--bg-muted)]"
+            />
+          ) : (
+            <>
+              <input
+                type="text"
+                inputMode="numeric"
+                placeholder="Somente numeros"
+                value={form.cpf}
+                onChange={(e) => setForm({ ...form, cpf: e.target.value.replace(/\D/g, "").slice(0, 11) })}
+                className="w-full mt-1 px-4 py-2 border border-amber-400 rounded-xl text-[var(--text-primary)] bg-[var(--bg-input)] focus:outline-none focus:border-amber-500"
+              />
+              <p className="text-xs text-amber-600 mt-1">Necessario para pagar o plano com PIX.</p>
+            </>
+          )}
         </div>
         <div>
           <label className="text-sm font-medium text-[var(--text-secondary)] mb-1.5 block">Email</label>
