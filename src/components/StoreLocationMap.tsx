@@ -13,11 +13,17 @@ import markerIcon from "leaflet/dist/images/marker-icon.png";
 import markerShadow from "leaflet/dist/images/marker-shadow.png";
 
 // Fix default marker icon
+// Bug (Next 16 + Turbopack): o import de PNG resolve direto para a string da URL
+// (ex.: "/_next/static/.../marker-icon.png"), nao para um objeto { src }. Com o
+// bundler antigo era { src }. Ler `.src` cego dava `undefined` -> Leaflet lanca
+// "iconUrl not set" e o passo do mapa quebrava ao criar a loja. Aceita os dois
+// formatos: usa `.src` quando existe, senao o proprio valor importado.
+const iconUrl = (u: any): string => (typeof u === "string" ? u : u?.src);
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
-  iconRetinaUrl: markerIcon2x.src,
-  iconUrl: markerIcon.src,
-  shadowUrl: markerShadow.src,
+  iconRetinaUrl: iconUrl(markerIcon2x),
+  iconUrl: iconUrl(markerIcon),
+  shadowUrl: iconUrl(markerShadow),
 });
 
 interface StoreLocationMapProps {
