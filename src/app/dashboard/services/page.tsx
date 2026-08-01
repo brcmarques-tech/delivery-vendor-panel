@@ -400,8 +400,18 @@ export default function ServicesPage() {
         categoryId: serviceForm.categoryId || undefined,
         imageUrl,
       };
-      if (!serviceForm.requiresQuote && serviceForm.price) {
-        input.price = parseFloat(serviceForm.price);
+      // BUGFIX: o preco era opcional na pratica — sem `required`/`min` no input e
+      // com `&& serviceForm.price` aqui, um servico PAGO criado com o campo em
+      // branco ia sem preco e a lista mostrava "R$ 0,00": o cliente agendava de
+      // graca. Agora servico que nao e orcamento exige preco maior que zero.
+      if (!serviceForm.requiresQuote) {
+        const preco = parseFloat(serviceForm.price);
+        if (!Number.isFinite(preco) || preco <= 0) {
+          setError("Informe um preco maior que zero (ou marque 'sob orcamento').");
+          setUploading(false);
+          return;
+        }
+        input.price = preco;
       }
       await createService({ variables: { input } });
       setServiceForm(emptyServiceForm());

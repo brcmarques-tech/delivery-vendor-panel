@@ -91,7 +91,18 @@ const retryLink = new RetryLink({
   },
   attempts: {
     max: 3,
-    retryIf: (error) => !!error,
+    // CRITICO: `retryIf: (error) => !!error` re-tentava TUDO, inclusive
+    // mutations de dinheiro. Uma requisicao que CHEGA ao servidor e da certo,
+    // mas cuja resposta se perde (timeout, 502, troca de rede no celular), era
+    // reenviada ate 3x — gerando antecipacao em duplicidade, upgrade de plano
+    // cobrado duas vezes, estorno repetido. Os guards de duplo-clique da UI nao
+    // ajudam: o reenvio acontece DENTRO do Apollo, depois do clique.
+    // Retry so faz sentido para operacoes idempotentes (queries).
+    retryIf: (error, operation) => {
+      if (!error) return false;
+      const def = getMainDefinition(operation.query);
+      return def.kind === 'OperationDefinition' && def.operation === 'query';
+    },
   },
 });
 

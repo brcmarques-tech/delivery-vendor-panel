@@ -685,7 +685,7 @@ export default function OrdersPage() {
                     </div>
                     <div className="mt-1">
                       <span className="text-sm text-[var(--text-secondary)]">
-                        {order.customer.name} - {order.customer.phone}
+                        {order.customer?.name ?? "Cliente removido"} - {order.customer?.phone ?? ""}
                       </span>
                     </div>
                   </div>

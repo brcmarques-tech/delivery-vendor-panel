@@ -180,6 +180,16 @@ const TOUR_STEPS: DriveStep[] = [
   },
 ];
 
+// Receita que o VENDEDOR de fato recebe por um pedido: subtotal menos o
+// desconto do cupom. NAO inclui a taxa de entrega (essa vai para o entregador),
+// que era somada antes e inflava o faturamento exibido.
+function receitaVendedor(o: any): number {
+  const sub = Number(o?.subtotal);
+  const base = Number.isFinite(sub) ? sub : Number(o?.total) || 0;
+  const desc = Number(o?.discount) || 0;
+  return Math.max(base - desc, 0);
+}
+
 export default function AnalyticsPage() {
   const { startTour, hasSeenTour } = useTour("analytics", TOUR_STEPS);
   const { data: userData, loading: loadingUser } = useQuery(GET_MY_PLAN);
@@ -242,7 +252,11 @@ export default function AnalyticsPage() {
 
     const delivered = orders.filter((o) => o.status === "DELIVERED" || o.status === "COMPLETED");
     const cancelled = orders.filter((o) => o.status === "CANCELLED");
-    const totalRevenue = delivered.reduce((sum, o) => sum + Number(o.total), 0);
+    // BUGFIX: usava `o.total`, que INCLUI a taxa de entrega (dinheiro do
+    // entregador, nao do vendedor) — o faturamento aparecia inflado por todas as
+    // taxas de entrega, e divergia da tela de Pedidos, que mostra o subtotal do
+    // mesmo pedido. A receita do vendedor e o subtotal menos o desconto do cupom.
+    const totalRevenue = delivered.reduce((sum, o) => sum + receitaVendedor(o), 0);
     const avgTicket = delivered.length > 0 ? totalRevenue / delivered.length : 0;
 
     // Orders by status (for pie chart)
@@ -278,7 +292,7 @@ export default function AnalyticsPage() {
       const d = new Date(o.createdAt);
       const key = d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
       if (!dailyMap[key]) dailyMap[key] = { revenue: 0, orders: 0 };
-      dailyMap[key].revenue += Number(o.total);
+      dailyMap[key].revenue += receitaVendedor(o);
       dailyMap[key].orders += 1;
     });
 
@@ -326,7 +340,7 @@ export default function AnalyticsPage() {
       const id = o.customer?.id || name;
       if (!customerMap[id]) customerMap[id] = { name, orders: 0, total: 0, items: 0, avatarUrl: o.customer?.avatarUrl };
       customerMap[id].orders += 1;
-      customerMap[id].total += Number(o.total);
+      customerMap[id].total += receitaVendedor(o);
       customerMap[id].items += (o.items || []).reduce((sum: number, i: any) => sum + i.quantity, 0);
     });
     const topCustomers = Object.values(customerMap)
@@ -366,9 +380,9 @@ export default function AnalyticsPage() {
     const ordersWithoutCoupon = delivered.filter((o) => !o.couponCode);
     const totalDiscountGiven = delivered.reduce((sum, o) => sum + Number(o.discount || 0), 0);
     const avgTicketWithCoupon = ordersWithCoupon.length > 0
-      ? ordersWithCoupon.reduce((sum, o) => sum + Number(o.total), 0) / ordersWithCoupon.length : 0;
+      ? ordersWithCoupon.reduce((sum, o) => sum + receitaVendedor(o), 0) / ordersWithCoupon.length : 0;
     const avgTicketWithoutCoupon = ordersWithoutCoupon.length > 0
-      ? ordersWithoutCoupon.reduce((sum, o) => sum + Number(o.total), 0) / ordersWithoutCoupon.length : 0;
+      ? ordersWithoutCoupon.reduce((sum, o) => sum + receitaVendedor(o), 0) / ordersWithoutCoupon.length : 0;
     // Coupon usage by code
     const couponUsage: Record<string, { code: string; uses: number; totalDiscount: number; totalRevenue: number }> = {};
     ordersWithCoupon.forEach((o) => {
@@ -376,7 +390,7 @@ export default function AnalyticsPage() {
       if (!couponUsage[code]) couponUsage[code] = { code, uses: 0, totalDiscount: 0, totalRevenue: 0 };
       couponUsage[code].uses += 1;
       couponUsage[code].totalDiscount += Number(o.discount || 0);
-      couponUsage[code].totalRevenue += Number(o.total);
+      couponUsage[code].totalRevenue += receitaVendedor(o);
     });
     const couponBreakdown = Object.values(couponUsage)
       .sort((a, b) => b.uses - a.uses)

@@ -117,7 +117,19 @@ export default function DashboardLayout({
       router.replace("/");
       return;
     }
-    const parsed = JSON.parse(stored);
+    // BUGFIX: JSON.parse sem guarda. Um `user` corrompido no localStorage
+    // (quota, escrita abortada, formato antigo) lancava DENTRO do efeito do
+    // layout e derrubava TODA rota /dashboard/* — inclusive a sidebar com o
+    // botao Sair, entao o usuario nem conseguia deslogar para limpar.
+    let parsed: any;
+    try {
+      parsed = JSON.parse(stored);
+    } catch {
+      localStorage.removeItem('user');
+      localStorage.removeItem('token');
+      router.replace('/');
+      return;
+    }
     if (parsed.role !== "VENDOR") {
       localStorage.removeItem("token");
       localStorage.removeItem("user");

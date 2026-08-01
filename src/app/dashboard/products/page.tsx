@@ -788,11 +788,21 @@ export default function ProductsPage() {
       } else if (imagePreview && imagePreview.startsWith("http")) {
         imageUrl = imagePreview;
       }
+      // BUGFIX: o input de preco nao tinha `min`, e o handler so fazia parseFloat.
+      // Um "-5" digitado (ou um sinal a mais) era enviado como esta e derrubava o
+      // subtotal de qualquer pedido com esse produto. Promocoes e cupons ja
+      // validavam faixa — este era o unico sem.
+      const precoNovo = parseFloat(productForm.price);
+      if (!Number.isFinite(precoNovo) || precoNovo <= 0) {
+        setError("O preco deve ser maior que zero.");
+        setUploading(false);
+        return;
+      }
       await createProduct({
         variables: {
           input: {
             name: productForm.name, description: productForm.description || undefined,
-            price: parseFloat(productForm.price), unit: productForm.unit || undefined,
+            price: precoNovo, unit: productForm.unit || undefined,
             storeId: activeStoreId, categoryId: productForm.categoryId || undefined,
             imageUrl, barcode: productForm.barcode || undefined,
             isVariableWeight: productForm.isVariableWeight || undefined,
