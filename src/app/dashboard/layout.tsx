@@ -13,15 +13,19 @@ import {
   Menu, X, LogOut, Lock, Plus, ArrowRight,
 } from "lucide-react";
 
-// Requisitos por rota: storeType = precisa de loja desse tipo, plan = precisa de plano pago
-const ROUTE_REQUIREMENTS: Record<string, { storeType?: 'PRODUCTS' | 'SERVICES'; plan?: true }> = {
+// Requisitos por rota: storeType = precisa de loja desse tipo, feature = precisa
+// que o plano libere esse recurso.
+type PlanFeature = 'analytics' | 'coupons' | 'promotions';
+const ROUTE_REQUIREMENTS: Record<string, { storeType?: 'PRODUCTS' | 'SERVICES'; feature?: PlanFeature }> = {
   "/dashboard/orders":       { storeType: "PRODUCTS" },
   "/dashboard/appointments": { storeType: "SERVICES" },
-  "/dashboard/analytics":    { plan: true },
-  "/dashboard/promotions":   { plan: true },
-  "/dashboard/coupons":      { plan: true },
+  "/dashboard/analytics":    { feature: "analytics" },
+  "/dashboard/promotions":   { feature: "promotions" },
+  "/dashboard/coupons":      { feature: "coupons" },
 };
 
+// Fallback usado só enquanto `availablePlans` não respondeu — a fonte da verdade
+// são as flags do plano, que o superadmin edita em tempo de execução.
 const PAID_PLANS = ["PRO", "PREMIUM", "ENTERPRISE", "CUSTOM"];
 
 const NAV_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -108,6 +112,21 @@ export default function DashboardLayout({
   const isPaidPlan = PAID_PLANS.includes(meData?.meVendor?.vendorPlan || "");
   const currentPlanName: string = meData?.meVendor?.vendorPlan || "FREE";
   const currentPlanConfig = plansData?.availablePlans?.find((p: any) => p.plan === currentPlanName);
+
+  // O menu liberava Analytics/Cupons/Promoções por NOME de plano, mas o servidor
+  // decide por flag (`hasAnalytics`, `canUseCoupons`, `freePromosPerWeek > 0`).
+  // No CUSTOM as duas visões se contradiziam: o nome está na lista de pagos, mas
+  // as flags são todas falsas — o menu abria, o vendedor preenchia o formulário
+  // inteiro e só levava "Seu plano nao permite criar cupons" ao salvar. E como o
+  // superadmin edita essas flags em runtime, qualquer ajuste lá deixava o menu
+  // desatualizado. Agora lemos as mesmas flags; a lista de nomes só cobre o
+  // intervalo em que a query ainda não respondeu.
+  const featureAllowed = (feature: PlanFeature): boolean => {
+    if (!currentPlanConfig) return isPaidPlan;
+    if (feature === "analytics") return !!currentPlanConfig.hasAnalytics;
+    if (feature === "coupons") return !!currentPlanConfig.canUseCoupons;
+    return (currentPlanConfig.freePromosPerWeek ?? 0) > 0;
+  };
   const maxStores: number = currentPlanConfig?.maxStores ?? 1;
   const atStoreLimit = stores.length >= maxStores;
 
@@ -185,7 +204,7 @@ export default function DashboardLayout({
                   : false;
 
                 // Lock por plano — clicável (vai para /dashboard/plan)
-                const planBlocked = req?.plan ? !isPaidPlan : false;
+                const planBlocked = req?.feature ? !featureAllowed(req.feature) : false;
 
                 if (storeBlocked) {
                   const storeType = req?.storeType === "PRODUCTS" ? "produtos" : "servicos";
