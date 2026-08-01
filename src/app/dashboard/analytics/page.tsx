@@ -22,28 +22,46 @@ import {
   ChevronRight, Search,
 } from "lucide-react";
 
+// BUGFIX: havia uma chave `PICKING_UP` que NAO EXISTE no enum (nunca casava),
+// enquanto o real `PICKED_UP` estava ausente — junto com COMPLETED, que e o
+// status final do caminho feliz. Resultado: no grafico "Pedidos por status" a
+// maior fatia aparecia cinza e rotulada com o texto cru "COMPLETED".
 const statusLabels: Record<string, string> = {
-  DELIVERED: "Entregue",
-  CANCELLED: "Cancelado",
+  AWAITING_PAYMENT: "Aguardando pagamento",
+  PAYMENT_REVIEW: "Em análise",
   PENDING: "Pendente",
   ACCEPTED: "Aceito",
   PREPARING: "Preparando",
   READY: "Pronto",
-  PICKING_UP: "Coletando",
-  DELIVERING: "Entregando",
-  AWAITING_PAYMENT: "Aguardando",
+  PICKED_UP: "Coletado",
+  VENDOR_CONFIRMED_PICKUP: "Saiu da loja",
+  DELIVERING: "A caminho",
+  DELIVERER_CONFIRMED_DELIVERY: "Entrega confirmada",
+  DELIVERED: "Entregue",
+  COMPLETED: "Finalizado",
+  CANCELLED: "Cancelado",
+  REJECTED: "Rejeitado",
+  EXPIRED: "Expirado",
+  DISPUTED: "Em disputa",
 };
 
 const statusColors: Record<string, string> = {
-  DELIVERED: "#22c55e",
-  CANCELLED: "#ef4444",
+  AWAITING_PAYMENT: "#f59e0b",
+  PAYMENT_REVIEW: "#f59e0b",
   PENDING: "#eab308",
   ACCEPTED: "#3b82f6",
   PREPARING: "#8b5cf6",
   READY: "#6366f1",
-  PICKING_UP: "#06b6d4",
+  PICKED_UP: "#06b6d4",
+  VENDOR_CONFIRMED_PICKUP: "#14b8a6",
   DELIVERING: "#0ea5e9",
-  AWAITING_PAYMENT: "#f59e0b",
+  DELIVERER_CONFIRMED_DELIVERY: "#10b981",
+  DELIVERED: "#22c55e",
+  COMPLETED: "#16a34a",
+  CANCELLED: "#ef4444",
+  REJECTED: "#dc2626",
+  EXPIRED: "#6b7280",
+  DISPUTED: "#d946ef",
 };
 
 function StatCard({ label, value, sub, icon: Icon }: { label: string; value: string; sub?: string; icon?: React.ElementType }) {

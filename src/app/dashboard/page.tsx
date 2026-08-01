@@ -102,10 +102,17 @@ const STORE_TYPE_LABELS: Record<string, string> = {
   BOTH: "Produtos e Serviços",
 };
 
+// BUGFIX: as chaves eram VERIFIED/PENDING/UNVERIFIED — NENHUMA delas existe no
+// enum VerificationLevel do servidor (NONE|BRONZE|SILVER|GOLD|DIAMOND). O lookup
+// nunca casava, entao TODA loja — inclusive DIAMANTE — aparecia como
+// "Nao verificada" no painel do proprio dono. As outras telas (settings, o
+// superadmin e o storefront) ja usavam o enum real; so esta ficou errada.
 const VERIFICATION_LABELS: Record<string, { label: string; variant: "success" | "warning" | "info" | "neutral" }> = {
-  VERIFIED: { label: "Verificada", variant: "success" },
-  PENDING: { label: "Em análise", variant: "warning" },
-  UNVERIFIED: { label: "Não verificada", variant: "neutral" },
+  NONE: { label: "Não verificada", variant: "neutral" },
+  BRONZE: { label: "Bronze", variant: "warning" },
+  SILVER: { label: "Prata", variant: "info" },
+  GOLD: { label: "Ouro", variant: "success" },
+  DIAMOND: { label: "Diamante", variant: "success" },
 };
 
 function DashboardContent() {
@@ -343,7 +350,7 @@ function DashboardContent() {
 
       <motion.div className="space-y-10" variants={staggerContainer} initial="hidden" animate="show">
         {stores.map((store: any, storeIndex: number) => {
-          const verif = VERIFICATION_LABELS[store.verificationLevel] || VERIFICATION_LABELS.UNVERIFIED;
+          const verif = VERIFICATION_LABELS[store.verificationLevel] || VERIFICATION_LABELS.NONE;
           const createdDate = store.createdAt ? new Date(store.createdAt).toLocaleDateString("pt-BR") : null;
           const hasDeliveryHours = store.deliveryStartTime && store.deliveryEndTime;
           const hasAddress = store.street;
