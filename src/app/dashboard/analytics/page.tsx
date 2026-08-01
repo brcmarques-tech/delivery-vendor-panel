@@ -12,6 +12,7 @@ import { motion } from "framer-motion";
 import { fadeIn, staggerContainer, staggerItem } from "@/lib/motion";
 import PageHeader from "@/components/ui/PageHeader";
 import { SkeletonStats, SkeletonCard } from "@/components/ui/Skeleton";
+import ErrorState from "@/components/ui/ErrorState";
 import { useTour } from "@/hooks/useTour";
 import { type DriveStep } from "driver.js";
 import EmptyState from "@/components/ui/EmptyState";
@@ -192,9 +193,9 @@ function receitaVendedor(o: any): number {
 
 export default function AnalyticsPage() {
   const { startTour, hasSeenTour } = useTour("analytics", TOUR_STEPS);
-  const { data: userData, loading: loadingUser } = useQuery(GET_MY_PLAN);
-  const { data: plansData } = useQuery(GET_AVAILABLE_PLANS);
-  const { data: storesData, loading: loadingStores } = useQuery(GET_MY_STORES);
+  const { data: userData, loading: loadingUser, error: userError, refetch: refetchUser } = useQuery(GET_MY_PLAN);
+  const { data: plansData, error: plansError, refetch: refetchPlans } = useQuery(GET_AVAILABLE_PLANS);
+  const { data: storesData, loading: loadingStores, error: storesError, refetch: refetchStores } = useQuery(GET_MY_STORES);
   const [selectedStore, setSelectedStore] = useState<string | null>(null);
   const [period, setPeriod] = useState<"7d" | "30d" | "90d" | "all">("30d");
   const [showCart, setShowCart] = useState(false);
@@ -225,7 +226,7 @@ export default function AnalyticsPage() {
   const stores = storesData?.myStores || [];
   const storeId = selectedStore || stores[0]?.id;
 
-  const { data: ordersData, loading: loadingOrders } = useQuery(GET_STORE_ORDERS, {
+  const { data: ordersData, loading: loadingOrders, error: ordersError, refetch: refetchOrders } = useQuery(GET_STORE_ORDERS, {
     variables: { storeId },
     skip: !storeId || !hasAnalytics,
   });
@@ -492,6 +493,36 @@ export default function AnalyticsPage() {
     );
   }
 
+  // ANTES do gate de plano: `hasAnalytics` depende de meVendor + availablePlans;
+  // com qualquer uma delas falhando o fallback e `false` e a tela mostrava
+  // "disponivel a partir do plano Pro" para quem ja paga Pro. O gate nao mudou.
+  if ((userError && !userData) || (plansError && !plansData)) {
+    return (
+      <div>
+        <PageHeader title="Analytics" />
+        <ErrorState
+          title="Nao foi possivel carregar seu plano."
+          description="Verifique sua conexao e tente novamente."
+          onRetry={() => { if (userError) refetchUser(); if (plansError) refetchPlans(); }}
+        />
+      </div>
+    );
+  }
+
+  // ANTES do empty state de lojas.
+  if (storesError && !storesData) {
+    return (
+      <div>
+        <PageHeader title="Analytics" />
+        <ErrorState
+          title="Nao foi possivel carregar suas lojas."
+          description="Verifique sua conexao e tente novamente."
+          onRetry={() => refetchStores()}
+        />
+      </div>
+    );
+  }
+
   if (!hasAnalytics) {
     return (
       <div>
@@ -565,6 +596,14 @@ export default function AnalyticsPage() {
           <SkeletonCard />
           <SkeletonCard />
         </div>
+      ) : ordersError && !ordersData ? (
+        /* ANTES do empty state: sem isto a falha virava "Nenhum dado
+           disponivel" e, no periodo anterior, R$ 0,00 de faturamento. */
+        <ErrorState
+          title="Nao foi possivel carregar os dados de vendas."
+          description="Isto nao significa que voce nao vendeu — a consulta falhou. Verifique sua conexao e tente novamente."
+          onRetry={() => refetchOrders()}
+        />
       ) : !analytics ? (
         <EmptyState
           icon={BarChart3}

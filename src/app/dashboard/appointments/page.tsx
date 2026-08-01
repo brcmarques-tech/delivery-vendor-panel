@@ -16,6 +16,7 @@ import { useState, useEffect, useMemo } from "react";
 import PageHeader from "@/components/ui/PageHeader";
 import StatusBadge from "@/components/ui/StatusBadge";
 import { SkeletonTable } from "@/components/ui/Skeleton";
+import ErrorState from "@/components/ui/ErrorState";
 import EmptyState from "@/components/ui/EmptyState";
 import { CalendarX, Calendar, Clock, User, MapPin, Filter, X } from "lucide-react";
 import { motion } from "framer-motion";
@@ -100,7 +101,7 @@ function formatDate(dateStr: string) {
 
 export default function AppointmentsPage() {
   const { startTour, hasSeenTour } = useTour("appointments", TOUR_STEPS);
-  const { data: storesData } = useQuery(GET_MY_STORES);
+  const { data: storesData, error: storesError, refetch: refetchStores } = useQuery(GET_MY_STORES);
   const allStores = storesData?.myStores || [];
   // Filter only SERVICES type stores
   const stores = useMemo(() => allStores.filter((s: any) => s.storeType === "SERVICES"), [allStores]);
@@ -121,7 +122,7 @@ export default function AppointmentsPage() {
     }
   }, [stores, selectedStore]);
 
-  const { data: appointmentsData, loading, refetch } = useQuery(STORE_APPOINTMENTS, {
+  const { data: appointmentsData, loading, error: appointmentsError, refetch } = useQuery(STORE_APPOINTMENTS, {
     variables: { storeId: selectedStore },
     skip: !selectedStore,
   });
@@ -199,6 +200,21 @@ export default function AppointmentsPage() {
     setRespondingTo(null);
     setQuotePrice("");
     setQuoteResponse("");
+  }
+
+  // ANTES do skeleton e do empty state: com `!storesData` sozinho a tela ficava
+  // num skeleton infinito quando a query falhava.
+  if (storesError && !storesData) {
+    return (
+      <div className="space-y-6">
+        <PageHeader title="Agendamentos" />
+        <ErrorState
+          title="Nao foi possivel carregar suas lojas."
+          description="Verifique sua conexao e tente novamente."
+          onRetry={() => refetchStores()}
+        />
+      </div>
+    );
   }
 
   if (!storesData) {
@@ -345,8 +361,18 @@ export default function AppointmentsPage() {
         <SkeletonTable rows={4} cols={4} />
       )}
 
+      {/* Erro — ANTES do empty state: uma falha aqui virava "Nenhum agendamento"
+          e o prestador perdia clientes que estavam agendados de verdade. */}
+      {!loading && appointmentsError && !appointmentsData && (
+        <ErrorState
+          title="Nao foi possivel carregar os agendamentos."
+          description="Isto nao significa que a agenda esta vazia — a consulta falhou."
+          onRetry={() => refetch()}
+        />
+      )}
+
       {/* Empty state */}
-      {!loading && filteredAppointments.length === 0 && (
+      {!loading && !(appointmentsError && !appointmentsData) && filteredAppointments.length === 0 && (
         <EmptyState
           icon={CalendarX}
           title="Nenhum agendamento"

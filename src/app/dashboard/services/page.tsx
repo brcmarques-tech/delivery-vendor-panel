@@ -20,6 +20,7 @@ import { compressImage } from "@/lib/compressImage";
 import { Image, X, Plus, Briefcase, ChevronDown, SquarePen, Trash2, Clock, HelpCircle } from "lucide-react";
 import PageHeader from "@/components/ui/PageHeader";
 import { SkeletonGrid } from "@/components/ui/Skeleton";
+import ErrorState from "@/components/ui/ErrorState";
 import EmptyState from "@/components/ui/EmptyState";
 import { motion } from "framer-motion";
 import { fadeIn, staggerContainer, staggerItem, scaleIn } from "@/lib/motion";
@@ -140,7 +141,7 @@ function defaultSchedule() {
 export default function ServicesPage() {
   const { startTour, hasSeenTour } = useTour("services", TOUR_STEPS);
   const { startTour: startServiceFormTour, hasSeenTour: hasSeenFormTour } = useTour("create-service", SERVICE_FORM_TOUR, false);
-  const { data: storesData, refetch: refetchStores } = useQuery(GET_MY_STORES);
+  const { data: storesData, error: storesError, refetch: refetchStores } = useQuery(GET_MY_STORES);
   const allStores = storesData?.myStores || [];
   const stores = allStores.filter((s: any) => s.storeType === "SERVICES");
   const [showCreateStore, setShowCreateStore] = useState(false);
@@ -198,7 +199,7 @@ export default function ServicesPage() {
   const categories = store?.categories || [];
 
   // Queries
-  const { data: servicesData, refetch: refetchServices } = useQuery(SERVICES_BY_STORE, {
+  const { data: servicesData, error: servicesError, refetch: refetchServices } = useQuery(SERVICES_BY_STORE, {
     variables: { storeId: activeStoreId },
     skip: !activeStoreId,
   });
@@ -521,6 +522,18 @@ export default function ServicesPage() {
   }
 
   // ─── Renders ───
+
+  // ANTES do empty state: `stores` cai para [] quando a query falha, entao a
+  // tela dizia "Nenhuma loja de servicos / Crie uma loja" para quem ja tem uma.
+  if (storesError && !storesData) {
+    return (
+      <ErrorState
+        title="Nao foi possivel carregar suas lojas."
+        description="Suas lojas continuam salvas. Verifique sua conexao e tente novamente."
+        onRetry={() => refetchStores()}
+      />
+    );
+  }
 
   // No service stores
   if (stores.length === 0) {
@@ -953,7 +966,15 @@ export default function ServicesPage() {
           )}
 
           {/* Services list */}
-          {services.length === 0 ? (
+          {servicesError && !servicesData ? (
+            /* ANTES do empty state: uma falha aqui virava "Nenhum servico
+               cadastrado" e o prestador achava que o catalogo dele sumiu. */
+            <ErrorState
+              title="Nao foi possivel carregar seus servicos."
+              description="Isto nao significa que voce nao tem servicos — a consulta falhou."
+              onRetry={() => refetchServices()}
+            />
+          ) : services.length === 0 ? (
             <EmptyState
               icon={Briefcase}
               title="Nenhum servico cadastrado"

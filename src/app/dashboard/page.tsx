@@ -16,6 +16,7 @@ import {
 import CreateStoreModal from "@/components/CreateStoreModal";
 import PageHeader from "@/components/ui/PageHeader";
 import { SkeletonStats } from "@/components/ui/Skeleton";
+import ErrorState from "@/components/ui/ErrorState";
 import StatusBadge from "@/components/ui/StatusBadge";
 
 export default function DashboardPage() {
@@ -111,7 +112,7 @@ function DashboardContent() {
   const router = useRouter();
   const { startTour, hasSeenTour } = useTour("dashboard", TOUR_STEPS, false);
   const { startTour: startFirstAccess, hasSeenTour: hasSeenFirst } = useTour("first-access", FIRST_ACCESS_TOUR, false);
-  const { data, loading, refetch } = useQuery(GET_MY_STORES);
+  const { data, loading, error, refetch } = useQuery(GET_MY_STORES);
   const { data: planData, refetch: refetchPlan } = useQuery(GET_MY_PLAN);
   const [toggleOpen] = useMutation(TOGGLE_STORE_OPEN);
   const [requestStoreDelete] = useMutation(REQUEST_VENDOR_STORE_DELETE);
@@ -121,7 +122,9 @@ function DashboardContent() {
   const stores = data?.myStores || [];
 
   useEffect(() => {
-    if (loading) return;
+    // `error` no guard: com a query falhando, stores.length e 0 e o tour de
+    // primeiro acesso disparava para um vendedor que ja tem lojas.
+    if (loading || error) return;
     const timer = setTimeout(() => {
       if (stores.length === 0 && !hasSeenFirst) {
         startFirstAccess();
@@ -130,7 +133,7 @@ function DashboardContent() {
       }
     }, 600);
     return () => clearTimeout(timer);
-  }, [loading, stores.length, hasSeenFirst, hasSeenTour, startFirstAccess, startTour]);
+  }, [loading, error, stores.length, hasSeenFirst, hasSeenTour, startFirstAccess, startTour]);
 
   const [showCreateStore, setShowCreateStore] = useState(false);
   const [editingStore, setEditingStore] = useState<any>(null);
@@ -179,6 +182,19 @@ function DashboardContent() {
 
   if (loading) {
     return <SkeletonStats count={4} />;
+  }
+
+  // ANTES do empty state: sem isto, uma falha na query virava
+  // "Nenhuma loja cadastrada / Crie sua primeira loja" e o vendedor
+  // acreditava que tinha perdido as lojas dele.
+  if (error && !data) {
+    return (
+      <ErrorState
+        title="Nao foi possivel carregar suas lojas."
+        description="Suas lojas continuam salvas. Verifique sua conexao e tente novamente."
+        onRetry={() => refetch()}
+      />
+    );
   }
 
   if (stores.length === 0) {

@@ -5,6 +5,7 @@ import CreateStoreModal from "@/components/CreateStoreModal";
 import PageHeader from "@/components/ui/PageHeader";
 import StatusBadge from "@/components/ui/StatusBadge";
 import { SkeletonGrid } from "@/components/ui/Skeleton";
+import ErrorState from "@/components/ui/ErrorState";
 import EmptyState from "@/components/ui/EmptyState";
 import { Megaphone, Package, RefreshCw, Trash2, X } from "lucide-react";
 import {
@@ -51,9 +52,9 @@ const TOUR_STEPS: DriveStep[] = [
 
 export default function PromotionsPage() {
   const { startTour, hasSeenTour } = useTour("promotions", TOUR_STEPS);
-  const { data: userData } = useQuery(GET_MY_PLAN);
-  const { data: storesData } = useQuery(GET_MY_STORES);
-  const { data: promosData, loading, refetch } = useQuery(MY_PROMOTIONS);
+  const { data: userData, error: planError, refetch: refetchPlan } = useQuery(GET_MY_PLAN);
+  const { data: storesData, error: storesError, refetch: refetchStores } = useQuery(GET_MY_STORES);
+  const { data: promosData, loading, error: promosError, refetch } = useQuery(MY_PROMOTIONS);
   const { data: priceData } = useQuery(GET_PROMO_PRICE_PER_DAY);
   const [createPromotion, { loading: creating }] = useMutation(CREATE_PROMOTION);
   const [deletePromotion] = useMutation(DELETE_PROMOTION);
@@ -246,6 +247,22 @@ export default function PromotionsPage() {
 
   if (loading) return <SkeletonGrid count={3} />;
 
+  // ANTES do gate de plano: sem `userData` o fallback e "FREE", entao uma query
+  // com erro mostrava "disponivel a partir do plano Pro" para quem ja e Pro.
+  // O gate em si continua inalterado.
+  if (planError && !userData) {
+    return (
+      <div>
+        <PageHeader title="Promoções" />
+        <ErrorState
+          title="Nao foi possivel carregar seu plano."
+          description="Verifique sua conexao e tente novamente."
+          onRetry={() => refetchPlan()}
+        />
+      </div>
+    );
+  }
+
   if (!canPromote) {
     return (
       <div>
@@ -285,6 +302,21 @@ export default function PromotionsPage() {
           </button>
         </div>
         {disc && <span className="text-[10px] text-green-600 font-semibold mt-1">{disc}</span>}
+      </div>
+    );
+  }
+
+  // ANTES do skeleton e do empty state: com `!storesData` sozinho a tela ficava
+  // num skeleton infinito quando a query falhava.
+  if (storesError && !storesData) {
+    return (
+      <div>
+        <PageHeader title="Promoções" />
+        <ErrorState
+          title="Nao foi possivel carregar suas lojas."
+          description="Suas lojas continuam salvas. Verifique sua conexao e tente novamente."
+          onRetry={() => refetchStores()}
+        />
       </div>
     );
   }
@@ -475,7 +507,15 @@ export default function PromotionsPage() {
         </form>
       )}
 
-      {promotions.length === 0 ? (
+      {promosError && !promosData ? (
+        /* ANTES do empty state: uma falha aqui virava "Nenhuma promoção criada"
+           e o vendedor achava que a promocao paga dele tinha sumido. */
+        <ErrorState
+          title="Nao foi possivel carregar suas promoções."
+          description="Isto nao significa que voce nao tem promoções — a consulta falhou."
+          onRetry={() => refetch()}
+        />
+      ) : promotions.length === 0 ? (
         <EmptyState
           icon={Megaphone}
           title="Nenhuma promoção criada"

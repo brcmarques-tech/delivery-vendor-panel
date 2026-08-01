@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import PageHeader from "@/components/ui/PageHeader";
 import { SkeletonGrid } from "@/components/ui/Skeleton";
+import ErrorState from "@/components/ui/ErrorState";
 import EmptyState from "@/components/ui/EmptyState";
 import { motion } from "framer-motion";
 import { fadeIn, staggerContainer, staggerItem, scaleIn } from "@/lib/motion";
@@ -1231,6 +1232,21 @@ export default function ProductsPage() {
           </div>
         </div>
       </motion.div>
+    );
+  }
+
+  // ANTES do skeleton: com `!storesData` sozinho, uma query com erro deixava
+  // a tela num skeleton infinito, sem mensagem e sem forma de tentar de novo.
+  if (storesError && !storesData) {
+    return (
+      <div>
+        <PageHeader title="Produtos" />
+        <ErrorState
+          title="Nao foi possivel carregar suas lojas."
+          description="Seus produtos continuam salvos. Verifique sua conexao e tente novamente."
+          onRetry={() => refetch()}
+        />
+      </div>
     );
   }
 

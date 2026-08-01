@@ -11,6 +11,7 @@ import CreateStoreModal from "@/components/CreateStoreModal";
 import PageHeader from "@/components/ui/PageHeader";
 import StatusBadge from "@/components/ui/StatusBadge";
 import { SkeletonTable } from "@/components/ui/Skeleton";
+import ErrorState from "@/components/ui/ErrorState";
 import EmptyState from "@/components/ui/EmptyState";
 import { motion } from "framer-motion";
 import { fadeIn, staggerContainer, staggerItem, scaleIn } from "@/lib/motion";
@@ -241,7 +242,7 @@ function PendingTimer({ createdAt, onExpired }: { createdAt: string | number; on
 
 export default function OrdersPage() {
   const { startTour, hasSeenTour } = useTour("orders", TOUR_STEPS);
-  const { data: storesData } = useQuery(GET_MY_STORES);
+  const { data: storesData, error: storesError, refetch: refetchStores } = useQuery(GET_MY_STORES);
   const stores = storesData?.myStores || [];
   const [showCreateStore, setShowCreateStore] = useState(false);
   const [selectedStore, setSelectedStore] = useState<string>("");
@@ -256,7 +257,7 @@ export default function OrdersPage() {
     }
   }, [stores, selectedStore]);
 
-  const { data: ordersData, loading, refetch } = useQuery(GET_STORE_ORDERS, {
+  const { data: ordersData, loading, error: ordersError, refetch } = useQuery(GET_STORE_ORDERS, {
     variables: { storeId: selectedStore },
     skip: !selectedStore,
   });
@@ -511,6 +512,18 @@ export default function OrdersPage() {
     }
   }
 
+  // ANTES do spinner e do empty state: com `!storesData` sozinho o spinner
+  // girava para sempre quando a query falhava, sem mensagem nem retry.
+  if (storesError && !storesData) {
+    return (
+      <ErrorState
+        title="Nao foi possivel carregar suas lojas."
+        description="Suas lojas continuam salvas. Verifique sua conexao e tente novamente."
+        onRetry={() => refetchStores()}
+      />
+    );
+  }
+
   if (!storesData) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -655,6 +668,14 @@ export default function OrdersPage() {
 
       {loading ? (
         <SkeletonTable rows={5} cols={4} />
+      ) : ordersError && !ordersData ? (
+        /* ANTES do empty state: uma falha aqui virava "Nenhum pedido ativo" e o
+           vendedor deixava de atender pedidos que existiam de verdade. */
+        <ErrorState
+          title="Nao foi possivel carregar os pedidos."
+          description="Isto nao significa que nao ha pedidos — a consulta falhou. Verifique sua conexao e tente novamente."
+          onRetry={() => refetch()}
+        />
       ) : filteredOrders.length === 0 ? (
         <EmptyState
           icon={ClipboardList}

@@ -6,6 +6,7 @@ import CreateStoreModal from "@/components/CreateStoreModal";
 import PageHeader from "@/components/ui/PageHeader";
 import StatusBadge from "@/components/ui/StatusBadge";
 import { SkeletonGrid } from "@/components/ui/Skeleton";
+import ErrorState from "@/components/ui/ErrorState";
 import EmptyState from "@/components/ui/EmptyState";
 import { Ticket } from "lucide-react";
 import { motion } from "framer-motion";
@@ -64,14 +65,14 @@ interface Coupon {
 
 export default function CouponsPage() {
   const { startTour, hasSeenTour } = useTour("coupons", TOUR_STEPS);
-  const { data: planData } = useQuery(GET_MY_PLAN);
-  const { data: storesData } = useQuery(GET_MY_STORES);
+  const { data: planData, error: planError, refetch: refetchPlan } = useQuery(GET_MY_PLAN);
+  const { data: storesData, error: storesError, refetch: refetchStores } = useQuery(GET_MY_STORES);
   const stores = storesData?.myStores || [];
   const [showCreateStore, setShowCreateStore] = useState(false);
   const [selectedStore, setSelectedStore] = useState("");
   const storeId = selectedStore || stores[0]?.id || "";
 
-  const { data: couponsData, refetch } = useQuery(GET_STORE_COUPONS, {
+  const { data: couponsData, error: couponsError, refetch } = useQuery(GET_STORE_COUPONS, {
     variables: { storeId },
     skip: !storeId,
   });
@@ -98,6 +99,22 @@ export default function CouponsPage() {
 
   const plan = planData?.meVendor?.vendorPlan || "FREE";
   const canUseCoupons = plan !== "FREE";
+
+  // ANTES do gate de plano: sem `planData` o fallback e "FREE", entao uma query
+  // com erro mostrava "disponivel a partir do plano Pro" para quem ja e Pro.
+  // O gate em si continua inalterado — so nao aplicamos ele em cima de um erro.
+  if (planError && !planData) {
+    return (
+      <div>
+        <PageHeader title="Cupons de Desconto" />
+        <ErrorState
+          title="Nao foi possivel carregar seu plano."
+          description="Verifique sua conexao e tente novamente."
+          onRetry={() => refetchPlan()}
+        />
+      </div>
+    );
+  }
 
   if (!canUseCoupons) {
     return (
@@ -168,6 +185,21 @@ export default function CouponsPage() {
     } catch (err: any) {
       setError(err.message || "Erro ao excluir cupom.");
     }
+  }
+
+  // ANTES do skeleton e do empty state: com `!storesData` sozinho a tela ficava
+  // num skeleton infinito quando a query falhava.
+  if (storesError && !storesData) {
+    return (
+      <div>
+        <PageHeader title="Cupons de Desconto" />
+        <ErrorState
+          title="Nao foi possivel carregar suas lojas."
+          description="Suas lojas continuam salvas. Verifique sua conexao e tente novamente."
+          onRetry={() => refetchStores()}
+        />
+      </div>
+    );
   }
 
   if (!storesData) {
@@ -329,7 +361,15 @@ export default function CouponsPage() {
       )}
 
       {/* Coupons list */}
-      {coupons.length === 0 ? (
+      {couponsError && !couponsData ? (
+        /* ANTES do empty state: uma falha aqui virava "Nenhum cupom criado
+           ainda" e o vendedor achava que os cupons dele foram apagados. */
+        <ErrorState
+          title="Nao foi possivel carregar os cupons."
+          description="Isto nao significa que voce nao tem cupons — a consulta falhou."
+          onRetry={() => refetch()}
+        />
+      ) : coupons.length === 0 ? (
         <EmptyState
           icon={Ticket}
           title="Nenhum cupom criado ainda"
