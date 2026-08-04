@@ -69,6 +69,18 @@ const nextStatus: Record<string, string> = {
   PREPARING: "READY",
 };
 
+// Retirada no local e loja com frota propria NAO tem entregador do app: o pedido
+// morria em READY porque nao havia quem disparasse READY->DELIVERED, e o dinheiro
+// ficava em custodia para sempre. Nesses casos o proprio lojista fecha a entrega.
+function proximoStatus(order: any): string | undefined {
+  if (order.status === "READY" && semEntregadorDoApp(order)) return "DELIVERED";
+  return nextStatus[order.status];
+}
+
+function semEntregadorDoApp(order: any): boolean {
+  return order?.isPickup === true || order?.store?.hasOwnDelivery === true;
+}
+
 // Active = in progress orders, Completed = delivered/completed, Incomplete = cancelled/expired/awaiting_payment/rejected
 const ACTIVE_STATUSES = ["AWAITING_PAYMENT", "PAYMENT_REVIEW", "PENDING", "ACCEPTED", "PREPARING", "READY", "PICKED_UP", "DELIVERING", "VENDOR_CONFIRMED_PICKUP", "DELIVERER_CONFIRMED_DELIVERY"];
 const COMPLETED_STATUSES = ["DELIVERED", "COMPLETED"];
@@ -385,8 +397,10 @@ export default function OrdersPage() {
     incomplete: allOrders.filter((o: any) => INCOMPLETE_STATUSES.includes(o.status)).length,
   }), [allOrders]);
 
-  async function handleAdvanceStatus(orderId: string, currentStatus: string) {
-    const next = nextStatus[currentStatus];
+  async function handleAdvanceStatus(order: any) {
+    const orderId = order.id;
+    const currentStatus = order.status;
+    const next = proximoStatus(order);
     if (!next) return;
     devLog(`[VENDOR-ADVANCE] orderId=${orderId}, ${currentStatus} -> ${next}`);
 
@@ -397,11 +411,27 @@ export default function OrdersPage() {
       return;
     }
 
-    await doAdvanceStatus(orderId, currentStatus);
+    // Fechar a entrega no balcao tambem merece confirmacao: e o passo que
+    // dispara a liberacao do pagamento (apos a confirmacao do cliente).
+    if (next === "DELIVERED") {
+      setConfirmAction({
+        orderId,
+        action: "advance",
+        label: order.isPickup
+          ? "Confirmar que o cliente retirou o pedido?"
+          : "Confirmar que o pedido foi entregue?",
+      });
+      return;
+    }
+
+    await doAdvanceStatus(order);
   }
 
-  async function doAdvanceStatus(orderId: string, currentStatus: string) {
-    const next = nextStatus[currentStatus];
+  async function doAdvanceStatus(order: any) {
+    if (!order) return;
+    const orderId = order.id;
+    const currentStatus = order.status;
+    const next = proximoStatus(order);
     if (!next) return;
     // Block if already advancing this order
     if (advancingOrders.has(orderId)) return;
@@ -573,7 +603,7 @@ export default function OrdersPage() {
               <button
                 onClick={() => {
                   if (confirmAction.action === "advance") {
-                    doAdvanceStatus(confirmAction.orderId, "PENDING");
+                    doAdvanceStatus(allOrders.find((o: any) => o.id === confirmAction.orderId));
                   } else if (confirmAction.action === "pickup") {
                     doVendorConfirmPickup(confirmAction.orderId);
                   }
@@ -690,8 +720,16 @@ export default function OrdersPage() {
         <div data-tour="orders-list" className="bg-[var(--bg-card)] rounded-2xl shadow-[var(--card-shadow)] border border-[var(--border-light)] overflow-hidden">
           <div className="overflow-x-auto">
           {filteredOrders.map((order: any, orderIndex: number) => {
-            const status = statusLabels[order.status] || { label: order.status, color: "bg-[var(--bg-muted)]" };
-            const canAdvance = !!nextStatus[order.status];
+            let status = statusLabels[order.status] || { label: order.status, color: "bg-[var(--bg-muted)]" };
+            // "Pronto - Aguardando entregador" era exibido tambem em retirada e
+            // em loja com frota propria, onde entregador do app nunca aparece.
+            if (order.status === "READY" && semEntregadorDoApp(order)) {
+              status = {
+                ...status,
+                label: order.isPickup ? "Pronto - Aguardando retirada" : "Pronto - Saiu para entrega",
+              };
+            }
+            const canAdvance = !!proximoStatus(order);
 
             return (
               <div key={order.id} className={`p-4 sm:p-6 hover:bg-[var(--bg-hover)] transition-colors ${orderIndex > 0 ? "border-t border-[var(--border-light)]" : ""}`}>
@@ -984,7 +1022,7 @@ export default function OrdersPage() {
                     {/* Advance status button - M6: per-order disabled */}
                     {canAdvance && (
                       <button
-                        onClick={() => handleAdvanceStatus(order.id, order.status)}
+                        onClick={() => handleAdvanceStatus(order)}
                         disabled={advancingOrders.has(order.id)}
                         className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white px-4 py-2 rounded-xl text-sm font-bold cursor-pointer active:scale-95 transition disabled:opacity-50"
                       >

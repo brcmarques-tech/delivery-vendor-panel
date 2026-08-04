@@ -139,9 +139,11 @@ export const GET_STORE_ORDERS = gql`
       createdAt
       updatedAt
       vendorConfirmedPickupAt
+      isPickup
       store {
         id
         name
+        hasOwnDelivery
       }
       customer {
         id
