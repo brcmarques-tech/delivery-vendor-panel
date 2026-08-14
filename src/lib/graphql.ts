@@ -16,6 +16,18 @@ export const LOGIN = gql`
   }
 `;
 
+// KAN-280: quando outro aparelho assume a conta (forceLogin), o servidor emite
+// este evento — sem ele o painel do balcao simplesmente comecava a dar
+// SESSION_EXPIRED no meio do atendimento, sem nenhuma explicacao.
+export const SESSION_KICKED = gql`
+  subscription SessionKicked($userId: String!, $userType: String) {
+    sessionKicked(userId: $userId, userType: $userType) {
+      userId
+      userType
+    }
+  }
+`;
+
 export const REGISTER = gql`
   mutation RegisterVendor($input: RegisterVendorInput!) {
     registerVendor(input: $input) {

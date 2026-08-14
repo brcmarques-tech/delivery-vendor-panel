@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, useMemo } from "react";
-import { useQuery, useMutation } from "@apollo/client";
+import { useQuery, useMutation, useSubscription } from "@apollo/client";
 import { apolloClient } from "@/lib/apollo";
-import { GET_MY_PLAN, GET_MY_STORES, GET_AVAILABLE_PLANS, ACCEPT_TERMS } from "@/lib/graphql";
+import { GET_MY_PLAN, GET_MY_STORES, GET_AVAILABLE_PLANS, ACCEPT_TERMS, SESSION_KICKED } from "@/lib/graphql";
 import TermsModal from "@/components/TermsModal";
 import {
   LayoutDashboard, ClipboardList, CalendarCheck, Package, Briefcase,
@@ -103,6 +103,21 @@ export default function DashboardLayout({
     skip: !user,
   });
   const [acceptTerms, { loading: acceptingTerms }] = useMutation(ACCEPT_TERMS);
+
+  // KAN-280: quando alguem loga na mesma conta em outro lugar (forceLogin), o
+  // servidor derruba esta sessao. Sem a assinatura, o painel do balcao apenas
+  // comecava a dar SESSION_EXPIRED em toda acao, sem explicacao — agora avisa e
+  // volta ao login de forma limpa.
+  useSubscription(SESSION_KICKED, {
+    variables: { userId: user?.id ?? "", userType: "vendor" },
+    skip: !user?.id,
+    onData: () => {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      alert("Sua conta foi conectada em outro dispositivo. Você foi desconectado deste painel.");
+      window.location.href = "/";
+    },
+  });
 
   const navGroups = useMemo(() => buildNavGroups(), []);
 
