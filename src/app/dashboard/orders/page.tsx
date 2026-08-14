@@ -194,8 +194,27 @@ function formatDate(dateStr: string) {
 }
 
 const PENDING_EXPIRY_MINUTES = 10;
+// AWAITING_PAYMENT nao expira em 10 min: o servidor da 30, contados da criacao
+// (expireAwaitingPaymentOrders). Mostrar 10 fazia o painel dizer "Expirado" 20
+// minutos antes da hora.
+const AWAITING_PAYMENT_EXPIRY_MINUTES = 30;
 
-function PendingTimer({ createdAt, onExpired }: { createdAt: string | number; onExpired?: () => void }) {
+/**
+ * @param baseIso instante em que a contagem comeca.
+ *
+ * ATENCAO: para PENDING isso e o `updatedAt`, NAO o `createdAt`. O servidor
+ * conta a janela de aceite a partir do momento em que o pedido VIROU pendente —
+ * ou seja, quando o PIX foi pago (orders.service.ts, KAN-210) — exatamente para
+ * nao expirar pedido pago com atraso. Usando createdAt, um cliente que gerava o
+ * PIX as 12:00 e pagava as 12:15 aparecia como "Expirado" desde as 12:10,
+ * embora o servidor aceitasse ate 12:25. O lojista via vermelho, nao aceitava um
+ * pedido PAGO E VALIDO, e as 12:25 o scheduler expirava e ESTORNAVA.
+ */
+function PendingTimer({
+  baseIso,
+  minutos = PENDING_EXPIRY_MINUTES,
+  onExpired,
+}: { baseIso: string | number; minutos?: number; onExpired?: () => void }) {
   const parseTs = (ts: string | number): number => {
     if (typeof ts === "number") return ts;
     const s = /[Z+]/.test(ts) ? ts : ts + "Z";
@@ -203,10 +222,10 @@ function PendingTimer({ createdAt, onExpired }: { createdAt: string | number; on
   };
 
   const getRemaining = () => {
-    const tsMs = parseTs(createdAt);
+    const tsMs = parseTs(baseIso);
     const nowMs = Date.now();
     const elapsed = Math.floor((nowMs - tsMs) / 1000);
-    const total = PENDING_EXPIRY_MINUTES * 60;
+    const total = minutos * 60;
     const r = total - elapsed;
     if (r <= 0 || r > total) return 0;
     return r;
@@ -233,9 +252,10 @@ function PendingTimer({ createdAt, onExpired }: { createdAt: string | number; on
       }
     }, 1000);
     return () => clearInterval(interval);
-    // `getRemaining` fecha apenas sobre `createdAt`, então re-rodar por ele basta.
+    // `getRemaining` fecha apenas sobre `baseIso` e `minutos`, então re-rodar por
+    // eles basta.
 
-  }, [createdAt]);
+  }, [baseIso, minutos]);
 
   if (remaining <= 0) {
     return <span className="text-xs font-semibold text-red-500 dark:text-red-400">Expirado</span>;
@@ -890,7 +910,19 @@ export default function OrdersPage() {
                       R$ {Number(order.subtotal).toFixed(2)}
                     </span>
                     {(order.status === "PENDING" || order.status === "AWAITING_PAYMENT" || order.status === "PAYMENT_REVIEW") && (
-                      <PendingTimer createdAt={order.createdAt} onExpired={() => refetch()} />
+                      <PendingTimer
+                        baseIso={
+                          order.status === "AWAITING_PAYMENT"
+                            ? order.createdAt
+                            : order.updatedAt || order.createdAt
+                        }
+                        minutos={
+                          order.status === "AWAITING_PAYMENT"
+                            ? AWAITING_PAYMENT_EXPIRY_MINUTES
+                            : PENDING_EXPIRY_MINUTES
+                        }
+                        onExpired={() => refetch()}
+                      />
                     )}
                   </div>
                   <div className="flex items-center gap-2 flex-wrap">
