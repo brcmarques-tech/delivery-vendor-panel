@@ -16,6 +16,18 @@ export const LOGIN = gql`
   }
 `;
 
+// KAN-280: quando outro aparelho assume a conta (forceLogin), o servidor emite
+// este evento — sem ele o painel do balcao simplesmente comecava a dar
+// SESSION_EXPIRED no meio do atendimento, sem nenhuma explicacao.
+export const SESSION_KICKED = gql`
+  subscription SessionKicked($userId: String!, $userType: String) {
+    sessionKicked(userId: $userId, userType: $userType) {
+      userId
+      userType
+    }
+  }
+`;
+
 export const REGISTER = gql`
   mutation RegisterVendor($input: RegisterVendorInput!) {
     registerVendor(input: $input) {
@@ -139,9 +151,11 @@ export const GET_STORE_ORDERS = gql`
       createdAt
       updatedAt
       vendorConfirmedPickupAt
+      isPickup
       store {
         id
         name
+        hasOwnDelivery
       }
       customer {
         id
@@ -442,6 +456,7 @@ export const GET_MY_PROFILE = gql`
       name
       email
       phone
+      cpf
       vendorPlan
       emailVerified
       googleId
@@ -456,6 +471,7 @@ export const UPDATE_PROFILE = gql`
     $currentPassword: String
     $newPassword: String
     $email: String
+    $cpf: String
   ) {
     updateVendorProfile(
       name: $name
@@ -463,11 +479,13 @@ export const UPDATE_PROFILE = gql`
       currentPassword: $currentPassword
       newPassword: $newPassword
       email: $email
+      cpf: $cpf
     ) {
       id
       name
       phone
       email
+      cpf
       emailVerified
     }
   }
@@ -655,6 +673,10 @@ export const CREATE_PLAN_UPGRADE = gql`
     ) {
       id
       status
+      amount
+      qrCode
+      qrCodeUrl
+      pixExpiresAt
     }
   }
 `;

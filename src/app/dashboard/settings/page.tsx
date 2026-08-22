@@ -248,6 +248,12 @@ function StoresSection() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    // Guard de double-submit: `updating` (loading da mutation) só fica true DEPOIS
+    // dos dois uploads de imagem, então um segundo clique durante o upload
+    // reenviava as imagens e chamava updateStore de novo.
+    if (saving) return;
+    setSaving(true);
+    try {
     const logoUrl = await uploadImg(logoBase64, "stores");
     const bannerUrl = await uploadImg(bannerBase64, "stores");
 
@@ -276,7 +282,6 @@ function StoresSection() {
     if (logoUrl) input.logoUrl = logoUrl;
     if (bannerUrl) input.bannerUrl = bannerUrl;
 
-    try {
       input.id = editingStore;
       await updateStore({ variables: { input } });
       setMsg("Loja atualizada!");
@@ -285,10 +290,13 @@ function StoresSection() {
       setTimeout(() => setMsg(""), 3000);
     } catch (err: any) {
       setMsg(err.message);
+    } finally {
+      setSaving(false);
     }
   }
 
-  const isSubmitting = updating;
+  const [saving, setSaving] = useState(false);
+  const isSubmitting = updating || saving;
   const isEditing = !!editingStore;
 
   return (

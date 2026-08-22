@@ -8,13 +8,14 @@ import {
   GET_BADGE_CONFIG,
   CREATE_PLAN_UPGRADE,
   ACCEPT_SUBSCRIPTION_TERMS,
+  MY_SUBSCRIPTION,
 } from "@/lib/graphql";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useState, useRef, useEffect, Suspense } from "react";
 import TermsModal from "@/components/TermsModal";
 import SubscriptionManager from "@/components/SubscriptionManager";
 import CardForm from "@/components/CardForm";
-import { CreditCard, QrCode, ChevronLeft, ChevronRight, Check, X, Award, Flame } from "lucide-react";
+import { CreditCard, QrCode, ChevronLeft, ChevronRight, Check, X, Award, Flame, Copy } from "lucide-react";
 import { motion } from "framer-motion";
 import { fadeIn, staggerContainer, staggerItem } from "@/lib/motion";
 import PageHeader from "@/components/ui/PageHeader";
@@ -116,6 +117,7 @@ function PlanContent() {
     fetchPolicy: "network-only", // M2: always fetch fresh plan data
   });
   const { data: plansData, loading: loadingPlans } = useQuery(GET_AVAILABLE_PLANS);
+  const { data: subData } = useQuery(MY_SUBSCRIPTION);
   const { data: storesData } = useQuery(GET_MY_STORES);
   const { data: badgeData } = useQuery(GET_BADGE_CONFIG);
   const [createUpgrade] = useMutation(CREATE_PLAN_UPGRADE, {
@@ -139,42 +141,109 @@ function PlanContent() {
   // H4: Track plan at mount to verify payment status
   const [planAtMount, setPlanAtMount] = useState<string | null>(null);
   const [paymentVerified, setPaymentVerified] = useState(false);
+  // Concessão do plano agora é assíncrona (só no webhook invoice.paid). No cartão
+  // o webhook chega em segundos; enquanto isso ficamos "confirmando" em vez de
+  // cravar sucesso/pendência na hora.
+  const [confirming, setConfirming] = useState(false);
 
   // Show card form inside confirm modal
   const [showCardInModal, setShowCardInModal] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'credit_card' | 'pix'>('credit_card');
 
-  // H4: When status=success, refetch plan and verify it actually changed
-  useEffect(() => {
-    if (paymentStatus === "success") {
-      const currentPlanAtMount = userData?.meVendor?.vendorPlan || "FREE";
-      if (!planAtMount) {
-        setPlanAtMount(currentPlanAtMount);
+  // Modal do QR Code PIX (plano avulso por ciclo)
+  const [pixModal, setPixModal] = useState<{ qrCode: string; qrCodeUrl: string; plan: string } | null>(null);
+  const [pixPaid, setPixPaid] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const pixPollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Faz polling do plano enquanto o modal PIX está aberto. Detecta o pagamento
+  // por (a) o plano mudar para um pago (nova assinatura) OU (b) a expiração
+  // avançar (renovação do mesmo plano — o plano não muda, mas planExpiresAt sim).
+  function startPixPolling(baselinePlan: string, baselineExpiry?: string | null) {
+    const baseMs = baselineExpiry ? new Date(baselineExpiry).getTime() : 0;
+    let attempts = 0;
+    const poll = async () => {
+      attempts++;
+      const { data } = await refetchPlan();
+      const newPlan = data?.meVendor?.vendorPlan || "FREE";
+      const newExpMs = data?.meVendor?.planExpiresAt ? new Date(data.meVendor.planExpiresAt).getTime() : 0;
+      const upgraded = newPlan !== "FREE" && newPlan !== baselinePlan;
+      const renewed = newPlan !== "FREE" && newExpMs > baseMs + 1000;
+      if (upgraded || renewed) {
+        setPixPaid(true);
+        setPaymentVerified(true);
+        return; // pago — para o polling
       }
-      refetchPlan().then(({ data }) => {
-        const newPlan = data?.meVendor?.vendorPlan || "FREE";
-        // Only show success if plan actually changed or is not FREE
-        if (newPlan !== "FREE" && newPlan !== planAtMount) {
-          setPaymentVerified(true);
-        } else if (planAtMount && newPlan === planAtMount) {
-          // Plan didn't change — payment may not have been processed yet or URL was spoofed
-          setPaymentVerified(false);
-        } else {
-          setPaymentVerified(true);
-        }
-      });
+      if (attempts >= 150) return; // ~12min de janela
+      pixPollRef.current = setTimeout(poll, 5000);
+    };
+    poll();
+  }
+
+  function closePixModal() {
+    if (pixPollRef.current) clearTimeout(pixPollRef.current);
+    setPixModal(null);
+    setPixPaid(false);
+    refetchPlan();
+  }
+
+  function copyPix() {
+    if (pixModal?.qrCode) {
+      navigator.clipboard?.writeText(pixModal.qrCode).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }).catch(() => {});
     }
+  }
+
+  // H4: When status=success, poll the plan until the invoice.paid webhook grants
+  // it (cartão: segundos). Só marca sucesso quando o vendorPlan realmente muda
+  // para um plano pago — isso também barra um ?status=success forjado na URL,
+  // que nunca concede plano de verdade.
+  useEffect(() => {
+    if (paymentStatus !== "success") return;
+    // Baseline = plano no momento em que a confirmação começou.
+    const baseline = planAtMount ?? (userData?.meVendor?.vendorPlan || "FREE");
+    if (planAtMount == null) setPlanAtMount(baseline);
+
+    let cancelled = false;
+    let attempts = 0;
+    const MAX_ATTEMPTS = 8; // ~24s cobre a chegada do webhook do cartão
+    setConfirming(true);
+    setPaymentVerified(false);
+
+    const poll = async () => {
+      attempts++;
+      const { data } = await refetchPlan();
+      if (cancelled) return;
+      const newPlan = data?.meVendor?.vendorPlan || "FREE";
+      if (newPlan !== "FREE" && newPlan !== baseline) {
+        setPaymentVerified(true);
+        setConfirming(false);
+        return;
+      }
+      if (attempts >= MAX_ATTEMPTS) {
+        // Ainda não confirmou (PIX aguardando pagamento, ou webhook atrasado).
+        // Não é falha — fica pendente e o plano ativa assim que o pagamento cair.
+        setConfirming(false);
+        return;
+      }
+      setTimeout(poll, 3000);
+    };
+    poll();
+    return () => { cancelled = true; };
   }, [paymentStatus]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Clear URL params after 10 seconds to prevent stale banners
+  // Limpa os params da URL, mas só depois de confirmar (senão o banner sumia no
+  // meio da confirmação). Enquanto "confirming", mantém a URL.
   useEffect(() => {
-    if (paymentStatus) {
+    if (paymentStatus && !confirming) {
       const timer = setTimeout(() => {
         router.replace("/dashboard/plan", { scroll: false });
       }, 10000);
       return () => clearTimeout(timer);
     }
-  }, [paymentStatus, router]);
+  }, [paymentStatus, confirming, router]);
 
   if (loadingUser || loadingPlans) {
     return <SkeletonGrid count={4} />;
@@ -184,6 +253,39 @@ function PlanContent() {
   const plans = plansData?.availablePlans || [];
   const currentPlan = user?.vendorPlan || "FREE";
   const storeCount = user?.stores?.length || 0;
+
+  // Plano MANUAL (PIX): tem plano pago mas NÃO tem assinatura recorrente ativa no
+  // Pagar.me (cartão renova sozinho; PIX não). Nesse caso avisamos perto do fim.
+  const hasActiveSubscription = subData?.mySubscription?.status === "active";
+  const isManualPlan = currentPlan !== "FREE" && !hasActiveSubscription;
+  const expiresAtDate = user?.planExpiresAt ? new Date(user.planExpiresAt) : null;
+  const daysToExpiry = expiresAtDate
+    ? Math.ceil((expiresAtDate.getTime() - Date.now()) / 86400000)
+    : null;
+  const showRenewWarning = isManualPlan && daysToExpiry !== null && daysToExpiry <= 5;
+
+  // Gera um novo PIX para RENOVAR o plano atual (mesmo plano, por PIX).
+  async function renewPix() {
+    if (processingRef.current) return;
+    processingRef.current = true;
+    setPlanError("");
+    try {
+      const res = await createUpgrade({
+        variables: { plan: currentPlan, billingPeriod: billing, cardToken: null, paymentMethod: "pix" },
+      });
+      const payment = res?.data?.createPlanUpgrade;
+      if (payment?.qrCode) {
+        setPixModal({ qrCode: payment.qrCode, qrCodeUrl: payment.qrCodeUrl || "", plan: currentPlan });
+        startPixPolling(currentPlan, user?.planExpiresAt);
+      } else {
+        setPlanError("Nao foi possivel gerar o PIX. Tente novamente.");
+      }
+    } catch (err: any) {
+      setPlanError(err.message || "Erro ao gerar PIX de renovacao.");
+    } finally {
+      processingRef.current = false;
+    }
+  }
 
   // L5: Calculate badge subscription discount with try/catch for JSON.parse
   let badgeDiscount = 0;
@@ -252,20 +354,33 @@ function PlanContent() {
     setUpgrading(plan);
     setPlanError("");
     try {
-      await createUpgrade({
+      const res = await createUpgrade({
         variables: { plan, billingPeriod: billing, cardToken: cardToken || null, paymentMethod },
       });
+      const payment = res?.data?.createPlanUpgrade;
       setConfirmModal(null);
       setShowCardInModal(false);
-      refetchPlan();
       setPlanError("");
-      // Show success inline
-      setPaymentVerified(true);
-      router.replace("/dashboard/plan?status=success", { scroll: false });
+      const baseline = user?.vendorPlan || "FREE";
+      setPlanAtMount(baseline);
+
+      if (paymentMethod === "pix" && payment?.qrCode) {
+        // PIX: mostra o QR Code para o lojista pagar; faz polling até o webhook
+        // do pagamento conceder o plano. A concessão é assíncrona.
+        setPixModal({ qrCode: payment.qrCode, qrCodeUrl: payment.qrCodeUrl || "", plan });
+        startPixPolling(baseline, user?.planExpiresAt);
+      } else {
+        // Cartão: concessão assíncrona (webhook). O efeito de ?status=success
+        // faz polling até o plano mudar.
+        router.replace("/dashboard/plan?status=success", { scroll: false });
+      }
     } catch (err: any) {
       setPlanError(err.message || "Erro ao criar assinatura.");
-      setUpgrading(null);
     } finally {
+      // Antes o reset de `upgrading` só rodava no catch: após um upgrade com
+      // sucesso os botões ficavam presos em "Processando..." (disabled) até dar
+      // reload. No finally, limpa nos dois caminhos.
+      setUpgrading(null);
       processingRef.current = false; // H1: reset guard
     }
   }
@@ -378,8 +493,11 @@ function PlanContent() {
                   )}
                 </div>
 
-                {/* Payment method selector */}
-                <div className="mb-4">
+                {/* Forma de pagamento. Cartão = assinatura recorrente (Pagar.me
+                    cobra sozinho). PIX = cobrança avulsa por ciclo (o Pagar.me NÃO
+                    faz PIX recorrente), então a cada período o lojista paga um QR
+                    novo — o painel avisa perto do vencimento (ver banner acima). */}
+                <div className="mb-3">
                   <p className="text-sm font-medium text-[var(--text-secondary)] mb-2">Forma de pagamento:</p>
                   <div className="flex gap-2">
                     <button
@@ -409,9 +527,8 @@ function PlanContent() {
 
                 <p className="text-sm text-[var(--text-muted)] mb-4">
                   {paymentMethod === 'credit_card'
-                    ? 'A cobranca sera recorrente no cartao de credito. Voce pode cancelar a qualquer momento.'
-                    : 'A cada ciclo, um novo QR Code PIX sera gerado para pagamento. Voce pode cancelar a qualquer momento.'
-                  }
+                    ? 'Cobranca recorrente no cartao. Voce pode cancelar a qualquer momento.'
+                    : 'Voce paga um QR Code PIX a cada ciclo. Avisamos quando estiver perto de vencer para gerar o proximo.'}
                 </p>
                 <div className="flex gap-3">
                   <button
@@ -456,11 +573,92 @@ function PlanContent() {
         </div>
       )}
 
+      {/* Modal do QR Code PIX — plano avulso por ciclo */}
+      {pixModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-[var(--bg-card)] rounded-2xl p-6 max-w-md w-full max-h-[92vh] overflow-y-auto">
+            {pixPaid ? (
+              <div className="text-center py-4">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                  <Check className="w-9 h-9 text-green-600" />
+                </div>
+                <h3 className="text-xl font-bold text-[var(--text-primary)] mb-1">Pagamento confirmado!</h3>
+                <p className="text-[var(--text-secondary)] mb-5">Seu plano <b>{pixModal.plan}</b> ja esta ativo.</p>
+                <button onClick={closePixModal} className="w-full py-3 bg-[var(--brand-primary)] text-white rounded-xl font-semibold cursor-pointer">
+                  Fechar
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center gap-2 mb-1">
+                  <QrCode className="w-6 h-6 text-teal-500" />
+                  <h3 className="text-lg font-bold text-[var(--text-primary)]">Pague com PIX para ativar</h3>
+                </div>
+                <p className="text-sm text-[var(--text-muted)] mb-4">
+                  Escaneie o QR Code no app do seu banco ou use o codigo copia-e-cola. O plano <b>{pixModal.plan}</b> ativa automaticamente apos o pagamento.
+                </p>
+                {pixModal.qrCodeUrl && (
+                  <div className="bg-white rounded-xl p-3 mb-4 flex items-center justify-center">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={pixModal.qrCodeUrl} alt="QR Code PIX" className="w-52 h-52 object-contain" />
+                  </div>
+                )}
+                <p className="text-xs font-medium text-[var(--text-secondary)] mb-1">Copia e cola:</p>
+                <div className="flex gap-2 mb-4">
+                  <input
+                    readOnly
+                    value={pixModal.qrCode}
+                    className="flex-1 min-w-0 text-xs px-3 py-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-muted)] text-[var(--text-secondary)]"
+                  />
+                  <button onClick={copyPix} className="px-3 py-2 bg-teal-500 text-white rounded-lg text-sm font-semibold flex items-center gap-1 cursor-pointer shrink-0">
+                    <Copy className="w-4 h-4" />
+                    {copied ? "Copiado!" : "Copiar"}
+                  </button>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-[var(--text-muted)] mb-4">
+                  <span className="inline-block w-3 h-3 border-2 border-teal-400 border-t-transparent rounded-full animate-spin" />
+                  Aguardando pagamento...
+                </div>
+                <button onClick={closePixModal} className="w-full py-2.5 bg-[var(--bg-muted)] text-[var(--text-secondary)] rounded-xl font-semibold cursor-pointer">
+                  Fechar (o plano ativa quando o PIX for pago)
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       <PageHeader title="Meu Plano" onTourStart={startTour} tourNotSeen={!hasSeenTour} />
 
       {planError && (
         <div className="bg-[var(--status-error-bg)] border border-[var(--status-error-text)]/20 text-[var(--status-error-text)] px-4 py-3 rounded-xl text-sm mb-4">
           {planError}
+        </div>
+      )}
+
+      {/* Aviso de vencimento do plano PIX/manual (faltando <= 5 dias) + botão de
+          gerar o PIX de renovação. Cartão renova sozinho, então não aparece. */}
+      {showRenewWarning && (
+        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-800 rounded-2xl p-4 mb-6 flex flex-col sm:flex-row sm:items-center gap-3">
+          <QrCode className="w-8 h-8 text-amber-500 shrink-0" />
+          <div className="flex-1">
+            <p className="text-amber-800 dark:text-amber-300 font-semibold">
+              {daysToExpiry !== null && daysToExpiry <= 0
+                ? "Seu plano venceu"
+                : `Seu plano vence em ${daysToExpiry} dia${daysToExpiry === 1 ? "" : "s"}`}
+            </p>
+            <p className="text-amber-700 dark:text-amber-400 text-sm">
+              Como voce paga por PIX, gere um novo QR Code para renovar o plano {currentPlan} e nao perder os recursos.
+            </p>
+          </div>
+          <button
+            onClick={renewPix}
+            disabled={processingRef.current}
+            className="py-2.5 px-5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-semibold cursor-pointer whitespace-nowrap flex items-center gap-2 shrink-0 disabled:opacity-50"
+          >
+            <QrCode className="w-5 h-5" />
+            Gerar PIX de renovacao
+          </button>
         </div>
       )}
 
@@ -479,7 +677,7 @@ function PlanContent() {
         </div>
       )}
 
-      {/* H4: Only show success banner if payment was verified */}
+      {/* H4: Só mostra sucesso quando o plano foi verificado (webhook concedeu) */}
       {paymentStatus === "success" && paymentVerified && (
         <div className="bg-[var(--status-success-bg)] border border-[var(--status-success-text)]/20 rounded-2xl p-4 mb-6">
           <p className="text-green-800 font-semibold">
@@ -487,10 +685,18 @@ function PlanContent() {
           </p>
         </div>
       )}
-      {paymentStatus === "success" && !paymentVerified && (
+      {paymentStatus === "success" && !paymentVerified && confirming && (
+        <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 mb-6 flex items-center gap-3">
+          <span className="inline-block w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+          <p className="text-blue-800 font-semibold">
+            Confirmando seu pagamento... isso leva alguns segundos.
+          </p>
+        </div>
+      )}
+      {paymentStatus === "success" && !paymentVerified && !confirming && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-4 mb-6">
           <p className="text-yellow-800 font-semibold">
-            Pagamento pendente de confirmacao. Aguarde a verificacao do seu plano.
+            Pagamento pendente de confirmacao. Assim que for aprovado seu plano sera ativado automaticamente (no PIX pode levar mais alguns minutos).
           </p>
         </div>
       )}
@@ -710,7 +916,7 @@ function PlanContent() {
         <h3 className="font-semibold text-[var(--text-primary)]">Como funciona?</h3>
         <ul className="mt-2 text-sm text-[var(--text-secondary)] space-y-1">
           <li>&bull; Escolha o periodo: mensal, trimestral (-10%), semestral (-20%) ou anual (-30%)</li>
-          <li>&bull; Pague com cartao de credito (recorrente) ou PIX (QR Code por ciclo)</li>
+          <li>&bull; Pague com cartao de credito (cobranca recorrente)</li>
           <li>&bull; A cobranca e automatica — voce pode cancelar a qualquer momento</li>
           <li>&bull; Ao cancelar, voce mantem o acesso ate o fim do periodo pago</li>
           <li>&bull; Planos superiores permitem mais lojas e funcionalidades</li>

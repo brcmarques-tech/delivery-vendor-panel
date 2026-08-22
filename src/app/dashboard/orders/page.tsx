@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useSubscription } from "@apollo/client";
+import { devLog } from "@/lib/devLog"; // KAN-256
 import { useTour } from "@/hooks/useTour";
 import { type DriveStep } from "driver.js";
 import { GET_MY_STORES, GET_STORE_ORDERS, UPDATE_ORDER_STATUS, ORDER_CREATED_SUB, ORDER_UPDATED_SUB, ADJUST_ORDER_ITEM_WEIGHT, REJECT_ORDER, VENDOR_CANCEL_ORDER, VENDOR_CONFIRM_PICKUP, REQUEST_CANCEL_DISPUTE } from "@/lib/graphql";
@@ -10,6 +11,7 @@ import CreateStoreModal from "@/components/CreateStoreModal";
 import PageHeader from "@/components/ui/PageHeader";
 import StatusBadge from "@/components/ui/StatusBadge";
 import { SkeletonTable } from "@/components/ui/Skeleton";
+import ErrorState from "@/components/ui/ErrorState";
 import EmptyState from "@/components/ui/EmptyState";
 import { motion } from "framer-motion";
 import { fadeIn, staggerContainer, staggerItem, scaleIn } from "@/lib/motion";
@@ -67,6 +69,18 @@ const nextStatus: Record<string, string> = {
   PREPARING: "READY",
 };
 
+// Retirada no local e loja com frota propria NAO tem entregador do app: o pedido
+// morria em READY porque nao havia quem disparasse READY->DELIVERED, e o dinheiro
+// ficava em custodia para sempre. Nesses casos o proprio lojista fecha a entrega.
+function proximoStatus(order: any): string | undefined {
+  if (order.status === "READY" && semEntregadorDoApp(order)) return "DELIVERED";
+  return nextStatus[order.status];
+}
+
+function semEntregadorDoApp(order: any): boolean {
+  return order?.isPickup === true || order?.store?.hasOwnDelivery === true;
+}
+
 // Active = in progress orders, Completed = delivered/completed, Incomplete = cancelled/expired/awaiting_payment/rejected
 const ACTIVE_STATUSES = ["AWAITING_PAYMENT", "PAYMENT_REVIEW", "PENDING", "ACCEPTED", "PREPARING", "READY", "PICKED_UP", "DELIVERING", "VENDOR_CONFIRMED_PICKUP", "DELIVERER_CONFIRMED_DELIVERY"];
 const COMPLETED_STATUSES = ["DELIVERED", "COMPLETED"];
@@ -111,31 +125,47 @@ const TOUR_STEPS: DriveStep[] = [
   },
 ];
 
-function playNotificationSound() {
-  const ctx = new AudioContext();
+// KAN-243: um unico AudioContext reutilizado.
+//
+// Antes cada pedido novo fazia `new AudioContext()` e nunca chamava close().
+// Navegadores limitam ~6 AudioContext simultaneos por pagina, entao numa loja
+// movimentada com a aba de pedidos aberta o dia todo o som simplesmente parava
+// de tocar ("Failed to construct 'AudioContext': number of hardware contexts
+// reached maximum") — justamente o alerta que o lojista usa para nao perder
+// pedido.
+let audioCtx: AudioContext | null = null;
+
+function getAudioContext(): AudioContext | null {
+  if (typeof window === "undefined") return null;
+  const Ctor = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  if (!Ctor) return null;
+  if (!audioCtx) audioCtx = new Ctor();
+  // Navegadores iniciam o contexto suspenso ate haver interacao do usuario.
+  if (audioCtx.state === "suspended") audioCtx.resume().catch(() => {});
+  return audioCtx;
+}
+
+function beep(ctx: AudioContext, frequency: number, startAt: number) {
   const oscillator = ctx.createOscillator();
   const gain = ctx.createGain();
   oscillator.connect(gain);
   gain.connect(ctx.destination);
-  oscillator.frequency.value = 880;
+  oscillator.frequency.value = frequency;
   oscillator.type = "sine";
-  gain.gain.setValueAtTime(0.3, ctx.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
-  oscillator.start(ctx.currentTime);
-  oscillator.stop(ctx.currentTime + 0.5);
+  gain.gain.setValueAtTime(0.3, startAt);
+  gain.gain.exponentialRampToValueAtTime(0.01, startAt + 0.5);
+  oscillator.start(startAt);
+  oscillator.stop(startAt + 0.5);
+}
 
-  setTimeout(() => {
-    const osc2 = ctx.createOscillator();
-    const gain2 = ctx.createGain();
-    osc2.connect(gain2);
-    gain2.connect(ctx.destination);
-    osc2.frequency.value = 1100;
-    osc2.type = "sine";
-    gain2.gain.setValueAtTime(0.3, ctx.currentTime);
-    gain2.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
-    osc2.start(ctx.currentTime);
-    osc2.stop(ctx.currentTime + 0.5);
-  }, 200);
+function playNotificationSound() {
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  // Agenda os dois tons pelo relogio do audio (mais preciso que setTimeout, e
+  // evita o bug antigo de ler ctx.currentTime ja adiantado dentro do timeout).
+  const now = ctx.currentTime;
+  beep(ctx, 880, now);
+  beep(ctx, 1100, now + 0.2);
 }
 
 function getDateRange(filter: DateFilter): Date | null {
@@ -164,8 +194,27 @@ function formatDate(dateStr: string) {
 }
 
 const PENDING_EXPIRY_MINUTES = 10;
+// AWAITING_PAYMENT nao expira em 10 min: o servidor da 30, contados da criacao
+// (expireAwaitingPaymentOrders). Mostrar 10 fazia o painel dizer "Expirado" 20
+// minutos antes da hora.
+const AWAITING_PAYMENT_EXPIRY_MINUTES = 30;
 
-function PendingTimer({ createdAt, onExpired }: { createdAt: string | number; onExpired?: () => void }) {
+/**
+ * @param baseIso instante em que a contagem comeca.
+ *
+ * ATENCAO: para PENDING isso e o `updatedAt`, NAO o `createdAt`. O servidor
+ * conta a janela de aceite a partir do momento em que o pedido VIROU pendente —
+ * ou seja, quando o PIX foi pago (orders.service.ts, KAN-210) — exatamente para
+ * nao expirar pedido pago com atraso. Usando createdAt, um cliente que gerava o
+ * PIX as 12:00 e pagava as 12:15 aparecia como "Expirado" desde as 12:10,
+ * embora o servidor aceitasse ate 12:25. O lojista via vermelho, nao aceitava um
+ * pedido PAGO E VALIDO, e as 12:25 o scheduler expirava e ESTORNAVA.
+ */
+function PendingTimer({
+  baseIso,
+  minutos = PENDING_EXPIRY_MINUTES,
+  onExpired,
+}: { baseIso: string | number; minutos?: number; onExpired?: () => void }) {
   const parseTs = (ts: string | number): number => {
     if (typeof ts === "number") return ts;
     const s = /[Z+]/.test(ts) ? ts : ts + "Z";
@@ -173,10 +222,10 @@ function PendingTimer({ createdAt, onExpired }: { createdAt: string | number; on
   };
 
   const getRemaining = () => {
-    const tsMs = parseTs(createdAt);
+    const tsMs = parseTs(baseIso);
     const nowMs = Date.now();
     const elapsed = Math.floor((nowMs - tsMs) / 1000);
-    const total = PENDING_EXPIRY_MINUTES * 60;
+    const total = minutos * 60;
     const r = total - elapsed;
     if (r <= 0 || r > total) return 0;
     return r;
@@ -184,17 +233,29 @@ function PendingTimer({ createdAt, onExpired }: { createdAt: string | number; on
 
   const [remaining, setRemaining] = useState(getRemaining);
 
+  // KAN-256: o intervalo capturava o `onExpired` do render em que o efeito
+  // rodou. Hoje isso é inofensivo (o callback é `() => refetch()` e o `refetch`
+  // do Apollo é estável), mas é frágil: no dia em que esse callback fechar
+  // sobre algum estado, o timer chamaria a versão velha silenciosamente.
+  // O ref garante que sempre dispara a mais recente — e é o motivo honesto pelo
+  // qual `onExpired` não precisa estar nas deps.
+  const onExpiredRef = useRef(onExpired);
+  onExpiredRef.current = onExpired;
+
   useEffect(() => {
     const interval = setInterval(() => {
       const r = getRemaining();
       setRemaining(r);
       if (r <= 0) {
         clearInterval(interval);
-        onExpired?.();
+        onExpiredRef.current?.();
       }
     }, 1000);
     return () => clearInterval(interval);
-  }, [createdAt]);
+    // `getRemaining` fecha apenas sobre `baseIso` e `minutos`, então re-rodar por
+    // eles basta.
+
+  }, [baseIso, minutos]);
 
   if (remaining <= 0) {
     return <span className="text-xs font-semibold text-red-500 dark:text-red-400">Expirado</span>;
@@ -213,7 +274,7 @@ function PendingTimer({ createdAt, onExpired }: { createdAt: string | number; on
 
 export default function OrdersPage() {
   const { startTour, hasSeenTour } = useTour("orders", TOUR_STEPS);
-  const { data: storesData } = useQuery(GET_MY_STORES);
+  const { data: storesData, error: storesError, refetch: refetchStores } = useQuery(GET_MY_STORES);
   const stores = storesData?.myStores || [];
   const [showCreateStore, setShowCreateStore] = useState(false);
   const [selectedStore, setSelectedStore] = useState<string>("");
@@ -228,7 +289,7 @@ export default function OrdersPage() {
     }
   }, [stores, selectedStore]);
 
-  const { data: ordersData, loading, refetch } = useQuery(GET_STORE_ORDERS, {
+  const { data: ordersData, loading, error: ordersError, refetch } = useQuery(GET_STORE_ORDERS, {
     variables: { storeId: selectedStore },
     skip: !selectedStore,
   });
@@ -239,7 +300,7 @@ export default function OrdersPage() {
     onData: ({ data: subData }) => {
       if (subData?.data?.orderCreated) {
         const o = subData.data.orderCreated;
-        console.log(`[VENDOR-SUB] orderCreated: #${o.orderNumber}, status=${o.status}, id=${o.id}`);
+        devLog(`[VENDOR-SUB] orderCreated: #${o.orderNumber}, status=${o.status}, id=${o.id}`);
         playNotificationSound();
         setNotification(`Novo pedido #${o.orderNumber}!`);
         setTimeout(() => setNotification(null), 5000);
@@ -253,7 +314,7 @@ export default function OrdersPage() {
     skip: !selectedStore,
     onData: ({ data: subData }) => {
       const o = subData?.data?.orderUpdated;
-      console.log(`[VENDOR-SUB] orderUpdated: #${o?.orderNumber || '?'}, status=${o?.status || '?'}, id=${o?.id || '?'}`);
+      devLog(`[VENDOR-SUB] orderUpdated: #${o?.orderNumber || '?'}, status=${o?.status || '?'}, id=${o?.id || '?'}`);
       refetch();
     },
   });
@@ -303,6 +364,30 @@ export default function OrdersPage() {
 
   const allOrders = ordersData?.storeOrders || [];
 
+  // KAN-256: poda o checklist de separação de pedidos que já saíram de
+  // ACCEPTED/PREPARING. Antes nada era removido: ao longo de meses de operação
+  // o objeto acumulava uma entrada por orderId já processado, inchando o
+  // localStorage e deixando o JSON.parse do mount cada vez mais lento.
+  useEffect(() => {
+    const activeIds = new Set(
+      allOrders
+        .filter((o: any) => o.status === "ACCEPTED" || o.status === "PREPARING")
+        .map((o: any) => o.id),
+    );
+    setSeparatedItems((prev) => {
+      const entries = Object.entries(prev);
+      const kept = entries.filter(([orderId]) => activeIds.has(orderId));
+      if (kept.length === entries.length) return prev; // nada a podar
+      const next = Object.fromEntries(kept);
+      try {
+        localStorage.setItem("separatedItems", JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+    // Depende do resultado da query (referência estável por resposta), não do
+    // array recriado a cada render.
+  }, [ordersData]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Filter orders by tab and date
   const filteredOrders = useMemo(() => {
     let statusList: string[];
@@ -332,34 +417,52 @@ export default function OrdersPage() {
     incomplete: allOrders.filter((o: any) => INCOMPLETE_STATUSES.includes(o.status)).length,
   }), [allOrders]);
 
-  async function handleAdvanceStatus(orderId: string, currentStatus: string) {
-    const next = nextStatus[currentStatus];
+  async function handleAdvanceStatus(order: any) {
+    const orderId = order.id;
+    const currentStatus = order.status;
+    const next = proximoStatus(order);
     if (!next) return;
-    console.log(`[VENDOR-ADVANCE] orderId=${orderId}, ${currentStatus} -> ${next}`);
+    devLog(`[VENDOR-ADVANCE] orderId=${orderId}, ${currentStatus} -> ${next}`);
 
     // M5: For PENDING->ACCEPTED (payment capture) and READY->vendor confirm, require confirmation
     if (currentStatus === "PENDING") {
-      console.log(`[VENDOR-ADVANCE] Showing confirm dialog for PENDING->ACCEPTED`);
+      devLog(`[VENDOR-ADVANCE] Showing confirm dialog for PENDING->ACCEPTED`);
       setConfirmAction({ orderId, action: "advance", label: "Aceitar este pedido? Isso ira capturar o pagamento do cliente." });
       return;
     }
 
-    await doAdvanceStatus(orderId, currentStatus);
+    // Fechar a entrega no balcao tambem merece confirmacao: e o passo que
+    // dispara a liberacao do pagamento (apos a confirmacao do cliente).
+    if (next === "DELIVERED") {
+      setConfirmAction({
+        orderId,
+        action: "advance",
+        label: order.isPickup
+          ? "Confirmar que o cliente retirou o pedido?"
+          : "Confirmar que o pedido foi entregue?",
+      });
+      return;
+    }
+
+    await doAdvanceStatus(order);
   }
 
-  async function doAdvanceStatus(orderId: string, currentStatus: string) {
-    const next = nextStatus[currentStatus];
+  async function doAdvanceStatus(order: any) {
+    if (!order) return;
+    const orderId = order.id;
+    const currentStatus = order.status;
+    const next = proximoStatus(order);
     if (!next) return;
     // Block if already advancing this order
     if (advancingOrders.has(orderId)) return;
-    console.log(`[VENDOR-ADVANCE] Executing: orderId=${orderId}, ${currentStatus} -> ${next}`);
+    devLog(`[VENDOR-ADVANCE] Executing: orderId=${orderId}, ${currentStatus} -> ${next}`);
     // M6: per-order advancing
     setAdvancingOrders((prev) => new Set(prev).add(orderId));
     setStatusError(null);
     setConfirmAction(null);
     try {
       await updateStatus({ variables: { id: orderId, status: next } });
-      console.log(`[VENDOR-ADVANCE] SUCCESS: orderId=${orderId}, now ${next}`);
+      devLog(`[VENDOR-ADVANCE] SUCCESS: orderId=${orderId}, now ${next}`);
       await refetch();
     } catch (err: any) {
       console.error(`[VENDOR-ADVANCE] FAILED: orderId=${orderId}, ${currentStatus} -> ${next}:`, err.message);
@@ -377,12 +480,12 @@ export default function OrdersPage() {
 
   async function handleRejectOrder(orderId: string, reason: string) {
     if (!reason.trim()) return;
-    console.log(`[VENDOR-REJECT] orderId=${orderId}, reason="${reason.trim()}"`);
+    devLog(`[VENDOR-REJECT] orderId=${orderId}, reason="${reason.trim()}"`);
     // L7: per-operation loading
     setRejectingOrders((prev) => new Set(prev).add(orderId));
     try {
       await rejectOrderMut({ variables: { orderId, reason: reason.trim() } });
-      console.log(`[VENDOR-REJECT] SUCCESS: orderId=${orderId}`);
+      devLog(`[VENDOR-REJECT] SUCCESS: orderId=${orderId}`);
       setRejectState(null);
       refetch();
     } catch (err: any) {
@@ -397,11 +500,11 @@ export default function OrdersPage() {
 
   async function handleVendorCancelOrder(orderId: string, reason: string) {
     if (!reason.trim()) return;
-    console.log(`[VENDOR-CANCEL] orderId=${orderId}, reason="${reason.trim()}"`);
+    devLog(`[VENDOR-CANCEL] orderId=${orderId}, reason="${reason.trim()}"`);
     setCancellingOrders((prev) => new Set(prev).add(orderId));
     try {
       await vendorCancelOrderMut({ variables: { orderId, reason: reason.trim() } });
-      console.log(`[VENDOR-CANCEL] SUCCESS: orderId=${orderId}`);
+      devLog(`[VENDOR-CANCEL] SUCCESS: orderId=${orderId}`);
       setCancelState(null);
       refetch();
     } catch (err: any) {
@@ -414,19 +517,19 @@ export default function OrdersPage() {
   }
 
   async function handleVendorConfirmPickup(orderId: string) {
-    console.log(`[VENDOR-PICKUP] Showing confirm dialog: orderId=${orderId}`);
+    devLog(`[VENDOR-PICKUP] Showing confirm dialog: orderId=${orderId}`);
     // M5: confirmation dialog for pickup
     setConfirmAction({ orderId, action: "pickup", label: "Confirmar entrega ao entregador?" });
   }
 
   async function doVendorConfirmPickup(orderId: string) {
-    console.log(`[VENDOR-PICKUP] Executing: orderId=${orderId}`);
+    devLog(`[VENDOR-PICKUP] Executing: orderId=${orderId}`);
     // L7: per-operation loading
     setPickupOrders((prev) => new Set(prev).add(orderId));
     setConfirmAction(null);
     try {
       await vendorConfirmPickupMut({ variables: { orderId } });
-      console.log(`[VENDOR-PICKUP] SUCCESS: orderId=${orderId}`);
+      devLog(`[VENDOR-PICKUP] SUCCESS: orderId=${orderId}`);
       refetch();
     } catch (err: any) {
       console.error(`[VENDOR-PICKUP] FAILED: orderId=${orderId}:`, err.message);
@@ -441,12 +544,12 @@ export default function OrdersPage() {
   async function handleAdjustWeight(itemId: string, grams: string) {
     const parsed = parseInt(grams);
     if (!parsed || parsed <= 0) return;
-    console.log(`[VENDOR-WEIGHT] itemId=${itemId}, grams=${parsed}`);
+    devLog(`[VENDOR-WEIGHT] itemId=${itemId}, grams=${parsed}`);
     // L7: per-operation loading
     setWeightAdjusting((prev) => new Set(prev).add(itemId));
     try {
       await adjustWeight({ variables: { orderItemId: itemId, actualWeightGrams: parsed } });
-      console.log(`[VENDOR-WEIGHT] SUCCESS: itemId=${itemId}`);
+      devLog(`[VENDOR-WEIGHT] SUCCESS: itemId=${itemId}`);
       setWeightEdit(null);
       refetch();
     } catch (err: any) {
@@ -457,6 +560,18 @@ export default function OrdersPage() {
     } finally {
       setWeightAdjusting((prev) => { const s = new Set(prev); s.delete(itemId); return s; });
     }
+  }
+
+  // ANTES do spinner e do empty state: com `!storesData` sozinho o spinner
+  // girava para sempre quando a query falhava, sem mensagem nem retry.
+  if (storesError && !storesData) {
+    return (
+      <ErrorState
+        title="Nao foi possivel carregar suas lojas."
+        description="Suas lojas continuam salvas. Verifique sua conexao e tente novamente."
+        onRetry={() => refetchStores()}
+      />
+    );
   }
 
   if (!storesData) {
@@ -470,7 +585,7 @@ export default function OrdersPage() {
   if (stores.length === 0) {
     return (
       <>
-        <CreateStoreModal open={showCreateStore} onClose={() => setShowCreateStore(false)} onCreated={() => { storesData && window.location.reload(); }} />
+        <CreateStoreModal open={showCreateStore} onClose={() => setShowCreateStore(false)} onCreated={() => window.location.reload()} />
         <div className="text-center mt-20">
           <h2 className="text-xl md:text-2xl font-bold text-[var(--text-primary)] mb-2">Nenhuma loja cadastrada</h2>
           <p className="text-[var(--text-secondary)] mb-6">Crie sua primeira loja para começar a receber pedidos</p>
@@ -508,7 +623,7 @@ export default function OrdersPage() {
               <button
                 onClick={() => {
                   if (confirmAction.action === "advance") {
-                    doAdvanceStatus(confirmAction.orderId, "PENDING");
+                    doAdvanceStatus(allOrders.find((o: any) => o.id === confirmAction.orderId));
                   } else if (confirmAction.action === "pickup") {
                     doVendorConfirmPickup(confirmAction.orderId);
                   }
@@ -603,6 +718,14 @@ export default function OrdersPage() {
 
       {loading ? (
         <SkeletonTable rows={5} cols={4} />
+      ) : ordersError && !ordersData ? (
+        /* ANTES do empty state: uma falha aqui virava "Nenhum pedido ativo" e o
+           vendedor deixava de atender pedidos que existiam de verdade. */
+        <ErrorState
+          title="Nao foi possivel carregar os pedidos."
+          description="Isto nao significa que nao ha pedidos — a consulta falhou. Verifique sua conexao e tente novamente."
+          onRetry={() => refetch()}
+        />
       ) : filteredOrders.length === 0 ? (
         <EmptyState
           icon={ClipboardList}
@@ -617,8 +740,16 @@ export default function OrdersPage() {
         <div data-tour="orders-list" className="bg-[var(--bg-card)] rounded-2xl shadow-[var(--card-shadow)] border border-[var(--border-light)] overflow-hidden">
           <div className="overflow-x-auto">
           {filteredOrders.map((order: any, orderIndex: number) => {
-            const status = statusLabels[order.status] || { label: order.status, color: "bg-[var(--bg-muted)]" };
-            const canAdvance = !!nextStatus[order.status];
+            let status = statusLabels[order.status] || { label: order.status, color: "bg-[var(--bg-muted)]" };
+            // "Pronto - Aguardando entregador" era exibido tambem em retirada e
+            // em loja com frota propria, onde entregador do app nunca aparece.
+            if (order.status === "READY" && semEntregadorDoApp(order)) {
+              status = {
+                ...status,
+                label: order.isPickup ? "Pronto - Aguardando retirada" : "Pronto - Saiu para entrega",
+              };
+            }
+            const canAdvance = !!proximoStatus(order);
 
             return (
               <div key={order.id} className={`p-4 sm:p-6 hover:bg-[var(--bg-hover)] transition-colors ${orderIndex > 0 ? "border-t border-[var(--border-light)]" : ""}`}>
@@ -633,7 +764,7 @@ export default function OrdersPage() {
                     </div>
                     <div className="mt-1">
                       <span className="text-sm text-[var(--text-secondary)]">
-                        {order.customer.name} - {order.customer.phone}
+                        {order.customer?.name ?? "Cliente removido"} - {order.customer?.phone ?? ""}
                       </span>
                     </div>
                   </div>
@@ -779,7 +910,19 @@ export default function OrdersPage() {
                       R$ {Number(order.subtotal).toFixed(2)}
                     </span>
                     {(order.status === "PENDING" || order.status === "AWAITING_PAYMENT" || order.status === "PAYMENT_REVIEW") && (
-                      <PendingTimer createdAt={order.createdAt} onExpired={() => refetch()} />
+                      <PendingTimer
+                        baseIso={
+                          order.status === "AWAITING_PAYMENT"
+                            ? order.createdAt
+                            : order.updatedAt || order.createdAt
+                        }
+                        minutos={
+                          order.status === "AWAITING_PAYMENT"
+                            ? AWAITING_PAYMENT_EXPIRY_MINUTES
+                            : PENDING_EXPIRY_MINUTES
+                        }
+                        onExpired={() => refetch()}
+                      />
                     )}
                   </div>
                   <div className="flex items-center gap-2 flex-wrap">
@@ -911,7 +1054,7 @@ export default function OrdersPage() {
                     {/* Advance status button - M6: per-order disabled */}
                     {canAdvance && (
                       <button
-                        onClick={() => handleAdvanceStatus(order.id, order.status)}
+                        onClick={() => handleAdvanceStatus(order)}
                         disabled={advancingOrders.has(order.id)}
                         className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white px-4 py-2 rounded-xl text-sm font-bold cursor-pointer active:scale-95 transition disabled:opacity-50"
                       >

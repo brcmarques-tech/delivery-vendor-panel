@@ -82,13 +82,32 @@ export default function LoginPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    try {
-      const { data } = await login({ variables: { input: { email, password }, forceLogin: true } });
+    // KAN-280: antes era forceLogin: true DIRETO — quem estivesse logado no
+    // balcao era expulso em silencio, sem ninguem confirmar nada. Agora tenta
+    // sem forcar; se o servidor acusar sessao ativa, pergunta antes de assumir.
+    async function tentar(force: boolean) {
+      const { data } = await login({ variables: { input: { email, password }, forceLogin: force } });
       localStorage.setItem("token", data.loginVendor.accessToken);
       localStorage.setItem("user", JSON.stringify(data.loginVendor.user));
       await apolloClient.resetStore();
       router.replace("/dashboard");
-    } catch {
+    }
+    try {
+      await tentar(false);
+    } catch (err: unknown) {
+      const msg = (err as { message?: string })?.message || "";
+      if (msg.includes("ACTIVE_SESSION")) {
+        const assumir = confirm(
+          "Esta conta já está conectada em outro dispositivo. Conectar aqui e desconectar o outro?",
+        );
+        if (!assumir) return;
+        try {
+          await tentar(true);
+        } catch {
+          setError("Email ou senha inválidos");
+        }
+        return;
+      }
       setError("Email ou senha inválidos");
     }
   }

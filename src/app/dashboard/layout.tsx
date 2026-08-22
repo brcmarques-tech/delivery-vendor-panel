@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, useMemo } from "react";
-import { useQuery, useMutation } from "@apollo/client";
+import { useQuery, useMutation, useSubscription } from "@apollo/client";
 import { apolloClient } from "@/lib/apollo";
-import { GET_MY_PLAN, GET_MY_STORES, GET_AVAILABLE_PLANS, ACCEPT_TERMS } from "@/lib/graphql";
+import { GET_MY_PLAN, GET_MY_STORES, GET_AVAILABLE_PLANS, ACCEPT_TERMS, SESSION_KICKED } from "@/lib/graphql";
 import TermsModal from "@/components/TermsModal";
 import {
   LayoutDashboard, ClipboardList, CalendarCheck, Package, Briefcase,
@@ -13,15 +13,19 @@ import {
   Menu, X, LogOut, Lock, Plus, ArrowRight,
 } from "lucide-react";
 
-// Requisitos por rota: storeType = precisa de loja desse tipo, plan = precisa de plano pago
-const ROUTE_REQUIREMENTS: Record<string, { storeType?: 'PRODUCTS' | 'SERVICES'; plan?: true }> = {
+// Requisitos por rota: storeType = precisa de loja desse tipo, feature = precisa
+// que o plano libere esse recurso.
+type PlanFeature = 'analytics' | 'coupons' | 'promotions';
+const ROUTE_REQUIREMENTS: Record<string, { storeType?: 'PRODUCTS' | 'SERVICES'; feature?: PlanFeature }> = {
   "/dashboard/orders":       { storeType: "PRODUCTS" },
   "/dashboard/appointments": { storeType: "SERVICES" },
-  "/dashboard/analytics":    { plan: true },
-  "/dashboard/promotions":   { plan: true },
-  "/dashboard/coupons":      { plan: true },
+  "/dashboard/analytics":    { feature: "analytics" },
+  "/dashboard/promotions":   { feature: "promotions" },
+  "/dashboard/coupons":      { feature: "coupons" },
 };
 
+// Fallback usado só enquanto `availablePlans` não respondeu — a fonte da verdade
+// são as flags do plano, que o superadmin edita em tempo de execução.
 const PAID_PLANS = ["PRO", "PREMIUM", "ENTERPRISE", "CUSTOM"];
 
 const NAV_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -100,6 +104,21 @@ export default function DashboardLayout({
   });
   const [acceptTerms, { loading: acceptingTerms }] = useMutation(ACCEPT_TERMS);
 
+  // KAN-280: quando alguem loga na mesma conta em outro lugar (forceLogin), o
+  // servidor derruba esta sessao. Sem a assinatura, o painel do balcao apenas
+  // comecava a dar SESSION_EXPIRED em toda acao, sem explicacao — agora avisa e
+  // volta ao login de forma limpa.
+  useSubscription(SESSION_KICKED, {
+    variables: { userId: user?.id ?? "", userType: "vendor" },
+    skip: !user?.id,
+    onData: () => {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      alert("Sua conta foi conectada em outro dispositivo. Você foi desconectado deste painel.");
+      window.location.href = "/";
+    },
+  });
+
   const navGroups = useMemo(() => buildNavGroups(), []);
 
   const stores: any[] = storesData?.myStores || [];
@@ -108,6 +127,21 @@ export default function DashboardLayout({
   const isPaidPlan = PAID_PLANS.includes(meData?.meVendor?.vendorPlan || "");
   const currentPlanName: string = meData?.meVendor?.vendorPlan || "FREE";
   const currentPlanConfig = plansData?.availablePlans?.find((p: any) => p.plan === currentPlanName);
+
+  // O menu liberava Analytics/Cupons/Promoções por NOME de plano, mas o servidor
+  // decide por flag (`hasAnalytics`, `canUseCoupons`, `freePromosPerWeek > 0`).
+  // No CUSTOM as duas visões se contradiziam: o nome está na lista de pagos, mas
+  // as flags são todas falsas — o menu abria, o vendedor preenchia o formulário
+  // inteiro e só levava "Seu plano nao permite criar cupons" ao salvar. E como o
+  // superadmin edita essas flags em runtime, qualquer ajuste lá deixava o menu
+  // desatualizado. Agora lemos as mesmas flags; a lista de nomes só cobre o
+  // intervalo em que a query ainda não respondeu.
+  const featureAllowed = (feature: PlanFeature): boolean => {
+    if (!currentPlanConfig) return isPaidPlan;
+    if (feature === "analytics") return !!currentPlanConfig.hasAnalytics;
+    if (feature === "coupons") return !!currentPlanConfig.canUseCoupons;
+    return (currentPlanConfig.freePromosPerWeek ?? 0) > 0;
+  };
   const maxStores: number = currentPlanConfig?.maxStores ?? 1;
   const atStoreLimit = stores.length >= maxStores;
 
@@ -117,7 +151,19 @@ export default function DashboardLayout({
       router.replace("/");
       return;
     }
-    const parsed = JSON.parse(stored);
+    // BUGFIX: JSON.parse sem guarda. Um `user` corrompido no localStorage
+    // (quota, escrita abortada, formato antigo) lancava DENTRO do efeito do
+    // layout e derrubava TODA rota /dashboard/* — inclusive a sidebar com o
+    // botao Sair, entao o usuario nem conseguia deslogar para limpar.
+    let parsed: any;
+    try {
+      parsed = JSON.parse(stored);
+    } catch {
+      localStorage.removeItem('user');
+      localStorage.removeItem('token');
+      router.replace('/');
+      return;
+    }
     if (parsed.role !== "VENDOR") {
       localStorage.removeItem("token");
       localStorage.removeItem("user");
@@ -173,7 +219,7 @@ export default function DashboardLayout({
                   : false;
 
                 // Lock por plano — clicável (vai para /dashboard/plan)
-                const planBlocked = req?.plan ? !isPaidPlan : false;
+                const planBlocked = req?.feature ? !featureAllowed(req.feature) : false;
 
                 if (storeBlocked) {
                   const storeType = req?.storeType === "PRODUCTS" ? "produtos" : "servicos";

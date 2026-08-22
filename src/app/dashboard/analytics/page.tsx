@@ -12,6 +12,7 @@ import { motion } from "framer-motion";
 import { fadeIn, staggerContainer, staggerItem } from "@/lib/motion";
 import PageHeader from "@/components/ui/PageHeader";
 import { SkeletonStats, SkeletonCard } from "@/components/ui/Skeleton";
+import ErrorState from "@/components/ui/ErrorState";
 import { useTour } from "@/hooks/useTour";
 import { type DriveStep } from "driver.js";
 import EmptyState from "@/components/ui/EmptyState";
@@ -21,28 +22,46 @@ import {
   ChevronRight, Search,
 } from "lucide-react";
 
+// BUGFIX: havia uma chave `PICKING_UP` que NAO EXISTE no enum (nunca casava),
+// enquanto o real `PICKED_UP` estava ausente — junto com COMPLETED, que e o
+// status final do caminho feliz. Resultado: no grafico "Pedidos por status" a
+// maior fatia aparecia cinza e rotulada com o texto cru "COMPLETED".
 const statusLabels: Record<string, string> = {
-  DELIVERED: "Entregue",
-  CANCELLED: "Cancelado",
+  AWAITING_PAYMENT: "Aguardando pagamento",
+  PAYMENT_REVIEW: "Em análise",
   PENDING: "Pendente",
   ACCEPTED: "Aceito",
   PREPARING: "Preparando",
   READY: "Pronto",
-  PICKING_UP: "Coletando",
-  DELIVERING: "Entregando",
-  AWAITING_PAYMENT: "Aguardando",
+  PICKED_UP: "Coletado",
+  VENDOR_CONFIRMED_PICKUP: "Saiu da loja",
+  DELIVERING: "A caminho",
+  DELIVERER_CONFIRMED_DELIVERY: "Entrega confirmada",
+  DELIVERED: "Entregue",
+  COMPLETED: "Finalizado",
+  CANCELLED: "Cancelado",
+  REJECTED: "Rejeitado",
+  EXPIRED: "Expirado",
+  DISPUTED: "Em disputa",
 };
 
 const statusColors: Record<string, string> = {
-  DELIVERED: "#22c55e",
-  CANCELLED: "#ef4444",
+  AWAITING_PAYMENT: "#f59e0b",
+  PAYMENT_REVIEW: "#f59e0b",
   PENDING: "#eab308",
   ACCEPTED: "#3b82f6",
   PREPARING: "#8b5cf6",
   READY: "#6366f1",
-  PICKING_UP: "#06b6d4",
+  PICKED_UP: "#06b6d4",
+  VENDOR_CONFIRMED_PICKUP: "#14b8a6",
   DELIVERING: "#0ea5e9",
-  AWAITING_PAYMENT: "#f59e0b",
+  DELIVERER_CONFIRMED_DELIVERY: "#10b981",
+  DELIVERED: "#22c55e",
+  COMPLETED: "#16a34a",
+  CANCELLED: "#ef4444",
+  REJECTED: "#dc2626",
+  EXPIRED: "#6b7280",
+  DISPUTED: "#d946ef",
 };
 
 function StatCard({ label, value, sub, icon: Icon }: { label: string; value: string; sub?: string; icon?: React.ElementType }) {
@@ -84,7 +103,10 @@ function PodiumChart({ title, items, valueLabel }: {
   if (items.length === 0) return null;
   const count = Math.min(items.length, 5);
   // Reorder for podium: [4th, 2nd, 1st, 3rd, 5th]
-  const podiumSlots = PODIUM_ORDER.slice(0, count).filter((i) => i < count);
+  // FILTRAR antes, não fatiar: `slice(0,count)` cortava a ordem de exibição e
+  // depois o filtro descartava os índices válidos — com poucos itens o pódio
+  // sumia ou omitia o 1º colocado (1 item -> vazio; 2 -> só o 2º; 3 -> sem o 3º).
+  const podiumSlots = PODIUM_ORDER.filter((i) => i < count);
 
   return (
     <div className="bg-[var(--bg-card)] rounded-2xl shadow-[var(--card-shadow)] border border-[var(--border-light)] p-6">
@@ -177,11 +199,21 @@ const TOUR_STEPS: DriveStep[] = [
   },
 ];
 
+// Receita que o VENDEDOR de fato recebe por um pedido: subtotal menos o
+// desconto do cupom. NAO inclui a taxa de entrega (essa vai para o entregador),
+// que era somada antes e inflava o faturamento exibido.
+function receitaVendedor(o: any): number {
+  const sub = Number(o?.subtotal);
+  const base = Number.isFinite(sub) ? sub : Number(o?.total) || 0;
+  const desc = Number(o?.discount) || 0;
+  return Math.max(base - desc, 0);
+}
+
 export default function AnalyticsPage() {
   const { startTour, hasSeenTour } = useTour("analytics", TOUR_STEPS);
-  const { data: userData, loading: loadingUser } = useQuery(GET_MY_PLAN);
-  const { data: plansData } = useQuery(GET_AVAILABLE_PLANS);
-  const { data: storesData, loading: loadingStores } = useQuery(GET_MY_STORES);
+  const { data: userData, loading: loadingUser, error: userError, refetch: refetchUser } = useQuery(GET_MY_PLAN);
+  const { data: plansData, error: plansError, refetch: refetchPlans } = useQuery(GET_AVAILABLE_PLANS);
+  const { data: storesData, loading: loadingStores, error: storesError, refetch: refetchStores } = useQuery(GET_MY_STORES);
   const [selectedStore, setSelectedStore] = useState<string | null>(null);
   const [period, setPeriod] = useState<"7d" | "30d" | "90d" | "all">("30d");
   const [showCart, setShowCart] = useState(false);
@@ -212,7 +244,7 @@ export default function AnalyticsPage() {
   const stores = storesData?.myStores || [];
   const storeId = selectedStore || stores[0]?.id;
 
-  const { data: ordersData, loading: loadingOrders } = useQuery(GET_STORE_ORDERS, {
+  const { data: ordersData, loading: loadingOrders, error: ordersError, refetch: refetchOrders } = useQuery(GET_STORE_ORDERS, {
     variables: { storeId },
     skip: !storeId || !hasAnalytics,
   });
@@ -239,7 +271,11 @@ export default function AnalyticsPage() {
 
     const delivered = orders.filter((o) => o.status === "DELIVERED" || o.status === "COMPLETED");
     const cancelled = orders.filter((o) => o.status === "CANCELLED");
-    const totalRevenue = delivered.reduce((sum, o) => sum + Number(o.total), 0);
+    // BUGFIX: usava `o.total`, que INCLUI a taxa de entrega (dinheiro do
+    // entregador, nao do vendedor) — o faturamento aparecia inflado por todas as
+    // taxas de entrega, e divergia da tela de Pedidos, que mostra o subtotal do
+    // mesmo pedido. A receita do vendedor e o subtotal menos o desconto do cupom.
+    const totalRevenue = delivered.reduce((sum, o) => sum + receitaVendedor(o), 0);
     const avgTicket = delivered.length > 0 ? totalRevenue / delivered.length : 0;
 
     // Orders by status (for pie chart)
@@ -275,7 +311,7 @@ export default function AnalyticsPage() {
       const d = new Date(o.createdAt);
       const key = d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
       if (!dailyMap[key]) dailyMap[key] = { revenue: 0, orders: 0 };
-      dailyMap[key].revenue += Number(o.total);
+      dailyMap[key].revenue += receitaVendedor(o);
       dailyMap[key].orders += 1;
     });
 
@@ -323,7 +359,7 @@ export default function AnalyticsPage() {
       const id = o.customer?.id || name;
       if (!customerMap[id]) customerMap[id] = { name, orders: 0, total: 0, items: 0, avatarUrl: o.customer?.avatarUrl };
       customerMap[id].orders += 1;
-      customerMap[id].total += Number(o.total);
+      customerMap[id].total += receitaVendedor(o);
       customerMap[id].items += (o.items || []).reduce((sum: number, i: any) => sum + i.quantity, 0);
     });
     const topCustomers = Object.values(customerMap)
@@ -363,9 +399,9 @@ export default function AnalyticsPage() {
     const ordersWithoutCoupon = delivered.filter((o) => !o.couponCode);
     const totalDiscountGiven = delivered.reduce((sum, o) => sum + Number(o.discount || 0), 0);
     const avgTicketWithCoupon = ordersWithCoupon.length > 0
-      ? ordersWithCoupon.reduce((sum, o) => sum + Number(o.total), 0) / ordersWithCoupon.length : 0;
+      ? ordersWithCoupon.reduce((sum, o) => sum + receitaVendedor(o), 0) / ordersWithCoupon.length : 0;
     const avgTicketWithoutCoupon = ordersWithoutCoupon.length > 0
-      ? ordersWithoutCoupon.reduce((sum, o) => sum + Number(o.total), 0) / ordersWithoutCoupon.length : 0;
+      ? ordersWithoutCoupon.reduce((sum, o) => sum + receitaVendedor(o), 0) / ordersWithoutCoupon.length : 0;
     // Coupon usage by code
     const couponUsage: Record<string, { code: string; uses: number; totalDiscount: number; totalRevenue: number }> = {};
     ordersWithCoupon.forEach((o) => {
@@ -373,7 +409,7 @@ export default function AnalyticsPage() {
       if (!couponUsage[code]) couponUsage[code] = { code, uses: 0, totalDiscount: 0, totalRevenue: 0 };
       couponUsage[code].uses += 1;
       couponUsage[code].totalDiscount += Number(o.discount || 0);
-      couponUsage[code].totalRevenue += Number(o.total);
+      couponUsage[code].totalRevenue += receitaVendedor(o);
     });
     const couponBreakdown = Object.values(couponUsage)
       .sort((a, b) => b.uses - a.uses)
@@ -475,6 +511,36 @@ export default function AnalyticsPage() {
     );
   }
 
+  // ANTES do gate de plano: `hasAnalytics` depende de meVendor + availablePlans;
+  // com qualquer uma delas falhando o fallback e `false` e a tela mostrava
+  // "disponivel a partir do plano Pro" para quem ja paga Pro. O gate nao mudou.
+  if ((userError && !userData) || (plansError && !plansData)) {
+    return (
+      <div>
+        <PageHeader title="Analytics" />
+        <ErrorState
+          title="Nao foi possivel carregar seu plano."
+          description="Verifique sua conexao e tente novamente."
+          onRetry={() => { if (userError) refetchUser(); if (plansError) refetchPlans(); }}
+        />
+      </div>
+    );
+  }
+
+  // ANTES do empty state de lojas.
+  if (storesError && !storesData) {
+    return (
+      <div>
+        <PageHeader title="Analytics" />
+        <ErrorState
+          title="Nao foi possivel carregar suas lojas."
+          description="Verifique sua conexao e tente novamente."
+          onRetry={() => refetchStores()}
+        />
+      </div>
+    );
+  }
+
   if (!hasAnalytics) {
     return (
       <div>
@@ -548,6 +614,14 @@ export default function AnalyticsPage() {
           <SkeletonCard />
           <SkeletonCard />
         </div>
+      ) : ordersError && !ordersData ? (
+        /* ANTES do empty state: sem isto a falha virava "Nenhum dado
+           disponivel" e, no periodo anterior, R$ 0,00 de faturamento. */
+        <ErrorState
+          title="Nao foi possivel carregar os dados de vendas."
+          description="Isto nao significa que voce nao vendeu — a consulta falhou. Verifique sua conexao e tente novamente."
+          onRetry={() => refetchOrders()}
+        />
       ) : !analytics ? (
         <EmptyState
           icon={BarChart3}

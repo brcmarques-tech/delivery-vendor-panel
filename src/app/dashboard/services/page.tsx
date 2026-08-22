@@ -20,6 +20,7 @@ import { compressImage } from "@/lib/compressImage";
 import { Image, X, Plus, Briefcase, ChevronDown, SquarePen, Trash2, Clock, HelpCircle } from "lucide-react";
 import PageHeader from "@/components/ui/PageHeader";
 import { SkeletonGrid } from "@/components/ui/Skeleton";
+import ErrorState from "@/components/ui/ErrorState";
 import EmptyState from "@/components/ui/EmptyState";
 import { motion } from "framer-motion";
 import { fadeIn, staggerContainer, staggerItem, scaleIn } from "@/lib/motion";
@@ -140,7 +141,7 @@ function defaultSchedule() {
 export default function ServicesPage() {
   const { startTour, hasSeenTour } = useTour("services", TOUR_STEPS);
   const { startTour: startServiceFormTour, hasSeenTour: hasSeenFormTour } = useTour("create-service", SERVICE_FORM_TOUR, false);
-  const { data: storesData, refetch: refetchStores } = useQuery(GET_MY_STORES);
+  const { data: storesData, error: storesError, refetch: refetchStores } = useQuery(GET_MY_STORES);
   const allStores = storesData?.myStores || [];
   const stores = allStores.filter((s: any) => s.storeType === "SERVICES");
   const [showCreateStore, setShowCreateStore] = useState(false);
@@ -198,34 +199,44 @@ export default function ServicesPage() {
   const categories = store?.categories || [];
 
   // Queries
-  const { data: servicesData, refetch: refetchServices } = useQuery(SERVICES_BY_STORE, {
+  const { data: servicesData, error: servicesError, refetch: refetchServices } = useQuery(SERVICES_BY_STORE, {
     variables: { storeId: activeStoreId },
     skip: !activeStoreId,
   });
   const services = servicesData?.allServicesByStore || [];
 
-  const [fetchSchedule] = useLazyQuery(STORE_SCHEDULE, {
+  // KAN-256: era `useLazyQuery(..., { onCompleted })` setando estado local.
+  // O Apollo 3.14 emite um aviso alto em TODO build por causa disso, e o
+  // motivo e real: `onCompleted` em lazy query nao dispara de forma confiavel
+  // (ex.: quando a resposta vem do cache), entao o horario da loja podia
+  // simplesmente nao carregar, sem erro. A recomendacao oficial e derivar do
+  // `data` retornado pelo hook — foi o que passou a ser feito no useEffect
+  // abaixo.
+  const [fetchSchedule, { data: scheduleData }] = useLazyQuery(STORE_SCHEDULE, {
     fetchPolicy: "network-only",
-    onCompleted: (data) => {
-      if (data?.storeSchedule?.length > 0) {
-        const loaded = defaultSchedule();
-        for (const item of data.storeSchedule) {
-          const idx = loaded.findIndex((d) => d.dayOfWeek === item.dayOfWeek);
-          if (idx !== -1) {
-            loaded[idx] = {
-              dayOfWeek: item.dayOfWeek,
-              startTime: item.startTime || loaded[idx].startTime,
-              endTime: item.endTime || loaded[idx].endTime,
-              isActive: item.isActive,
-            };
-          }
-        }
-        setSchedule(loaded);
-      } else {
-        setSchedule(defaultSchedule());
-      }
-    },
   });
+
+  useEffect(() => {
+    if (!scheduleData) return;
+    const rows = scheduleData.storeSchedule;
+    if (rows?.length > 0) {
+      const loaded = defaultSchedule();
+      for (const item of rows) {
+        const idx = loaded.findIndex((d) => d.dayOfWeek === item.dayOfWeek);
+        if (idx !== -1) {
+          loaded[idx] = {
+            dayOfWeek: item.dayOfWeek,
+            startTime: item.startTime || loaded[idx].startTime,
+            endTime: item.endTime || loaded[idx].endTime,
+            isActive: item.isActive,
+          };
+        }
+      }
+      setSchedule(loaded);
+    } else {
+      setSchedule(defaultSchedule());
+    }
+  }, [scheduleData]);
 
   // Mutations
   const [createService] = useMutation(CREATE_SERVICE);
@@ -390,8 +401,18 @@ export default function ServicesPage() {
         categoryId: serviceForm.categoryId || undefined,
         imageUrl,
       };
-      if (!serviceForm.requiresQuote && serviceForm.price) {
-        input.price = parseFloat(serviceForm.price);
+      // BUGFIX: o preco era opcional na pratica — sem `required`/`min` no input e
+      // com `&& serviceForm.price` aqui, um servico PAGO criado com o campo em
+      // branco ia sem preco e a lista mostrava "R$ 0,00": o cliente agendava de
+      // graca. Agora servico que nao e orcamento exige preco maior que zero.
+      if (!serviceForm.requiresQuote) {
+        const preco = parseFloat(serviceForm.price);
+        if (!Number.isFinite(preco) || preco <= 0) {
+          setError("Informe um preco maior que zero (ou marque 'sob orcamento').");
+          setUploading(false);
+          return;
+        }
+        input.price = preco;
       }
       await createService({ variables: { input } });
       setServiceForm(emptyServiceForm());
@@ -501,6 +522,18 @@ export default function ServicesPage() {
   }
 
   // ─── Renders ───
+
+  // ANTES do empty state: `stores` cai para [] quando a query falha, entao a
+  // tela dizia "Nenhuma loja de servicos / Crie uma loja" para quem ja tem uma.
+  if (storesError && !storesData) {
+    return (
+      <ErrorState
+        title="Nao foi possivel carregar suas lojas."
+        description="Suas lojas continuam salvas. Verifique sua conexao e tente novamente."
+        onRetry={() => refetchStores()}
+      />
+    );
+  }
 
   // No service stores
   if (stores.length === 0) {
@@ -933,7 +966,15 @@ export default function ServicesPage() {
           )}
 
           {/* Services list */}
-          {services.length === 0 ? (
+          {servicesError && !servicesData ? (
+            /* ANTES do empty state: uma falha aqui virava "Nenhum servico
+               cadastrado" e o prestador achava que o catalogo dele sumiu. */
+            <ErrorState
+              title="Nao foi possivel carregar seus servicos."
+              description="Isto nao significa que voce nao tem servicos — a consulta falhou."
+              onRetry={() => refetchServices()}
+            />
+          ) : services.length === 0 ? (
             <EmptyState
               icon={Briefcase}
               title="Nenhum servico cadastrado"
