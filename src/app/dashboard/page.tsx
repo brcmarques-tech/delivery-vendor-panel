@@ -127,6 +127,19 @@ function DashboardContent() {
   const paymentConnected = planData?.meVendor?.paymentConnected ?? false;
 
   const stores = data?.myStores || [];
+  // KAN-82: `myStores` passou a incluir as lojas em que o usuário é MEMBRO da
+  // equipe. Editar, excluir e criar loja continuam sendo só do dono — mostrar
+  // esses botões para o funcionário seria oferecer o que o servidor vai negar
+  // (e "Excluir" é o pior deles para alguém clicar por engano).
+  const meuId = (() => {
+    try {
+      return JSON.parse(localStorage.getItem("user") || "{}")?.id || "";
+    } catch {
+      return "";
+    }
+  })();
+  const souDonoDe = (store: any) => !store?.owner?.id || store.owner.id === meuId;
+  const souDonoDeAlguma = stores.some((s: any) => souDonoDe(s));
 
   useEffect(() => {
     // `error` no guard: com a query falhando, stores.length e 0 e o tour de
@@ -294,9 +307,11 @@ function DashboardContent() {
         onTourStart={startTour}
         tourNotSeen={!hasSeenTour}
         actions={
-          <button data-tour="new-store-btn" onClick={() => setShowCreateStore(true)} className="px-5 py-2.5 bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white rounded-xl text-sm font-bold cursor-pointer active:scale-95 transition flex items-center gap-2">
-            <Plus className="w-4 h-4" /> Nova loja
-          </button>
+          souDonoDeAlguma || stores.length === 0 ? (
+            <button data-tour="new-store-btn" onClick={() => setShowCreateStore(true)} className="px-5 py-2.5 bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white rounded-xl text-sm font-bold cursor-pointer active:scale-95 transition flex items-center gap-2">
+              <Plus className="w-4 h-4" /> Nova loja
+            </button>
+          ) : null
         }
       />
 
@@ -413,18 +428,27 @@ function DashboardContent() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
+                    {!souDonoDe(store) && (
+                      <span className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-[var(--bg-muted)] text-[var(--text-muted)]">
+                        Você faz parte da equipe desta loja
+                      </span>
+                    )}
+                    {souDonoDe(store) && (
                     <button
                       onClick={() => setEditingStore(store)}
                       className="px-3 py-1.5 rounded-xl text-sm font-semibold cursor-pointer bg-[var(--bg-muted)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] transition flex items-center gap-1.5"
                     >
                       <Pencil className="w-3.5 h-3.5" /> Editar
                     </button>
+                    )}
+                    {souDonoDe(store) && (
                     <button
                       onClick={() => setDeletingStoreId(store.id)}
                       className="px-3 py-1.5 rounded-xl text-sm font-semibold cursor-pointer active:scale-95 transition bg-[var(--status-error-bg)] text-[var(--status-error-text)] hover:opacity-80 flex items-center gap-1.5"
                     >
                       <Trash2 className="w-3.5 h-3.5" /> Excluir
                     </button>
+                    )}
                   </div>
                 </div>
               </div>

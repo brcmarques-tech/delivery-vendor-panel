@@ -5,12 +5,12 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, useMemo } from "react";
 import { useQuery, useMutation, useSubscription } from "@apollo/client";
 import { apolloClient } from "@/lib/apollo";
-import { GET_MY_PLAN, GET_MY_STORES, GET_AVAILABLE_PLANS, ACCEPT_TERMS, SESSION_KICKED } from "@/lib/graphql";
+import { GET_MY_PLAN, GET_MY_STORES, GET_AVAILABLE_PLANS, ACCEPT_TERMS, SESSION_KICKED, MINHAS_EQUIPES } from "@/lib/graphql";
 import TermsModal from "@/components/TermsModal";
 import {
   LayoutDashboard, ClipboardList, CalendarCheck, Package, Briefcase,
   Megaphone, Ticket, BarChart3, Crown, LifeBuoy, Wallet, Settings,
-  Menu, X, LogOut, Lock, Plus, ArrowRight,
+  Menu, X, LogOut, Lock, Plus, ArrowRight, Users,
 } from "lucide-react";
 
 // Requisitos por rota: storeType = precisa de loja desse tipo, feature = precisa
@@ -28,6 +28,27 @@ const ROUTE_REQUIREMENTS: Record<string, { storeType?: 'PRODUCTS' | 'SERVICES'; 
 // são as flags do plano, que o superadmin edita em tempo de execução.
 const PAID_PLANS = ["PRO", "PREMIUM", "ENTERPRISE", "CUSTOM"];
 
+/**
+ * KAN-82 — qual MÓDULO da equipe cada rota exige.
+ *
+ * Isto é só a aparência do menu: a autorização de verdade está no servidor,
+ * que recusa a operação mesmo se alguém digitar a URL. Esconder o item serve
+ * para o funcionário não clicar em algo que vai ser negado — e para ele não
+ * ficar sabendo o que a loja tem e ele não pode ver.
+ */
+const ROTA_PARA_MODULO: Record<string, string> = {
+  "/dashboard/orders": "ORDERS",
+  "/dashboard/appointments": "ORDERS",
+  "/dashboard/products": "PRODUCTS",
+  "/dashboard/services": "PRODUCTS",
+  "/dashboard/promotions": "PROMOTIONS",
+  "/dashboard/coupons": "COUPONS",
+  "/dashboard/analytics": "REPORTS",
+  "/dashboard/earnings": "EARNINGS",
+  "/dashboard/settings": "SETTINGS",
+  "/dashboard/plan": "SETTINGS",
+};
+
 const NAV_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   "/dashboard": LayoutDashboard,
   "/dashboard/orders": ClipboardList,
@@ -41,6 +62,7 @@ const NAV_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   "/dashboard/support": LifeBuoy,
   "/dashboard/earnings": Wallet,
   "/dashboard/settings": Settings,
+  "/dashboard/equipe": Users,
 };
 
 function buildNavGroups() {
@@ -74,6 +96,7 @@ function buildNavGroups() {
       label: "Sistema",
       items: [
         { href: "/dashboard/earnings", label: "Recebimentos" },
+        { href: "/dashboard/equipe", label: "Equipe" },
         { href: "/dashboard/settings", label: "Configuracoes" },
       ],
     },
@@ -103,6 +126,9 @@ export default function DashboardLayout({
     skip: !user,
   });
   const [acceptTerms, { loading: acceptingTerms }] = useMutation(ACCEPT_TERMS);
+  // KAN-82: as lojas em que SOU MEMBRO (não dono). Quem é dono não tem vínculo
+  // nenhum aqui — e por isso continua vendo tudo.
+  const { data: equipesData } = useQuery(MINHAS_EQUIPES, { skip: !user });
 
   // KAN-280: quando alguem loga na mesma conta em outro lugar (forceLogin), o
   // servidor derruba esta sessao. Sem a assinatura, o painel do balcao apenas
@@ -121,7 +147,37 @@ export default function DashboardLayout({
 
   const navGroups = useMemo(() => buildNavGroups(), []);
 
+
   const stores: any[] = storesData?.myStores || [];
+  // Dono de alguma das lojas listadas? `myStores` passou a incluir as lojas
+  // em que o usuário é MEMBRO (KAN-82), então "tenho loja" deixou de significar
+  // "sou dono".
+  const temLojaPropria = stores.some((s: any) => s.owner?.id === user?.id);
+
+  // KAN-82: o menu do FUNCIONÁRIO mostra só os módulos liberados.
+  //
+  // A regra: quem tem loja própria é dono e vê tudo (o vínculo de equipe é
+  // adicional). Quem só tem vínculo vê a união das permissões dos vínculos
+  // aceitos — união, e não interseção, porque o item do menu leva a uma tela
+  // que já escolhe a loja; esconder o Pedidos de quem despacha numa loja só
+  // porque na outra ele não pode seria pior.
+  const vinculos: any[] = equipesData?.minhasEquipes || [];
+  const vinculosAceitos = vinculos.filter((v) => v.acceptedAt);
+  const souSomenteMembro = vinculosAceitos.length > 0 && !temLojaPropria;
+  const modulosLiberados = new Set<string>(
+    vinculosAceitos.flatMap((v) => v.permissions || []),
+  );
+  const podeGerenciarEquipe =
+    !souSomenteMembro || vinculosAceitos.some((v) => v.role === "MANAGER");
+  const moduloVisivel = (href: string): boolean => {
+    if (!souSomenteMembro) return true;
+    if (href === "/dashboard") return true; // a visão geral é a porta de entrada
+    if (href === "/dashboard/support") return true;
+    if (href === "/dashboard/equipe") return podeGerenciarEquipe;
+    const modulo = ROTA_PARA_MODULO[href];
+    if (!modulo) return true;
+    return modulosLiberados.has(modulo);
+  };
   const hasProductStore = stores.some((s) => s.storeType === "PRODUCTS");
   const hasServiceStore = stores.some((s) => s.storeType === "SERVICES");
   const isPaidPlan = PAID_PLANS.includes(meData?.meVendor?.vendorPlan || "");
@@ -208,7 +264,7 @@ export default function DashboardLayout({
           <div key={group.label} className={gi > 0 ? 'pt-2' : ''}>
             <p className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">{group.label}</p>
             <div className="space-y-1">
-              {group.items.map((item) => {
+              {group.items.filter((item) => moduloVisivel(item.href)).map((item) => {
                 const Icon = NAV_ICONS[item.href];
                 const active = pathname === item.href;
                 const req = ROUTE_REQUIREMENTS[item.href];
