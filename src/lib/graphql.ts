@@ -152,6 +152,11 @@ export const GET_STORE_ORDERS = gql`
       updatedAt
       vendorConfirmedPickupAt
       isPickup
+      # O FATO de usar código, nunca o valor. Decide se o painel mostra o
+      # cartão de códigos ou o botão antigo de confirmar retirada — que o
+      # servidor recusa em pedido com código.
+      usaCodigoDeEntrega
+      codigoDaLojaJaRegistrado
       store {
         id
         name
@@ -1220,5 +1225,40 @@ export const SERVICE_RATINGS = gql`
 export const AVERAGE_STORE_RATING = gql`
   query AverageStoreRating($storeId: String!) {
     averageStoreRating(storeId: $storeId)
+  }
+`;
+
+// ─── Garantia de entrega por CÓDIGOS ─────────────────────────────────────
+//
+// O lojista tem DOIS papéis na coleta, e eles são opostos:
+//
+//   1. ele DITA o código da loja ao entregador, que o digita no app dele;
+//   2. ele DIGITA aqui o código que o entregador dita.
+//
+// A segunda metade é o que prova que a loja entregou aquele pedido ao
+// entregador certo — e é também a que está em discussão: há a opção de ficar
+// em dois códigos, com o entregador apenas recolhendo. Ver o comentário em
+// CartaoDeCodigos.tsx.
+//
+// `vendorConfirmPickup` continua existindo e segue sendo o caminho dos pedidos
+// SEM código (criados antes do deploy). Em pedido com código o servidor o
+// recusa, de propósito: era por ele que se contornavam os códigos.
+
+/** O código da loja, para o lojista ditar ao entregador. */
+export const CODIGO_DA_MINHA_LOJA = gql`
+  query CodigoDaMinhaLoja($orderId: String!) {
+    codigoDaMinhaLoja(orderId: $orderId)
+  }
+`;
+
+/** O lojista digita o código que o ENTREGADOR ditou. Fecha a coleta. */
+export const REGISTRAR_CODIGO_DO_ENTREGADOR = gql`
+  mutation RegistrarCodigoDoEntregador($orderId: String!, $codigo: String!) {
+    registrarCodigoDoEntregador(orderId: $orderId, codigo: $codigo) {
+      id
+      status
+      usaCodigoDeEntrega
+      codigoDaLojaJaRegistrado
+    }
   }
 `;
