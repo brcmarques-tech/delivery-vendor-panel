@@ -105,6 +105,8 @@ export const GET_MY_STORES = gql`
       # "loja em que eu trabalho" — e o menu do DONO seria filtrado como se
       # ele fosse funcionario sem permissao nenhuma.
       owner { id }
+      # KAN-13: identidade visual da loja (nulo = tema da plataforma)
+      primaryColor backgroundColor textColor productLayout
       products { id name price isAvailable isActive stock imageUrl barcode isVariableWeight category { id name } }
       categories { id name requiresAgeVerification }
     }
@@ -136,6 +138,10 @@ export const UPDATE_STORE = gql`
       freeDeliveryAbove
       logoUrl
       bannerUrl
+      primaryColor
+      backgroundColor
+      textColor
+      productLayout
       latitude
       longitude
       storeType

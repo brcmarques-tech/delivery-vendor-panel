@@ -10,7 +10,7 @@ import TermsModal from "@/components/TermsModal";
 import {
   LayoutDashboard, ClipboardList, CalendarCheck, Package, Briefcase,
   Megaphone, Ticket, BarChart3, Crown, LifeBuoy, Wallet, Settings,
-  Menu, X, LogOut, Lock, Plus, ArrowRight, Users,
+  Menu, X, LogOut, Lock, Plus, ArrowRight, Users, Palette,
 } from "lucide-react";
 
 // Requisitos por rota: storeType = precisa de loja desse tipo, feature = precisa
@@ -46,6 +46,7 @@ const ROTA_PARA_MODULO: Record<string, string> = {
   "/dashboard/analytics": "REPORTS",
   "/dashboard/earnings": "EARNINGS",
   "/dashboard/settings": "SETTINGS",
+  "/dashboard/aparencia": "SETTINGS",
   "/dashboard/plan": "SETTINGS",
 };
 
@@ -63,6 +64,7 @@ const NAV_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   "/dashboard/earnings": Wallet,
   "/dashboard/settings": Settings,
   "/dashboard/equipe": Users,
+  "/dashboard/aparencia": Palette,
 };
 
 function buildNavGroups() {
@@ -97,6 +99,7 @@ function buildNavGroups() {
       items: [
         { href: "/dashboard/earnings", label: "Recebimentos" },
         { href: "/dashboard/equipe", label: "Equipe" },
+        { href: "/dashboard/aparencia", label: "Aparencia" },
         { href: "/dashboard/settings", label: "Configuracoes" },
       ],
     },
