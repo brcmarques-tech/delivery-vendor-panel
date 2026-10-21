@@ -1,3 +1,10 @@
+> **GitNexus esta INATIVO nesta maquina (nota de 2026-10-20).** O bloco abaixo manda
+> usar as ferramentas `gitnexus_*` de um servidor MCP que **nao existe** nesta
+> instalacao, e o indice em `.gitnexus/` e de abril/2026 (o `repoPath` do `meta.json`
+> ainda aponta para o Linux). Ignore o bloco inteiro — inclusive os "MUST" e os
+> "NEVER" — ate que o MCP seja reinstalado e `npx gitnexus analyze` rode de novo.
+> As regras validas do projeto comecam depois de `<!-- gitnexus:end -->`.
+
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
@@ -106,7 +113,7 @@ To check whether embeddings exist, inspect `.gitnexus/meta.json` — the `stats.
 - Next.js 14 (App Router) + TypeScript
 - Apollo Client (HTTP + WebSocket subscriptions)
 - Tailwind CSS
-- Deploy: Render Free Tier (porta padrão 3000, dev usar `--port 3001`)
+- Deploy: Docker na AWS Lightsail (ver `../SUBIR_PROD.md`) — Render foi abandonado. Porta padrão 3000, dev usar `--port 3001`
 
 ## Regras Específicas
 
