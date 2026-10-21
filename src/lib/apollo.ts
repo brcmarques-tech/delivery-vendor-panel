@@ -66,7 +66,10 @@ const errorLink = onError(({ graphQLErrors, networkError }) => {
   // L3: Generic error toast for unhandled GraphQL errors
   if (graphQLErrors) {
     for (const err of graphQLErrors) {
-      if (!err.message?.includes('SESSION_EXPIRED') && !err.message?.includes('GOOGLE_NO_ACCOUNT') && err.extensions?.code !== 'UNAUTHENTICATED') {
+      // ACTIVE_SESSION nao e erro: e a pergunta "entrar aqui e desconectar o
+      // outro?", que a tela de login faz. Logar como erro abria o overlay
+      // vermelho do Next em todo login com sessao aberta.
+      if (!err.message?.includes('SESSION_EXPIRED') && !err.message?.includes('GOOGLE_NO_ACCOUNT') && !err.message?.includes('ACTIVE_SESSION') && err.extensions?.code !== 'UNAUTHENTICATED') {
         console.error(`[GraphQL Error]: ${err.message}`);
         // Show a toast notification if a global toast handler is available
         if (typeof window !== 'undefined' && (window as any).__apolloErrorToast) {
