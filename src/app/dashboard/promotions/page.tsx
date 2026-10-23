@@ -14,6 +14,7 @@ import {
   MY_PROMOTIONS,
   CREATE_PROMOTION,
   DELETE_PROMOTION,
+  PAGAR_ANUNCIO_DA_PROMOCAO,
   GET_PROMO_PRICE_PER_DAY,
   SWAP_PROMOTION_PRODUCT,
 } from "@/lib/graphql";
@@ -58,6 +59,8 @@ export default function PromotionsPage() {
   const { data: priceData } = useQuery(GET_PROMO_PRICE_PER_DAY);
   const [createPromotion, { loading: creating }] = useMutation(CREATE_PROMOTION);
   const [deletePromotion] = useMutation(DELETE_PROMOTION);
+  const [pagarAnuncio] = useMutation(PAGAR_ANUNCIO_DA_PROMOCAO);
+  const [pagandoId, setPagandoId] = useState<string | null>(null);
   const [swapProduct, { loading: swapping }] = useMutation(SWAP_PROMOTION_PRODUCT);
   const [swapId, setSwapId] = useState<string | null>(null);
   const [swapForm, setSwapForm] = useState({ productId: "", promotionalPrice: "", title: "" });
@@ -224,6 +227,24 @@ export default function PromotionsPage() {
     }
   }
 
+  async function handlePagar(id: string) {
+    setPagandoId(id);
+    setError("");
+    try {
+      const { data } = await pagarAnuncio({ variables: { promotionId: id } });
+      const url = data?.pagarAnuncioDaPromocao?.checkoutUrl;
+      if (url) {
+        window.location.href = url;
+        return;
+      }
+      setError("Não foi possível abrir o pagamento. Tente de novo.");
+    } catch (err: any) {
+      setError(err?.graphQLErrors?.[0]?.message || err.message || "Não foi possível abrir o pagamento.");
+    } finally {
+      setPagandoId(null);
+    }
+  }
+
   async function handleDelete(id: string) {
     if (!confirm("Excluir esta promoção?")) return;
     try {
@@ -238,6 +259,8 @@ export default function PromotionsPage() {
     const now = new Date();
     const start = new Date(promo.startDate);
     const end = new Date(promo.endDate);
+    // Sem pagamento e já fora do período: não há mais o que pagar.
+    if (!promo.isPaid && now > end) return { label: "Expirada sem pagamento", variant: "neutral" };
     if (!promo.isPaid) return { label: "Aguardando pagamento", variant: "warning" };
     if (!promo.isActive) return { label: "Desativada", variant: "error" };
     if (now < start) return { label: "Agendada", variant: "info" };
@@ -562,6 +585,17 @@ export default function PromotionsPage() {
                     </div>
                   </div>
                   <div className="flex gap-2 flex-shrink-0 self-end sm:self-auto">
+                    {/* Antes não havia como pagar depois de sair do checkout:
+                        a promoção ficava em "Aguardando pagamento" para sempre. */}
+                    {!promo.isPaid && !isExpired && (
+                      <button
+                        onClick={() => handlePagar(promo.id)}
+                        disabled={pagandoId === promo.id}
+                        className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white px-3 py-2 rounded-xl text-sm font-bold cursor-pointer transition disabled:opacity-50"
+                      >
+                        {pagandoId === promo.id ? "Abrindo..." : `Pagar anúncio · R$ ${Number(promo.adCost).toFixed(2)}`}
+                      </button>
+                    )}
                     {!isExpired && (
                       <button
                         onClick={() => isSwapping ? setSwapId(null) : startSwap(promo)}

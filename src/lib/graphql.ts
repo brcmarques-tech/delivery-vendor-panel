@@ -1368,3 +1368,14 @@ export const ACEITAR_CONVITE = gql`
     }
   }
 `;
+
+// Gera (ou reaproveita) o link para pagar o anúncio de uma promoção parada em
+// "Aguardando pagamento".
+export const PAGAR_ANUNCIO_DA_PROMOCAO = gql`
+  mutation PagarAnuncioDaPromocao($promotionId: String!) {
+    pagarAnuncioDaPromocao(promotionId: $promotionId) {
+      id
+      checkoutUrl
+    }
+  }
+`;
