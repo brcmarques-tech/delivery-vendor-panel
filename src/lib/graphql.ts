@@ -155,6 +155,7 @@ export const GET_STORE_ORDERS = gql`
       id
       orderNumber
       status
+      paymentMethod
       total
       subtotal
       discount

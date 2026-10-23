@@ -340,7 +340,14 @@ export default function RegisterPage() {
     setError("");
     try {
       await verifyCodeMutation({
-        variables: { input: { value: phone.replace(/\D/g, ""), code, channel: "whatsapp" } },
+        // Se o WhatsApp falhou e o codigo saiu pelo fallback de e-mail, ele foi
+        // gravado sob a chave do e-mail: conferir pelo telefone dava sempre
+        // "Codigo nao encontrado" e o cadastro nao passava daqui.
+        variables: {
+          input: otpMethod === "email"
+            ? { value: email, code, channel: "email" }
+            : { value: phone.replace(/\D/g, ""), code, channel: "whatsapp" },
+        },
       });
       setStep(3);
     } catch (err: any) {

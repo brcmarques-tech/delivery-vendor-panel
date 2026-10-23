@@ -428,7 +428,13 @@ export default function OrdersPage() {
     // M5: For PENDING->ACCEPTED (payment capture) and READY->vendor confirm, require confirmation
     if (currentStatus === "PENDING") {
       devLog(`[VENDOR-ADVANCE] Showing confirm dialog for PENDING->ACCEPTED`);
-      setConfirmAction({ orderId, action: "advance", label: "Aceitar este pedido? Isso ira capturar o pagamento do cliente." });
+      setConfirmAction({
+        orderId,
+        action: "advance",
+        label: order.paymentMethod === "ON_DELIVERY"
+          ? "Aceitar este pedido? Você se compromete a prepará-lo. O cliente paga a você na entrega ou na retirada."
+          : "Aceitar este pedido? Você se compromete a prepará-lo. O pagamento do cliente só é liberado para você quando o pedido for entregue.",
+      });
       return;
     }
 
@@ -1082,7 +1088,11 @@ export default function OrdersPage() {
                         {advancingOrders.has(order.id) ? "Processando..." :
                           order.status === "PENDING" ? "Aceitar pedido" :
                           order.status === "ACCEPTED" ? "Iniciar preparo" :
-                          order.status === "PREPARING" ? "Marcar como pronto" : ""}
+                          order.status === "PREPARING" ? "Marcar como pronto" :
+                          // READY sem entregador do app (proximoStatus -> DELIVERED):
+                          // o botao existia mas saia SEM TEXTO, e o lojista nao
+                          // tinha como saber que era por ali que fechava o pedido.
+                          order.status === "READY" ? (order.isPickup ? "Cliente retirou" : "Pedido entregue") : ""}
                       </button>
                     )}
                   </div>
