@@ -5,6 +5,7 @@ import { devLog } from "@/lib/devLog"; // KAN-256
 import { useTour } from "@/hooks/useTour";
 import { type DriveStep } from "driver.js";
 import { GET_MY_STORES, GET_STORE_ORDERS, UPDATE_ORDER_STATUS, ORDER_CREATED_SUB, ORDER_UPDATED_SUB, ADJUST_ORDER_ITEM_WEIGHT, REJECT_ORDER, VENDOR_CANCEL_ORDER, VENDOR_CONFIRM_PICKUP, REQUEST_CANCEL_DISPUTE } from "@/lib/graphql";
+import { CartaoDeCodigos } from "@/components/CartaoDeCodigos";
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { MessageCircle, MapPin, Check, Pencil, ClipboardList, CheckCircle } from "lucide-react";
 import CreateStoreModal from "@/components/CreateStoreModal";
@@ -427,7 +428,13 @@ export default function OrdersPage() {
     // M5: For PENDING->ACCEPTED (payment capture) and READY->vendor confirm, require confirmation
     if (currentStatus === "PENDING") {
       devLog(`[VENDOR-ADVANCE] Showing confirm dialog for PENDING->ACCEPTED`);
-      setConfirmAction({ orderId, action: "advance", label: "Aceitar este pedido? Isso ira capturar o pagamento do cliente." });
+      setConfirmAction({
+        orderId,
+        action: "advance",
+        label: order.paymentMethod === "ON_DELIVERY"
+          ? "Aceitar este pedido? Você se compromete a prepará-lo. O cliente paga a você na entrega ou na retirada."
+          : "Aceitar este pedido? Você se compromete a prepará-lo. O pagamento do cliente só é liberado para você quando o pedido for entregue.",
+      });
       return;
     }
 
@@ -820,6 +827,21 @@ export default function OrdersPage() {
                   )}
                 </div>
 
+                {/* CARTÃO DE CÓDIGOS DA COLETA.
+                    Aparece a partir de READY, quando o entregador pode chegar,
+                    e sai quando a coleta fecha (o pedido passa a DELIVERING).
+                    Em VENDOR_CONFIRMED_PICKUP e PICKED_UP ele continua: são os
+                    estados em que falta uma das duas digitações. */}
+                {!!order.usaCodigoDeEntrega &&
+                  ["READY", "VENDOR_CONFIRMED_PICKUP", "PICKED_UP"].includes(order.status) && (
+                    <CartaoDeCodigos
+                      orderId={order.id}
+                      orderNumber={order.orderNumber}
+                      codigoDaLojaJaRegistrado={!!order.codigoDaLojaJaRegistrado}
+                      onRegistrado={() => refetch()}
+                    />
+                  )}
+
                 <div className="border-t border-[var(--border-light)] pt-3 mb-3">
                   {["ACCEPTED", "PREPARING"].includes(order.status) && (() => {
                     const separated = separatedItems[order.id] || [];
@@ -1000,8 +1022,13 @@ export default function OrdersPage() {
                       )
                     )}
 
-                    {/* Confirm pickup button - appears after deliverer confirms pickup */}
-                    {(order.status === "PICKED_UP" || order.status === "DELIVERING") && !order.vendorConfirmedPickupAt && (
+                    {/* Confirm pickup button - appears after deliverer confirms pickup.
+                        Em pedido COM código este botão não aparece: o servidor o
+                        recusa, e a coleta se fecha pelo cartão de códigos acima.
+                        A condição `!order.usaCodigoDeEntrega` é o que mantém o
+                        caminho antigo vivo para os pedidos criados antes do
+                        deploy — eles não têm código e só fecham por aqui. */}
+                    {!order.usaCodigoDeEntrega && (order.status === "PICKED_UP" || order.status === "DELIVERING") && !order.vendorConfirmedPickupAt && (
                       <button
                         onClick={() => handleVendorConfirmPickup(order.id)}
                         disabled={pickupOrders.has(order.id)}
@@ -1061,7 +1088,11 @@ export default function OrdersPage() {
                         {advancingOrders.has(order.id) ? "Processando..." :
                           order.status === "PENDING" ? "Aceitar pedido" :
                           order.status === "ACCEPTED" ? "Iniciar preparo" :
-                          order.status === "PREPARING" ? "Marcar como pronto" : ""}
+                          order.status === "PREPARING" ? "Marcar como pronto" :
+                          // READY sem entregador do app (proximoStatus -> DELIVERED):
+                          // o botao existia mas saia SEM TEXTO, e o lojista nao
+                          // tinha como saber que era por ali que fechava o pedido.
+                          order.status === "READY" ? (order.isPickup ? "Cliente retirou" : "Pedido entregue") : ""}
                       </button>
                     )}
                   </div>

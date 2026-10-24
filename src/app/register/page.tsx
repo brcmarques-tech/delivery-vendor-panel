@@ -53,6 +53,7 @@ Operada por BCM TECH, inscrita no CNPJ sob o n. 59.858.037/0001-06, com sede na 
 3. PAGAMENTOS E COMISSOES
 3.1. A Empresa cobra comissao conforme o plano contratado.
 3.2. Pagamentos processados pelo Pagar.me, intermediador autorizado pelo Banco Central do Brasil.
+3.3. As tarifas do meio de pagamento (cartao de credito e PIX) cobradas pelo Pagar.me em cada venda sao descontadas do valor repassado ao Vendedor.
 
 4. PROTECAO DE DADOS (LGPD)
 4.1. Os dados pessoais sao tratados conforme a Lei 13.709/2018 (LGPD).
@@ -340,7 +341,14 @@ export default function RegisterPage() {
     setError("");
     try {
       await verifyCodeMutation({
-        variables: { input: { value: phone.replace(/\D/g, ""), code, channel: "whatsapp" } },
+        // Se o WhatsApp falhou e o codigo saiu pelo fallback de e-mail, ele foi
+        // gravado sob a chave do e-mail: conferir pelo telefone dava sempre
+        // "Codigo nao encontrado" e o cadastro nao passava daqui.
+        variables: {
+          input: otpMethod === "email"
+            ? { value: email, code, channel: "email" }
+            : { value: phone.replace(/\D/g, ""), code, channel: "whatsapp" },
+        },
       });
       setStep(3);
     } catch (err: any) {

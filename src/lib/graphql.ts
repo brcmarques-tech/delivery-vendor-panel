@@ -100,6 +100,13 @@ export const GET_MY_STORES = gql`
       verificationLevel verificationScore totalSales totalProducts createdAt
       badgeClaimCount lastClaimedScore freePromoDaysCredit
       commissionReductionPercent commissionReductionExpiresAt
+      # KAN-82: myStores passou a incluir as lojas em que sou MEMBRO da
+      # equipe. Sem o dono na selecao, o painel nao distingue "minha loja" de
+      # "loja em que eu trabalho" — e o menu do DONO seria filtrado como se
+      # ele fosse funcionario sem permissao nenhuma.
+      owner { id }
+      # KAN-13: identidade visual da loja (nulo = tema da plataforma)
+      primaryColor backgroundColor textColor productLayout
       products { id name price isAvailable isActive stock imageUrl barcode isVariableWeight category { id name } }
       categories { id name requiresAgeVerification }
     }
@@ -131,6 +138,10 @@ export const UPDATE_STORE = gql`
       freeDeliveryAbove
       logoUrl
       bannerUrl
+      primaryColor
+      backgroundColor
+      textColor
+      productLayout
       latitude
       longitude
       storeType
@@ -144,6 +155,7 @@ export const GET_STORE_ORDERS = gql`
       id
       orderNumber
       status
+      paymentMethod
       total
       subtotal
       discount
@@ -152,6 +164,11 @@ export const GET_STORE_ORDERS = gql`
       updatedAt
       vendorConfirmedPickupAt
       isPickup
+      # O FATO de usar código, nunca o valor. Decide se o painel mostra o
+      # cartão de códigos ou o botão antigo de confirmar retirada — que o
+      # servidor recusa em pedido com código.
+      usaCodigoDeEntrega
+      codigoDaLojaJaRegistrado
       store {
         id
         name
@@ -1220,5 +1237,145 @@ export const SERVICE_RATINGS = gql`
 export const AVERAGE_STORE_RATING = gql`
   query AverageStoreRating($storeId: String!) {
     averageStoreRating(storeId: $storeId)
+  }
+`;
+
+// ─── Garantia de entrega por CÓDIGOS ─────────────────────────────────────
+//
+// O lojista tem DOIS papéis na coleta, e eles são opostos:
+//
+//   1. ele DITA o código da loja ao entregador, que o digita no app dele;
+//   2. ele DIGITA aqui o código que o entregador dita.
+//
+// A segunda metade é o que prova que a loja entregou aquele pedido ao
+// entregador certo — e é também a que está em discussão: há a opção de ficar
+// em dois códigos, com o entregador apenas recolhendo. Ver o comentário em
+// CartaoDeCodigos.tsx.
+//
+// `vendorConfirmPickup` continua existindo e segue sendo o caminho dos pedidos
+// SEM código (criados antes do deploy). Em pedido com código o servidor o
+// recusa, de propósito: era por ele que se contornavam os códigos.
+
+/** O código da loja, para o lojista ditar ao entregador. */
+export const CODIGO_DA_MINHA_LOJA = gql`
+  query CodigoDaMinhaLoja($orderId: String!) {
+    codigoDaMinhaLoja(orderId: $orderId)
+  }
+`;
+
+/** O lojista digita o código que o ENTREGADOR ditou. Fecha a coleta. */
+export const REGISTRAR_CODIGO_DO_ENTREGADOR = gql`
+  mutation RegistrarCodigoDoEntregador($orderId: String!, $codigo: String!) {
+    registrarCodigoDoEntregador(orderId: $orderId, codigo: $codigo) {
+      id
+      status
+      usaCodigoDeEntrega
+      codigoDaLojaJaRegistrado
+    }
+  }
+`;
+
+// ─── Equipe da loja (KAN-82) ───
+//
+// A loja tinha UMA conta: o dono passava a senha para o atendente, e com ela
+// iam recebimentos, dados bancarios e o poder de apagar a loja.
+
+export const EQUIPE_DA_LOJA = gql`
+  query EquipeDaLoja($storeId: String!) {
+    equipeDaLoja(storeId: $storeId) {
+      id
+      memberEmail
+      role
+      permissions
+      invitedAt
+      acceptedAt
+      revokedAt
+      member {
+        id
+        name
+        email
+      }
+    }
+  }
+`;
+
+export const MINHAS_EQUIPES = gql`
+  query MinhasEquipes {
+    minhasEquipes {
+      id
+      role
+      permissions
+      acceptedAt
+      store {
+        id
+        name
+      }
+    }
+  }
+`;
+
+export const CONVIDAR_MEMBRO = gql`
+  mutation ConvidarMembro(
+    $storeId: String!
+    $email: String!
+    $role: PapelNaEquipe!
+    $permissions: [ModuloDaLoja!]!
+  ) {
+    convidarMembro(
+      storeId: $storeId
+      email: $email
+      role: $role
+      permissions: $permissions
+    ) {
+      id
+      memberEmail
+      role
+      permissions
+      acceptedAt
+    }
+  }
+`;
+
+export const ATUALIZAR_MEMBRO = gql`
+  mutation AtualizarMembroDaEquipe(
+    $membroId: ID!
+    $permissions: [ModuloDaLoja!]!
+    $role: PapelNaEquipe
+  ) {
+    atualizarMembroDaEquipe(membroId: $membroId, permissions: $permissions, role: $role) {
+      id
+      permissions
+      role
+    }
+  }
+`;
+
+export const REVOGAR_MEMBRO = gql`
+  mutation RevogarMembroDaEquipe($membroId: ID!) {
+    revogarMembroDaEquipe(membroId: $membroId)
+  }
+`;
+
+export const ACEITAR_CONVITE = gql`
+  mutation AceitarConviteDeEquipe($token: String!) {
+    aceitarConviteDeEquipe(token: $token) {
+      id
+      acceptedAt
+      store {
+        id
+        name
+      }
+    }
+  }
+`;
+
+// Gera (ou reaproveita) o link para pagar o anúncio de uma promoção parada em
+// "Aguardando pagamento".
+export const PAGAR_ANUNCIO_DA_PROMOCAO = gql`
+  mutation PagarAnuncioDaPromocao($promotionId: String!) {
+    pagarAnuncioDaPromocao(promotionId: $promotionId) {
+      id
+      checkoutUrl
+    }
   }
 `;

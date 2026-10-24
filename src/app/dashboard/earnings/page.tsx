@@ -740,6 +740,15 @@ function EarningsDashboard() {
               <p>Quando disponivel, transfere para sua conta <strong>todo dia</strong>.</p>
             </div>
           </div>
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 bg-[var(--status-info-bg)] rounded-full flex items-center justify-center flex-shrink-0">
+              <span className="text-sm">&#128176;</span>
+            </div>
+            <div>
+              <p className="font-semibold text-[var(--text-primary)]">Tarifas do pagamento</p>
+              <p>A tarifa do Pagar.me de cada venda no <strong>cartao</strong> ou no <strong>PIX</strong> e descontada do valor que voce recebe, alem da comissao do seu plano.</p>
+            </div>
+          </div>
         </div>
       </Section>
 
