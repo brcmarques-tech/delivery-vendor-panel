@@ -107,7 +107,7 @@ export const GET_MY_STORES = gql`
       owner { id }
       # KAN-13: identidade visual da loja (nulo = tema da plataforma)
       primaryColor backgroundColor textColor productLayout
-      products { id name price isAvailable isActive stock imageUrl barcode isVariableWeight category { id name } }
+      products { id name price isAvailable isActive stock estoqueIlimitado imageUrl barcode isVariableWeight category { id name } }
       categories { id name requiresAgeVerification }
     }
   }

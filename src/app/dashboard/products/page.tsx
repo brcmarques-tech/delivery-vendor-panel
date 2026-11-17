@@ -1049,7 +1049,7 @@ export default function ProductsPage() {
           ) : (
             <button onClick={() => startInlineEdit(product.id, "stock", product.stock || 0)}
               className="cursor-pointer hover:bg-[var(--brand-primary)]/10 hover:text-[var(--brand-primary)] px-2 py-1 rounded-lg transition text-left">
-              {product.stock > 0 ? product.stock : <span className="text-[var(--text-muted)] text-xs">Ilimitado</span>}
+              {product.stock > 0 ? product.stock : product.estoqueIlimitado === false ? <span className="text-[var(--status-error-text)] text-xs font-semibold">Esgotado</span> : <span className="text-[var(--text-muted)] text-xs">Ilimitado</span>}
             </button>
           )}
         </td>
@@ -1181,7 +1181,7 @@ export default function ProductsPage() {
               ) : (
                 <button onClick={() => startInlineEdit(product.id, "stock", product.stock || 0)}
                   className="text-sm font-medium text-[var(--text-primary)] cursor-pointer hover:text-[var(--brand-primary)] transition">
-                  {product.stock > 0 ? product.stock : <span className="text-[var(--text-muted)] text-xs font-normal">Ilimitado</span>}
+                  {product.stock > 0 ? product.stock : product.estoqueIlimitado === false ? <span className="text-[var(--status-error-text)] text-xs font-semibold">Esgotado</span> : <span className="text-[var(--text-muted)] text-xs font-normal">Ilimitado</span>}
                 </button>
               )}
             </div>
