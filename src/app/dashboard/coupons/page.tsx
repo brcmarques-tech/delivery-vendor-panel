@@ -48,6 +48,7 @@ import {
   TOGGLE_COUPON_ACTIVE,
   DELETE_COUPON,
 } from "@/lib/graphql";
+import { LixeiraDaLoja } from "@/components/LixeiraDaLoja";
 
 interface Coupon {
   id: string;
@@ -229,6 +230,7 @@ export default function CouponsPage() {
         tourNotSeen={!hasSeenTour}
         actions={
           <div className="flex items-center gap-3">
+            <LixeiraDaLoja tipo="cupons" lojas={stores} lojaInicial={storeId} onRestaurado={() => refetch()} />
             {stores.length > 1 && (
               <select
                 value={storeId}

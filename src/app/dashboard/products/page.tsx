@@ -37,6 +37,7 @@ import { motion } from "framer-motion";
 import { fadeIn, staggerContainer, staggerItem, scaleIn } from "@/lib/motion";
 import { useTour } from "@/hooks/useTour";
 import { type DriveStep } from "driver.js";
+import { LixeiraDaLoja } from "@/components/LixeiraDaLoja";
 
 const TOUR_STEPS: DriveStep[] = [
   {
@@ -1311,8 +1312,11 @@ export default function ProductsPage() {
       {showCategoryForm && (
         <form onSubmit={handleCreateCategory} className="bg-[var(--bg-card)] rounded-2xl p-6 shadow-sm mb-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold text-[var(--text-primary)]">Nova categoria</h3>
-            <button onClick={() => setActivePanel("catalog")} className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] cursor-pointer">
+            <h3 className="font-bold text-[var(--text-primary)] flex-1">Nova categoria</h3>
+            <div className="mr-3">
+              <LixeiraDaLoja tipo="categorias" lojas={stores} lojaInicial={activeStoreId} onRestaurado={() => refetch()} />
+            </div>
+            <button type="button" onClick={() => setActivePanel("catalog")} className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] cursor-pointer">
               <X className="h-5 w-5" />
             </button>
           </div>

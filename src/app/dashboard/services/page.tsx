@@ -26,6 +26,7 @@ import { motion } from "framer-motion";
 import { fadeIn, staggerContainer, staggerItem, scaleIn } from "@/lib/motion";
 import { useTour } from "@/hooks/useTour";
 import { type DriveStep } from "driver.js";
+import { LixeiraDaLoja } from "@/components/LixeiraDaLoja";
 
 const TOUR_STEPS: DriveStep[] = [
   {
@@ -821,6 +822,8 @@ export default function ServicesPage() {
         tourNotSeen={!hasSeenTour}
         actions={
           activeTab === "services" ? (
+            <div className="flex items-center gap-3">
+            <LixeiraDaLoja tipo="servicos" lojas={stores} lojaInicial={activeStoreId} onRestaurado={() => refetchServices()} />
             <button
               data-tour="add-service-btn"
               onClick={() => {
@@ -832,6 +835,7 @@ export default function ServicesPage() {
               <Plus className="h-4 w-4" />
               Novo Servico
             </button>
+            </div>
           ) : undefined
         }
       />

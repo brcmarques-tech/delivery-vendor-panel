@@ -23,6 +23,7 @@ import { motion } from "framer-motion";
 import { fadeIn, staggerContainer, staggerItem, scaleIn } from "@/lib/motion";
 import { useTour } from "@/hooks/useTour";
 import { type DriveStep } from "driver.js";
+import { LixeiraDaLoja } from "@/components/LixeiraDaLoja";
 
 const TOUR_STEPS: DriveStep[] = [
   {
@@ -375,6 +376,8 @@ export default function PromotionsPage() {
         onTourStart={startTour}
         tourNotSeen={!hasSeenTour}
         actions={
+          <div className="flex items-center gap-3">
+          <LixeiraDaLoja tipo="promocoes" lojas={stores} onRestaurado={() => refetch()} />
           <button
             data-tour="create-promo-btn"
             onClick={() => setShowForm(!showForm)}
@@ -382,6 +385,7 @@ export default function PromotionsPage() {
           >
             {showForm ? "Cancelar" : "+ Nova Promoção"}
           </button>
+          </div>
         }
       />
 
